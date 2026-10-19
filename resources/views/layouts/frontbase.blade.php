@@ -1031,12 +1031,23 @@
 
         if (mode === 'per_slide' && headline) {
             var caption = (activeSlide.getAttribute('data-caption') || '').trim();
+            var lead = heroRoot.querySelector('.home-hero__lead');
+            var leadText = (activeSlide.getAttribute('data-lead') || '').trim();
             if (caption) {
                 headline.textContent = caption;
                 headline.style.display = '';
             } else {
                 headline.textContent = '';
                 headline.style.display = 'none';
+            }
+            if (lead) {
+                if (leadText) {
+                    lead.textContent = leadText;
+                    lead.style.display = '';
+                } else {
+                    lead.textContent = '';
+                    lead.style.display = 'none';
+                }
             }
         }
 

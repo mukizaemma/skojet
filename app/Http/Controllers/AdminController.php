@@ -86,25 +86,28 @@ class AdminController extends Controller
     }
 
     public function users(){
-        $users = User::all();
-        $setting = Setting::first();
-        return view('admin.users',[
-            'users'=>$users,
-            'setting'=>$setting
-        ]);
+        abort_unless(auth()->user()?->isSuperAdmin(), 403);
+
+        return redirect()->route('content-management.users');
     }
 
     public function makeAdmin($id){
-        $user = User::find($id);
-        $user->role = 1;
+        abort_unless(auth()->user()?->isSuperAdmin(), 403);
+
+        $user = User::findOrFail($id);
+        $adminRoleId = \App\Models\Role::where('slug', 'admin')->value('id');
+        abort_unless($adminRoleId, 500);
+        $user->role_id = $adminRoleId;
         $user->save();
 
-        return redirect()->back()->with('success','User is now an admin');
+        return redirect()->route('content-management.users')->with('success', 'User is now an Admin.');
     }
 
     
     public function deleteUser($id)
     {
+        abort_unless(auth()->user()?->isSuperAdmin(), 403);
+
         $post = User::findOrFail($id);
         $post->delete();
 

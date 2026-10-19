@@ -14,7 +14,7 @@
     <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
             <h5 class="mb-1">Users</h5>
-            <p class="text-muted small mb-0">Assign <strong>Admin</strong> (content only) or <strong>Normal User</strong> (no admin). Super Admin accounts are created via seeding only.</p>
+            <p class="text-muted small mb-0">Add a user, or open an existing account and set the role to <strong>Admin</strong> or <strong>Normal User</strong>. Admin can use this dashboard. Normal User cannot. Super Admin stays on the seeded account.</p>
         </div>
         @if(!empty($isManager))
         <button type="button" class="btn btn-primary" data-open-add-user-modal>

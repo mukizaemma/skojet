@@ -11,7 +11,8 @@
         ? $setting->home_hero_lead
         : site_trans('home.hero_lead');
     $firstSlide = ($slides ?? collect())->first();
-    $firstCaption = trim((string) ($firstSlide?->heading ?: $firstSlide?->subheading ?: ''));
+    $firstCaption = trim((string) ($firstSlide?->heading ?: ''));
+    $firstLead = trim((string) ($firstSlide?->subheading ?: ''));
     $initialPrimaryLabel = filled($firstSlide?->button) ? $firstSlide->button : $bookLabel;
     $initialPrimaryUrl = filled($firstSlide?->link) ? $firstSlide->link : $bookUrl;
     $initialPrimaryExternal = filled($firstSlide?->link) ? true : $bookExternal;
@@ -25,10 +26,12 @@
             <div class="swiper-wrapper">
                 @forelse ($slides as $index => $slide)
                 @php
-                    $caption = trim((string) ($slide->heading ?: $slide->subheading ?: ''));
+                    $caption = trim((string) ($slide->heading ?: ''));
+                    $lead = trim((string) ($slide->subheading ?: ''));
                 @endphp
                 <div class="swiper-slide"
                      data-caption="{{ $caption }}"
+                     data-lead="{{ $lead }}"
                      data-button-label="{{ $slide->button ?? '' }}"
                      data-button-link="{{ $slide->link ?? '' }}">
                     <div class="banner__slider__image">
@@ -99,6 +102,7 @@
                                     <p class="home-hero__lead">{{ $heroLead }}</p>
                                 @else
                                     <h1 class="home-hero__headline" @if($firstCaption === '') style="display:none" @endif>{{ $firstCaption }}</h1>
+                                    <p class="home-hero__lead" @if($firstLead === '') style="display:none" @endif>{{ $firstLead }}</p>
                                 @endif
                                 <div class="home-hero__actions">
                                     <a href="{{ $initialPrimaryUrl }}"

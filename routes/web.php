@@ -70,10 +70,8 @@ Route::middleware(['auth', 'admin'])->prefix('content-management')->name('conten
     Route::redirect('/seo-data/update', '/setting#seo');
     Route::redirect('/seo-data/store', '/setting#seo');
     
-    // System Users: only admin@iremetech.com — UI lives under Settings → Users tab.
-    Route::get('/users', function () {
-        return redirect()->to(route('setting').'#users');
-    })->name('users');
+    // System Users — Super Admin only.
+    Route::get('/users', [App\Http\Controllers\UserManagementController::class, 'index'])->name('users');
     Route::post('/users/store', [App\Http\Controllers\UserManagementController::class, 'store'])->name('users.store');
     Route::get('/users/{id}', [App\Http\Controllers\UserManagementController::class, 'show'])->name('users.show');
     Route::post('/users/{id}/update', [App\Http\Controllers\UserManagementController::class, 'update'])->name('users.update');
@@ -106,6 +104,11 @@ Route::middleware(['auth', 'admin'])->prefix('content-management')->name('conten
     Route::delete('/rooms/{id}', [App\Http\Controllers\RoomManagementController::class, 'destroy'])->name('rooms.destroy');
     Route::delete('/rooms/images/{id}', [App\Http\Controllers\RoomManagementController::class, 'deleteImage'])->name('rooms.delete-image');
     Route::post('/rooms/{id}/images', [App\Http\Controllers\RoomManagementController::class, 'addImages'])->name('rooms.add-images');
+
+    Route::get('/discounts', [App\Http\Controllers\RoomDiscountController::class, 'index'])->name('discounts');
+    Route::post('/discounts/store', [App\Http\Controllers\RoomDiscountController::class, 'store'])->name('discounts.store');
+    Route::post('/discounts/{id}/update', [App\Http\Controllers\RoomDiscountController::class, 'update'])->name('discounts.update');
+    Route::delete('/discounts/{id}', [App\Http\Controllers\RoomDiscountController::class, 'destroy'])->name('discounts.destroy');
     
     // Facilities - Full CRUD
     Route::get('/facilities', function () {

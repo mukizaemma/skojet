@@ -365,16 +365,10 @@ class PagesController extends Controller
     {
         $request->validate([
             'title' => 'nullable|string|max:255',
-            'description' => 'nullable|string',
-            'cuisine_section_title' => 'nullable|string|max:255',
-            'cuisine_section_lead' => 'nullable|string|max:2000',
         ]);
 
         $data = Restaurant::findOrFail($id);
         $data->title = $request->input('title');
-        $data->description = $request->input('description');
-        $data->cuisine_section_title = $request->input('cuisine_section_title');
-        $data->cuisine_section_lead = $request->input('cuisine_section_lead');
         $data->save();
 
         return redirect()->back()->with('success', 'Page has been updated successfully');

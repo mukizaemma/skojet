@@ -1,328 +1,443 @@
 <div class="public-livewire-page book-now-page">
     @php
         $setting = $setting ?? \App\Models\Setting::first();
+        $guestCount = (int) $adults + (int) $children;
     @endphp
 
-    <section class="book-wizard section__padding">
+    <section class="book-channel section__padding">
         <div class="container">
-            <div class="book-wizard__intro text-center mb-40 mb-lg-50">
-                <h1 class="book-wizard__page-title">{{ site_trans('booking.wizard_title') }}</h1>
-                <p class="book-wizard__page-lead">{{ site_trans('booking.wizard_lead') }}</p>
-            </div>
-
             @if($submitted)
-                <div class="book-wizard__success text-center">
-                    <div class="book-wizard__success-icon" aria-hidden="true"><i class="fa-solid fa-circle-check"></i></div>
-                    <h2 class="book-wizard__success-title">{{ site_trans('booking.wizard_success_title') }}</h2>
-                    <p class="book-wizard__success-lead">{{ site_trans('booking.wizard_success_lead') }}</p>
+                <div class="book-channel__success text-center">
+                    <div class="book-channel__success-icon" aria-hidden="true"><i class="fa-solid fa-circle-check"></i></div>
+                    <h1>{{ site_trans('booking.wizard_success_title') }}</h1>
+                    <p>{{ site_trans('booking.wizard_success_lead') }}</p>
                     @if($submittedBookingId)
-                        <p class="book-wizard__success-ref">{{ site_trans('booking.wizard_success_ref', ['id' => $submittedBookingId]) }}</p>
+                        <p class="book-channel__ref">{{ site_trans('booking.wizard_success_ref', ['id' => $submittedBookingId]) }}</p>
                     @endif
                     @if($guestEmailSent)
-                        <p class="book-wizard__success-email">A confirmation email was sent to <strong>{{ $email }}</strong>.</p>
+                        <p>A confirmation email was sent to <strong>{{ $email }}</strong>.</p>
                     @else
-                        <p class="book-wizard__success-email">We saved your request. If you do not receive an email shortly, contact us and quote your reference.</p>
+                        <p>We saved your request. If you do not receive an email shortly, contact us and quote your reference.</p>
                     @endif
-                    <div class="book-wizard__success-actions">
-                        <a wire:navigate href="{{ localized_route('home') }}" class="theme-btn btn-style fill">
-                            <span>{{ site_trans('nav.home') }}</span>
-                        </a>
-                        <a wire:navigate href="{{ localized_route('activities') }}" class="theme-btn btn-style border">
-                            <span>{{ site_trans('home.explore_experiences') }}</span>
-                        </a>
+                    @if($whatsappUrl)
+                        <p><a href="{{ $whatsappUrl }}" target="_blank" rel="noopener noreferrer">Open WhatsApp with this reservation</a></p>
+                    @endif
+                    <a wire:navigate href="{{ localized_route('home') }}" class="theme-btn btn-style fill">
+                        <span>{{ site_trans('nav.home') }}</span>
+                    </a>
+                </div>
+            @elseif($step === 2 && $selectedRoom)
+                <div class="book-channel__checkout">
+                    <button type="button" class="book-channel__back" wire:click="backToRooms">
+                        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> {{ site_trans('booking.channel_back') }}
+                    </button>
+                    <h1>{{ site_trans('booking.channel_checkout') }}</h1>
+
+                    <div class="book-channel__checkout-grid">
+                        <div class="book-channel__panel">
+                            <h2>{{ site_trans('booking.channel_contact') }}</h2>
+                            <p class="book-channel__note">{{ site_trans('booking.channel_email_note') }}</p>
+
+                            <div class="book-channel__fields">
+                                <label>
+                                    <span>{{ site_trans('booking.channel_first_name') }} *</span>
+                                    <input type="text" wire:model="first_name" autocomplete="given-name">
+                                    @error('first_name') <small>{{ $message }}</small> @enderror
+                                </label>
+                                <label>
+                                    <span>{{ site_trans('booking.channel_last_name') }} *</span>
+                                    <input type="text" wire:model="last_name" autocomplete="family-name">
+                                    @error('last_name') <small>{{ $message }}</small> @enderror
+                                </label>
+                                <label>
+                                    <span>{{ site_trans('booking.form_phone') }} *</span>
+                                    <input type="tel" wire:model="phone" autocomplete="tel">
+                                    @error('phone') <small>{{ $message }}</small> @enderror
+                                </label>
+                                <label>
+                                    <span>{{ site_trans('booking.form_email') }} *</span>
+                                    <input type="email" wire:model="email" autocomplete="email">
+                                    @error('email') <small>{{ $message }}</small> @enderror
+                                </label>
+                                <label class="is-wide">
+                                    <span>{{ site_trans('booking.form_country') }} *</span>
+                                    <input type="text" wire:model="country" autocomplete="country-name">
+                                    @error('country') <small>{{ $message }}</small> @enderror
+                                </label>
+                                <label class="is-wide">
+                                    <span>{{ site_trans('booking.channel_address') }}</span>
+                                    <input type="text" wire:model="address" autocomplete="street-address">
+                                </label>
+                                <label>
+                                    <span>City</span>
+                                    <input type="text" wire:model="city" autocomplete="address-level2">
+                                </label>
+                                <label>
+                                    <span>Postal code</span>
+                                    <input type="text" wire:model="postal_code" autocomplete="postal-code">
+                                </label>
+                                <label class="is-wide">
+                                    <span>{{ site_trans('booking.channel_requests') }}</span>
+                                    <textarea wire:model="message" rows="3"></textarea>
+                                </label>
+                            </div>
+
+                            <div class="book-channel__policies">
+                                <h2>{{ site_trans('booking.channel_policies') }}</h2>
+                                <p>{{ site_trans('booking.channel_policy') }}</p>
+                            </div>
+
+                            <label class="book-channel__terms">
+                                <input type="checkbox" wire:model="agree_terms">
+                                <span>{{ site_trans('booking.channel_terms') }} *</span>
+                            </label>
+                            @error('agree_terms') <small class="book-channel__error">{{ $message }}</small> @enderror
+                            @error('room_id') <small class="book-channel__error">{{ $message }}</small> @enderror
+                            @error('room_count') <small class="book-channel__error">{{ $message }}</small> @enderror
+
+                            <div class="book-channel__submit">
+                                <button type="button" class="theme-btn btn-style fill" wire:click="submitReservation('email')" wire:loading.attr="disabled" wire:target="submitReservation">
+                                    <span><i class="fa-solid fa-envelope" aria-hidden="true"></i> {{ site_trans('booking.channel_send_email') }}</span>
+                                </button>
+                                @if($hasWhatsapp)
+                                    <button type="button" class="theme-btn btn-style border book-channel__whatsapp" wire:click="submitReservation('whatsapp')" wire:loading.attr="disabled" wire:target="submitReservation">
+                                        <span><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> {{ site_trans('booking.channel_send_whatsapp') }}</span>
+                                    </button>
+                                @endif
+                            </div>
+                        </div>
+
+                        <aside class="book-channel__panel book-channel__price">
+                            <h2>{{ site_trans('booking.channel_price') }}</h2>
+                            <p class="book-channel__suite">{{ $selectedRoom->title }}</p>
+                            <p class="book-channel__meta">
+                                {{ \Carbon\Carbon::parse($checkin)->format('D, M j, Y') }}
+                                – {{ \Carbon\Carbon::parse($checkout)->format('D, M j, Y') }}
+                            </p>
+                            <p class="book-channel__meta">{{ $nights }} {{ $nights === 1 ? 'night' : 'nights' }} · {{ site_trans('booking.channel_guests_line', ['count' => $guestCount]) }}</p>
+
+                            <dl>
+                                <div>
+                                    <dt>{{ site_trans('booking.channel_standard') }}</dt>
+                                    <dd>{{ hotel_price($selectedQuote['list_total'] ?? 0, $setting) }}</dd>
+                                </div>
+                                @if(!empty($selectedQuote['has_discount']))
+                                    <div>
+                                        <dt>{{ site_trans('booking.channel_discount') }}@if(filled($selectedQuote['label'] ?? '')) ({{ $selectedQuote['label'] }})@endif</dt>
+                                        <dd>-{{ hotel_price($selectedQuote['discount_total'] ?? 0, $setting) }}</dd>
+                                    </div>
+                                @endif
+                                <div>
+                                    <dt>{{ site_trans('booking.channel_taxes') }}</dt>
+                                    <dd>{{ hotel_price(0, $setting) }}</dd>
+                                </div>
+                            </dl>
+                            <div class="book-channel__total">
+                                <span>{{ site_trans('booking.channel_total') }}</span>
+                                <strong>{{ hotel_price($selectedQuote['total'] ?? $estimatedTotal, $setting) }}</strong>
+                            </div>
+                        </aside>
                     </div>
                 </div>
             @else
-                <ol class="book-wizard__steps list-unstyled">
-                    @foreach ([1 => 'stay', 2 => 'guest', 3 => 'confirm'] as $num => $key)
-                    <li class="book-wizard__step {{ $step === $num ? 'is-current' : '' }} {{ $step > $num ? 'is-done' : '' }}">
-                        <span class="book-wizard__step-num">{{ $num }}</span>
-                        <span class="book-wizard__step-label">{{ site_trans('booking.wizard_step_'.$key) }}</span>
-                    </li>
-                    @endforeach
-                </ol>
+                <div class="book-channel__pick">
+                <div
+                    class="book-channel__bar"
+                    x-data="bookingStayBar(@js($checkin), @js($checkout))"
+                    @click.outside="open = null"
+                    @keydown.escape.window="open = null"
+                >
+                    <button type="button" class="book-channel__field" :class="{ 'is-open': open === 'guests' }" @click="open = open === 'guests' ? null : 'guests'">
+                        <span>{{ site_trans('booking.channel_guests') }}</span>
+                        <strong>{{ $guestCount }} {{ $guestCount === 1 ? site_trans('booking.channel_guest') : site_trans('booking.channel_guests_word') }}, {{ (int) $room_count }} {{ (int) $room_count === 1 ? site_trans('booking.channel_room') : site_trans('booking.channel_rooms') }}</strong>
+                    </button>
+                    <button type="button" class="book-channel__field" :class="{ 'is-open': open === 'dates' }" @click="openCalendar()">
+                        <span>{{ site_trans('booking.form_checkin') }}</span>
+                        <strong>{{ \Carbon\Carbon::parse($checkin)->format('D, M j, Y') }}</strong>
+                    </button>
+                    <button type="button" class="book-channel__field" :class="{ 'is-open': open === 'dates' }" @click="openCalendar()">
+                        <span>{{ site_trans('booking.form_checkout') }}</span>
+                        <strong>{{ \Carbon\Carbon::parse($checkout)->format('D, M j, Y') }}</strong>
+                    </button>
 
-                <div class="row g-4 g-xl-5 align-items-start">
-                    <div class="col-lg-7">
-                        <div class="book-wizard__card">
-                            @if ($errors->any())
-                                <div class="book-wizard__errors" role="alert">
-                                    <ul class="mb-0">
-                                        @foreach ($errors->all() as $error)
-                                            <li>{{ $error }}</li>
-                                        @endforeach
-                                    </ul>
-                                </div>
+                    <div class="book-channel__bar-foot">
+                        <p>
+                            <strong>{{ (int) $nights === 1 ? site_trans('booking.channel_nights_one', ['count' => $nights]) : site_trans('booking.channel_nights_many', ['count' => $nights]) }}</strong>
+                            <span>·</span>
+                            @if(!empty($selectedQuote['has_discount']))
+                                <s>{{ hotel_price($selectedQuote['list_total'] ?? 0, $setting) }}</s>
                             @endif
-
-                            @if($step === 1)
-                                <h2 class="book-wizard__card-title">{{ site_trans('booking.wizard_stay_title') }}</h2>
-                                <p class="book-wizard__card-lead">{{ site_trans('booking.wizard_stay_lead') }}</p>
-
-                                <div class="row g-3">
-                                    <div class="col-12">
-                                        <fieldset class="book-wizard__party">
-                                            <legend class="form-label mb-2">{{ site_trans('booking.form_party_type') }}</legend>
-                                            <div class="book-wizard__party-options">
-                                                <label class="book-wizard__radio">
-                                                    <input type="radio" wire:model.live="party_type" value="individual">
-                                                    <span>
-                                                        <strong>{{ site_trans('booking.party_individual') }}</strong>
-                                                        <small>{{ site_trans('booking.party_individual_help') }}</small>
-                                                    </span>
-                                                </label>
-                                                <label class="book-wizard__radio">
-                                                    <input type="radio" wire:model.live="party_type" value="group">
-                                                    <span>
-                                                        <strong>{{ site_trans('booking.party_group') }}</strong>
-                                                        <small>{{ site_trans('booking.party_group_help') }}</small>
-                                                    </span>
-                                                </label>
-                                            </div>
-                                        </fieldset>
-                                        @error('party_type') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                    </div>
-
-                                    @if($party_type === 'group')
-                                        <div class="col-12">
-                                            <p class="book-wizard__group-note mb-0">{{ site_trans('booking.group_availability_note') }}</p>
-                                        </div>
-                                    @endif
-
-                                    <div class="col-12">
-                                        <label class="form-label" for="wizard-room">{{ site_trans('booking.form_room') }}</label>
-                                        <select wire:model.live="room_id" id="wizard-room" class="form-select @error('room_id') is-invalid @enderror">
-                                            <option value="">{{ site_trans('booking.form_room_placeholder') }}</option>
-                                            @foreach($availableRooms as $room)
-                                                <option value="{{ $room->id }}">
-                                                    {{ $room->title }} — {{ hotel_price($room->price ?? 0, $setting) }}
-                                                    ({{ site_trans('booking.form_room_option_meta', [
-                                                        'rooms' => (int) ($room->number_of_rooms ?? 1),
-                                                        'guests' => (int) ($room->max_occupancy ?? 1),
-                                                    ]) }})
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        @error('room_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                    </div>
-
-                                    @if($selectedRoom && $datesReady && ($roomsAvailable ?? 0) < 1)
-                                        <div class="col-12">
-                                            <aside class="book-wizard__capacity-note book-wizard__capacity-note--warn" aria-live="polite">
-                                                <p class="mb-0">{{ site_trans('booking.capacity_dates_full') }}</p>
-                                            </aside>
-                                        </div>
-                                    @endif
-
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="wizard-checkin">{{ site_trans('booking.form_checkin') }}</label>
-                                        <input wire:model.live="checkin" type="date" id="wizard-checkin" class="form-control @error('checkin') is-invalid @enderror" min="{{ now()->toDateString() }}">
-                                        @error('checkin') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="wizard-checkout">{{ site_trans('booking.form_checkout') }}</label>
-                                        <input wire:model.live="checkout" type="date" id="wizard-checkout" class="form-control @error('checkout') is-invalid @enderror" min="{{ $checkin ?: now()->toDateString() }}">
-                                        @error('checkout') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label @error('adults') text-danger @enderror" for="wizard-adults">{{ site_trans('booking.form_adults') }}</label>
-                                        <input
-                                            wire:model.live="adults"
-                                            type="number"
-                                            min="1"
-                                            max="{{ $party_type === 'group' ? 120 : 20 }}"
-                                            id="wizard-adults"
-                                            class="form-control @error('adults') is-invalid @enderror"
-                                            @disabled($selectedRoom && $datesReady && ($roomsAvailable ?? 1) < 1)
-                                        >
-                                        @error('adults') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label @error('children') text-danger @enderror" for="wizard-children">{{ site_trans('booking.form_children') }}</label>
-                                        <input
-                                            wire:model.live="children"
-                                            type="number"
-                                            min="0"
-                                            max="{{ $party_type === 'group' ? 60 : 20 }}"
-                                            id="wizard-children"
-                                            class="form-control @error('children') is-invalid @enderror"
-                                            @disabled($selectedRoom && $datesReady && ($roomsAvailable ?? 1) < 1)
-                                        >
-                                        @error('children') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label @error('room_count') text-danger @enderror" for="wizard-rooms">{{ site_trans('booking.form_rooms') }}</label>
-                                        <input
-                                            wire:model.live="room_count"
-                                            type="number"
-                                            min="1"
-                                            max="{{ $party_type === 'group' ? 200 : 20 }}"
-                                            id="wizard-rooms"
-                                            class="form-control @error('room_count') is-invalid @enderror"
-                                            @disabled($selectedRoom && $datesReady && ($roomsAvailable ?? 1) < 1)
-                                        >
-                                        @error('room_count') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                    </div>
-                                </div>
-                            @elseif($step === 2)
-                                <h2 class="book-wizard__card-title">{{ site_trans('booking.wizard_guest_title') }}</h2>
-                                <p class="book-wizard__card-lead">
-                                    {{ $party_type === 'group' ? site_trans('booking.wizard_guest_lead_group') : site_trans('booking.wizard_guest_lead') }}
-                                </p>
-                                <div class="row g-3">
-                                    <div class="col-12">
-                                        <label class="form-label" for="wizard-names">{{ $party_type === 'group' ? site_trans('booking.form_contact_name') : site_trans('booking.form_name') }}</label>
-                                        <input wire:model="names" type="text" id="wizard-names" class="form-control @error('names') is-invalid @enderror" autocomplete="name">
-                                        @error('names') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="wizard-phone">{{ site_trans('booking.form_phone') }} *</label>
-                                        <input wire:model="phone" type="tel" id="wizard-phone" class="form-control @error('phone') is-invalid @enderror" placeholder="+250 7XX XXX XXX" autocomplete="tel">
-                                        @error('phone') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="wizard-email">{{ site_trans('booking.form_email') }}</label>
-                                        <input wire:model="email" type="email" id="wizard-email" class="form-control @error('email') is-invalid @enderror" autocomplete="email">
-                                        @error('email') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="wizard-country">{{ site_trans('booking.form_country') }}</label>
-                                        <input wire:model="country" type="text" id="wizard-country" class="form-control @error('country') is-invalid @enderror" autocomplete="country-name" placeholder="{{ site_trans('booking.form_country_placeholder') }}">
-                                        @error('country') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="wizard-reason">{{ site_trans('booking.form_stay_reason') }}</label>
-                                        <select wire:model="stay_reason" id="wizard-reason" class="form-select @error('stay_reason') is-invalid @enderror">
-                                            <option value="">{{ site_trans('booking.form_stay_reason_placeholder') }}</option>
-                                            @foreach($stayReasons as $value => $label)
-                                                <option value="{{ $value }}">{{ $label }}</option>
-                                            @endforeach
-                                        </select>
-                                        @error('stay_reason') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label" for="wizard-message">{{ site_trans('booking.form_message_optional') }}</label>
-                                        <textarea wire:model="message" id="wizard-message" rows="4" class="form-control @error('message') is-invalid @enderror" placeholder="{{ $party_type === 'group' ? site_trans('booking.form_message_group_placeholder') : '' }}"></textarea>
-                                        @error('message') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                    </div>
-                                </div>
-                            @else
-                                <h2 class="book-wizard__card-title">{{ site_trans('booking.wizard_confirm_title') }}</h2>
-                                <p class="book-wizard__card-lead">{{ site_trans('booking.wizard_confirm_lead') }}</p>
-
-                                <dl class="book-wizard__review">
-                                    <div><dt>{{ site_trans('booking.form_party_type') }}</dt><dd>{{ $party_type === 'group' ? site_trans('booking.party_group') : site_trans('booking.party_individual') }}</dd></div>
-                                    <div><dt>{{ site_trans('booking.form_room') }}</dt><dd>{{ $selectedRoom?->title ?? '—' }}</dd></div>
-                                    <div><dt>{{ site_trans('booking.wizard_dates') }}</dt><dd>{{ $checkin }} → {{ $checkout }}</dd></div>
-                                    <div><dt>{{ site_trans('booking.wizard_guests') }}</dt><dd>{{ $adults }} {{ site_trans('booking.form_adults') }}, {{ $children }} {{ site_trans('booking.form_children') }} · {{ $room_count }} {{ site_trans('booking.wizard_rooms_short') }}</dd></div>
-                                    <div><dt>{{ site_trans('booking.form_name') }}</dt><dd>{{ $names }}</dd></div>
-                                    <div><dt>{{ site_trans('booking.form_country') }}</dt><dd>{{ $country }}</dd></div>
-                                    <div><dt>{{ site_trans('booking.form_stay_reason') }}</dt><dd>{{ \App\Support\BookingStayReasons::label($stay_reason) }}</dd></div>
-                                    <div><dt>{{ site_trans('booking.form_phone') }}</dt><dd>{{ $phone }}</dd></div>
-                                    <div><dt>{{ site_trans('booking.form_email') }}</dt><dd>{{ $email }}</dd></div>
-                                    <div><dt>{{ site_trans('booking.wizard_total') }}</dt><dd class="book-wizard__total">{{ hotel_price($estimatedTotal, $setting) }}</dd></div>
-                                </dl>
-
-                                <fieldset class="book-wizard__confirm-via">
-                                    <legend>{{ site_trans('booking.wizard_confirm_via_title') }}</legend>
-                                    <div class="book-wizard__confirm-via-options">
-                                        <label class="book-wizard__radio">
-                                            <input type="radio" wire:model="confirm_via" value="email">
-                                            <span>
-                                                <strong>{{ site_trans('booking.wizard_confirm_email') }}</strong>
-                                                <small>{{ site_trans('booking.wizard_confirm_email_help') }}</small>
-                                            </span>
-                                        </label>
-                                        @if($hasWhatsapp)
-                                        <label class="book-wizard__radio">
-                                            <input type="radio" wire:model="confirm_via" value="whatsapp">
-                                            <span>
-                                                <strong>{{ site_trans('booking.wizard_confirm_whatsapp') }}</strong>
-                                                <small>{{ site_trans('booking.wizard_confirm_whatsapp_help') }}</small>
-                                            </span>
-                                        </label>
-                                        @endif
-                                    </div>
-                                    @error('confirm_via') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                                </fieldset>
-
-                                <label class="book-wizard__terms">
-                                    <input type="checkbox" wire:model="agree_terms">
-                                    <span>{{ site_trans('booking.wizard_terms') }}</span>
-                                </label>
-                                @error('agree_terms') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                            <strong>{{ hotel_price($selectedQuote['total'] ?? 0, $setting) }}</strong>
+                            @if($selectedRoom)
+                                <span>{{ $selectedRoom->title }}</span>
                             @endif
+                        </p>
+                        <button type="button" class="book-channel__cancel" wire:click="cancelStay">{{ site_trans('booking.channel_cancel') }}</button>
+                    </div>
 
-                            <div class="book-wizard__nav">
-                                @if($step > 1)
-                                    <button type="button" class="book-wizard__btn book-wizard__btn--ghost" wire:click="previousStep">
-                                        {{ site_trans('booking.wizard_back') }}
-                                    </button>
-                                @else
-                                    <span></span>
-                                @endif
-
-                                @if($step < 3)
-                                    <button
-                                        type="button"
-                                        class="book-wizard__btn book-wizard__btn--primary"
-                                        wire:click="nextStep"
-                                        wire:loading.attr="disabled"
-                                        @disabled($step === 1 && $selectedRoom && ($roomsAvailable ?? 1) < 1)
-                                    >
-                                        <span wire:loading.remove wire:target="nextStep">{{ site_trans('booking.wizard_continue') }}</span>
-                                        <span wire:loading wire:target="nextStep">{{ site_trans('booking.wizard_submitting') }}</span>
-                                    </button>
-                                @else
-                                    <button type="button" class="book-wizard__btn book-wizard__btn--primary" wire:click="confirmBooking" wire:loading.attr="disabled">
-                                        <span wire:loading.remove wire:target="confirmBooking">{{ site_trans('booking.wizard_confirm_button') }}</span>
-                                        <span wire:loading wire:target="confirmBooking">{{ site_trans('booking.wizard_submitting') }}</span>
-                                    </button>
-                                @endif
-                            </div>
+                    <div class="book-channel__popover book-channel__guests" x-show="open === 'guests'" x-cloak>
+                        <p class="book-channel__popover-title">{{ site_trans('booking.channel_guests') }}</p>
+                        <p class="book-channel__room-label">{{ site_trans('booking.channel_room') }} {{ (int) $room_count > 1 ? '1–'.(int) $room_count : '1' }}</p>
+                        <div class="book-channel__stepper">
+                            <span>{{ site_trans('booking.channel_adults_ages') }}</span>
+                            <strong>{{ (int) $adults }}</strong>
+                            <button type="button" wire:click="adjustGuests('adults', -1)" @disabled((int) $adults <= 1) aria-label="Fewer adults">−</button>
+                            <button type="button" wire:click="adjustGuests('adults', 1)" @disabled((int) $adults >= 20) aria-label="More adults">+</button>
+                        </div>
+                        <div class="book-channel__stepper">
+                            <span>{{ site_trans('booking.channel_children_ages') }}</span>
+                            <strong>{{ (int) $children }}</strong>
+                            <button type="button" wire:click="adjustGuests('children', -1)" @disabled((int) $children <= 0) aria-label="Fewer children">−</button>
+                            <button type="button" wire:click="adjustGuests('children', 1)" @disabled((int) $children >= 20) aria-label="More children">+</button>
+                        </div>
+                        <button type="button" class="book-channel__add-room" wire:click="adjustGuests('room_count', 1)" @disabled((int) $room_count >= 20)>{{ site_trans('booking.channel_add_room') }}</button>
+                        @if((int) $room_count > 1)
+                            <button type="button" class="book-channel__add-room" wire:click="adjustGuests('room_count', -1)">{{ site_trans('booking.channel_remove_room') }}</button>
+                        @endif
+                        <div class="book-channel__popover-actions">
+                            <button type="button" class="theme-btn btn-style fill" @click="open = null"><span>{{ site_trans('booking.channel_done') }}</span></button>
                         </div>
                     </div>
 
-                    <aside class="col-lg-5">
-                        <div class="book-wizard__summary">
-                            <h3 class="book-wizard__summary-title">{{ site_trans('booking.wizard_summary_title') }}</h3>
-                            <p class="book-wizard__summary-dates">
-                                {{ $checkin ?: '—' }} → {{ $checkout ?: '—' }}
-                                @if($nights > 0) · {{ site_trans('booking.wizard_nights', ['count' => $nights]) }} @endif
-                            </p>
-
-                            @if($selectedRoom)
-                                <div class="book-wizard__summary-room">
-                                    <strong>{{ $selectedRoom->title }}</strong>
-                                    <span>{{ $party_type === 'group' ? site_trans('booking.party_group') : site_trans('booking.party_individual') }} · {{ $room_count }} {{ site_trans('booking.wizard_rooms_short') }}</span>
-                                    <span>{{ $adults }} {{ site_trans('booking.form_adults') }}, {{ $children }} {{ site_trans('booking.form_children') }}</span>
-                                    <span>{{ hotel_price($estimatedTotal, $setting) }}</span>
+                    <div class="book-channel__popover book-channel__calendar" x-show="open === 'dates'" x-cloak>
+                        <div class="book-channel__months">
+                            <template x-for="(month, monthIndex) in months" :key="month.key">
+                                <div class="book-channel__month">
+                                    <div class="book-channel__month-head">
+                                        <button type="button" x-show="monthIndex === 0" @click="shiftMonth(-1)" aria-label="Previous month">‹</button>
+                                        <strong x-text="month.label"></strong>
+                                        <button type="button" x-show="monthIndex === 1" @click="shiftMonth(1)" aria-label="Next month">›</button>
+                                    </div>
+                                    <div class="book-channel__weekdays">
+                                        <template x-for="dayName in weekdayLabels" :key="dayName">
+                                            <span x-text="dayName"></span>
+                                        </template>
+                                    </div>
+                                    <div class="book-channel__days">
+                                        <template x-for="(day, dayIndex) in month.days" :key="month.key + '-' + dayIndex">
+                                            <button
+                                                type="button"
+                                                class="book-channel__day"
+                                                :class="{
+                                                    'is-empty': !day,
+                                                    'is-disabled': day && day.disabled,
+                                                    'is-start': day && day.iso === checkin,
+                                                    'is-end': day && day.iso === checkout,
+                                                    'is-range': day && day.inRange
+                                                }"
+                                                :disabled="!day || day.disabled"
+                                                @click="day && pick(day.iso)"
+                                            >
+                                                <span x-text="day ? day.number : ''"></span>
+                                            </button>
+                                        </template>
+                                    </div>
                                 </div>
-                            @else
-                                <p class="book-wizard__summary-empty">{{ site_trans('booking.wizard_summary_empty') }}</p>
-                            @endif
-
-                            <div class="book-wizard__summary-total">
-                                <span>{{ site_trans('booking.wizard_total') }}</span>
-                                <strong>{{ hotel_price($estimatedTotal, $setting) }}</strong>
-                            </div>
-
-                            <div class="book-wizard__summary-help">
-                                @if(filled($publicPhone))
-                                    <a href="tel:{{ preg_replace('/\s+/', '', $publicPhone) }}"><i class="fa-solid fa-phone" aria-hidden="true"></i> {{ $publicPhone }}</a>
-                                @endif
-                                @if(filled($publicEmail))
-                                    <a href="mailto:{{ $publicEmail }}" data-no-spa-navigate><i class="fa-solid fa-envelope" aria-hidden="true"></i> {{ $publicEmail }}</a>
-                                @endif
-                            </div>
+                            </template>
                         </div>
-                    </aside>
+                        <div class="book-channel__calendar-foot">
+                            <p>
+                                <strong>{{ (int) $nights === 1 ? site_trans('booking.channel_nights_one', ['count' => $nights]) : site_trans('booking.channel_nights_many', ['count' => $nights]) }}</strong>
+                                · {{ hotel_price($selectedQuote['total'] ?? 0, $setting) }}
+                            </p>
+                            <button type="button" class="book-channel__cancel" wire:click="cancelStay" @click="open = null">{{ site_trans('booking.channel_cancel') }}</button>
+                            <button type="button" class="theme-btn btn-style fill" @click="open = null"><span>{{ site_trans('booking.channel_done') }}</span></button>
+                        </div>
+                    </div>
+                </div>
+
+                <aside class="book-channel__panel book-channel__offers">
+                    <h2>{{ site_trans('booking.channel_offers') }}</h2>
+                    @forelse($activeDiscounts as $offer)
+                        <article class="book-channel__offer">
+                            <strong>{{ $offer->title }}</strong>
+                            <span>
+                                @if($offer->discount_type === 'percent')
+                                    {{ rtrim(rtrim(number_format((float) $offer->amount, 2), '0'), '.') }}%
+                                @else
+                                    {{ hotel_price($offer->amount, $setting) }}
+                                @endif
+                                {{ site_trans('booking.channel_offer_night') }}
+                            </span>
+                            <em>{{ $offer->room?->title ?: site_trans('booking.channel_offer_all') }}</em>
+                            <small>{{ $offer->starts_on?->format('M j, Y') }} – {{ $offer->ends_on?->format('M j, Y') }}</small>
+                        </article>
+                    @empty
+                        <p class="book-channel__meta">{{ site_trans('booking.channel_no_offer') }}</p>
+                    @endforelse
+                </aside>
+
+                <div class="book-channel__rooms">
+                @foreach($errors->all() as $error)
+                    <small class="book-channel__error">{{ $error }}</small>
+                @endforeach
+
+                <div class="book-channel__heading">
+                    <h1>{{ site_trans('booking.channel_title') }}</h1>
+                    <p>{{ site_trans('booking.channel_lead') }}</p>
+                </div>
+
+                <div class="book-channel__list">
+                    @forelse($availableRooms as $room)
+                        @php
+                            $stay = $availabilityByRoom[$room->id] ?? [];
+                            $quote = $quotes[$room->id] ?? [];
+                            $sleeps = max(1, (int) ($room->max_occupancy ?? 2));
+                            $canBook = ($stay['dates_ready'] ?? false)
+                                && (int) ($stay['available'] ?? 0) >= 1
+                                && $guestCount <= $sleeps
+                                && $nights >= 1;
+                            $image = $room->cover_image ?: $room->image;
+                            $bedType = trim((string) ($room->bed_type ?? ''));
+                            $bedCount = (int) ($room->bed_count ?? 0);
+                            $beds = $bedType !== ''
+                                ? trim(($bedCount > 0 ? $bedCount.' ' : '').$bedType)
+                                : ($bedCount > 1 ? $bedCount.' beds' : '');
+                        @endphp
+                        <article class="book-channel__card {{ (int) $room_id === (int) $room->id ? 'is-selected' : '' }}" wire:click="chooseRoom({{ $room->id }})">
+                            <div class="book-channel__photo">
+                                @if($image)
+                                    <img src="{{ asset('storage/'.$image) }}" alt="{{ $room->title }}">
+                                @endif
+                            </div>
+                            <div class="book-channel__copy">
+                                <h2>{{ $room->title }}</h2>
+                                <p class="book-channel__facts">
+                                    @if($beds !== '')<span>{{ $beds }}</span>@endif
+                                    <span>{{ site_trans('booking.channel_sleeps', ['count' => $sleeps]) }}</span>
+                                </p>
+                                <p>{{ \Illuminate\Support\Str::words(strip_tags($room->description ?? ''), 24, '…') }}</p>
+                            </div>
+                            <div class="book-channel__rate">
+                                @if(!empty($quote['has_discount']))
+                                    <span class="book-channel__was">{{ hotel_price($quote['nightly'] ?? 0, $setting) }}</span>
+                                    <strong>{{ hotel_price($quote['sale_nightly'] ?? 0, $setting) }}</strong>
+                                    <span>{{ site_trans('booking.channel_per_night') }}</span>
+                                    <em>{{ $quote['label'] ?: site_trans('booking.channel_offer') }}</em>
+                                @else
+                                    <strong>{{ hotel_price($quote['nightly'] ?? $room->price ?? 0, $setting) }}</strong>
+                                    <span>{{ site_trans('booking.channel_per_night') }}</span>
+                                @endif
+                                @if($canBook)
+                                    <button type="button" class="theme-btn btn-style fill" wire:click.stop="selectRoom({{ $room->id }})">
+                                        <span>{{ site_trans('booking.channel_book') }}</span>
+                                    </button>
+                                @else
+                                    <button type="button" class="theme-btn btn-style border" disabled>
+                                        <span>{{ site_trans('booking.channel_unavailable') }}</span>
+                                    </button>
+                                @endif
+                            </div>
+                        </article>
+                    @empty
+                        <p class="text-center">{{ site_trans('home.rooms_coming_soon') }}</p>
+                    @endforelse
+                </div>
+                </div>
+
+                <aside class="book-channel__panel book-channel__stay">
+                    <h2>{{ site_trans('booking.channel_cart') }}</h2>
+                    <p class="book-channel__meta">{{ \Carbon\Carbon::parse($checkin)->format('D, M j, Y') }} – {{ \Carbon\Carbon::parse($checkout)->format('D, M j, Y') }}</p>
+                    <p class="book-channel__meta">{{ $nights }} {{ $nights === 1 ? 'night' : 'nights' }} · {{ site_trans('booking.channel_guests_line', ['count' => $guestCount]) }}</p>
+                    @if($selectedRoom)
+                        <p class="book-channel__suite">{{ $selectedRoom->title }}</p>
+                        @if(!empty($selectedQuote['has_discount']))
+                            <p class="book-channel__meta"><span class="book-channel__was">{{ hotel_price($selectedQuote['list_total'] ?? 0, $setting) }}</span> {{ hotel_price($selectedQuote['total'] ?? 0, $setting) }}</p>
+                        @else
+                            <p class="book-channel__suite">{{ hotel_price($selectedQuote['total'] ?? 0, $setting) }}</p>
+                        @endif
+                        <button type="button" class="book-channel__cancel" wire:click="cancelStay">{{ site_trans('booking.channel_cancel') }}</button>
+                    @else
+                        <p class="book-channel__meta">{{ site_trans('booking.channel_cart_empty') }}</p>
+                    @endif
+                </aside>
                 </div>
             @endif
         </div>
     </section>
 </div>
 
+<script>
+    window.bookingStayBar = function (checkin, checkout) {
+        const weekdayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+        const parse = (iso) => {
+            if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+                return null;
+            }
+            const [year, month, day] = iso.split('-').map(Number);
+            return new Date(year, month - 1, day);
+        };
+        const isoOf = (date) => {
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return date.getFullYear() + '-' + month + '-' + day;
+        };
+        const today = isoOf(new Date());
+
+        return {
+            open: null,
+            checkin,
+            checkout,
+            awaitingEnd: false,
+            cursor: parse(checkin) || new Date(),
+            weekdayLabels,
+            init() {
+                this.cursor = new Date(this.cursor.getFullYear(), this.cursor.getMonth(), 1);
+                this.$watch('$wire.checkin', (value) => { this.checkin = value; });
+                this.$watch('$wire.checkout', (value) => { this.checkout = value; });
+            },
+            openCalendar() {
+                this.open = this.open === 'dates' ? null : 'dates';
+                const start = parse(this.checkin) || new Date();
+                this.cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+            },
+            shiftMonth(step) {
+                this.cursor = new Date(this.cursor.getFullYear(), this.cursor.getMonth() + step, 1);
+            },
+            get months() {
+                return [0, 1].map((offset) => {
+                    const start = new Date(this.cursor.getFullYear(), this.cursor.getMonth() + offset, 1);
+                    const count = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
+                    const days = [];
+                    for (let i = 0; i < start.getDay(); i++) {
+                        days.push(null);
+                    }
+                    for (let day = 1; day <= count; day++) {
+                        const date = new Date(start.getFullYear(), start.getMonth(), day);
+                        const iso = isoOf(date);
+                        days.push({
+                            iso,
+                            number: day,
+                            disabled: iso < today,
+                            inRange: this.checkin && this.checkout && iso > this.checkin && iso < this.checkout,
+                        });
+                    }
+                    return {
+                        key: isoOf(start),
+                        label: start.toLocaleString(undefined, { month: 'long', year: 'numeric' }),
+                        days,
+                    };
+                });
+            },
+            pick(iso) {
+                if (!iso || iso < today) {
+                    return;
+                }
+                if (!this.awaitingEnd || !this.checkin || iso <= this.checkin) {
+                    const start = parse(iso);
+                    start.setDate(start.getDate() + 1);
+                    this.checkin = iso;
+                    this.checkout = isoOf(start);
+                    this.awaitingEnd = true;
+                } else {
+                    this.checkout = iso;
+                    this.awaitingEnd = false;
+                }
+                this.$wire.setStayDates(this.checkin, this.checkout);
+            },
+        };
+    };
+</script>
 @script
 <script>
     $wire.on('open-url', (event) => {

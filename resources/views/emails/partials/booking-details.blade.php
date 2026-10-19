@@ -29,6 +29,10 @@
     <tr><td style="padding: 6px 0; border-bottom: 1px solid #eee;"><strong>Reason for stay</strong></td><td style="padding: 6px 0; border-bottom: 1px solid #eee;">{{ \App\Support\BookingStayReasons::label($booking->stay_reason) }}</td></tr>
     @endif
     @if(filled($booking->total_amount))
-    <tr><td style="padding: 6px 0; border-bottom: 1px solid #eee;"><strong>Total (estimate)</strong></td><td style="padding: 6px 0; border-bottom: 1px solid #eee;">{{ number_format((float) $booking->total_amount, 2) }}</td></tr>
+        @if((float) ($booking->discount_amount ?? 0) > 0)
+        <tr><td style="padding: 6px 0; border-bottom: 1px solid #eee;"><strong>Standard rate</strong></td><td style="padding: 6px 0; border-bottom: 1px solid #eee;">{{ number_format((float) $booking->list_amount, 2) }}</td></tr>
+        <tr><td style="padding: 6px 0; border-bottom: 1px solid #eee;"><strong>Discount{{ filled($booking->discount_label) ? ' ('.$booking->discount_label.')' : '' }}</strong></td><td style="padding: 6px 0; border-bottom: 1px solid #eee;">-{{ number_format((float) $booking->discount_amount, 2) }}</td></tr>
+        @endif
+    <tr><td style="padding: 6px 0; border-bottom: 1px solid #eee;"><strong>Total</strong></td><td style="padding: 6px 0; border-bottom: 1px solid #eee;">{{ number_format((float) $booking->total_amount, 2) }}</td></tr>
     @endif
 </table>

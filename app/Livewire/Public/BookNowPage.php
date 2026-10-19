@@ -3,9 +3,12 @@
 namespace App\Livewire\Public;
 
 use App\Models\Room;
+use App\Models\RoomDiscount;
 use App\Models\Setting;
+use App\Rules\ActiveEmail;
 use App\Services\BookingSubmissionService;
 use App\Services\RoomAvailabilityService;
+use App\Services\RoomDiscountService;
 use App\Support\BookingStayReasons;
 use App\Support\HotelChannels;
 use DateTime;
@@ -51,6 +54,21 @@ class BookNowPage extends Component
     public $email = '';
 
     /** @var string|null */
+    public $first_name = '';
+
+    /** @var string|null */
+    public $last_name = '';
+
+    /** @var string|null */
+    public $address = '';
+
+    /** @var string|null */
+    public $city = '';
+
+    /** @var string|null */
+    public $postal_code = '';
+
+    /** @var string|null */
     public $country = '';
 
     /** @var string|null */
@@ -74,6 +92,12 @@ class BookNowPage extends Component
     /** @var bool */
     public $guestEmailSent = false;
 
+    /** @var string|null */
+    public $whatsappUrl = null;
+
+    /** @var bool Guest chose a suite; otherwise the cheapest (or discounted) rate stays selected. */
+    public $roomPicked = false;
+
     public function mount(): void
     {
         if (hotel_book_now_is_external()) {
@@ -82,31 +106,55 @@ class BookNowPage extends Component
             return;
         }
 
-        $this->checkin = now()->toDateString();
-        $this->checkout = now()->addDay()->toDateString();
+        $saved = session($this->staySessionKey());
+        if (is_array($saved) && filled($saved['checkin'] ?? null) && filled($saved['checkout'] ?? null)) {
+            $this->checkin = (string) $saved['checkin'];
+            $this->checkout = (string) $saved['checkout'];
+            $this->adults = (int) ($saved['adults'] ?? 2);
+            $this->children = (int) ($saved['children'] ?? 0);
+            $this->room_count = (int) ($saved['room_count'] ?? 1);
+            $this->room_id = $saved['room_id'] ?? null;
+            $this->roomPicked = (bool) ($saved['room_picked'] ?? false);
+        } else {
+            $this->checkin = now()->toDateString();
+            $this->checkout = now()->addDay()->toDateString();
+        }
 
         $preselect = (int) request()->query('room', 0);
         if ($preselect > 0 && Room::query()->where('id', $preselect)->where('status', 'Active')->exists()) {
             $this->room_id = $preselect;
+            $this->roomPicked = true;
         }
 
         if (auth()->check()) {
             $user = auth()->user();
             $this->names = trim((string) ($user->name ?? ''));
             $this->email = trim((string) ($user->email ?? ''));
+            $parts = preg_split('/\s+/', $this->names, 2) ?: [];
+            $this->first_name = $parts[0] ?? '';
+            $this->last_name = $parts[1] ?? '';
         }
 
         $this->normalizeStayInput();
+        if (! $this->roomPicked || ! $this->selectedRoom()) {
+            $this->roomPicked = false;
+            $this->applyDefaultRoom();
+        }
+        $this->rememberStay();
     }
 
     public function updated($property): void
     {
         if (in_array($property, ['room_id', 'checkin', 'checkout', 'adults', 'children', 'room_count', 'party_type'], true)) {
             $this->normalizeStayInput();
+            if (! $this->roomPicked) {
+                $this->applyDefaultRoom();
+            }
+            $this->rememberStay();
             $this->syncLimitFeedback();
         }
 
-        if (in_array($property, ['names', 'phone', 'email', 'country', 'stay_reason', 'message'], true)) {
+        if (in_array($property, ['names', 'first_name', 'last_name', 'phone', 'email', 'country', 'address', 'city', 'postal_code', 'stay_reason', 'message'], true)) {
             $this->{$property} = (string) ($this->{$property} ?? '');
         }
     }
@@ -157,6 +205,89 @@ class BookNowPage extends Component
         $this->step = max(1, $this->step - 1);
     }
 
+    public function selectRoom(int $roomId): void
+    {
+        $this->chooseRoom($roomId);
+        $this->validateStay();
+        $this->step = 2;
+    }
+
+    public function chooseRoom(int $roomId): void
+    {
+        if (! Room::query()->where('id', $roomId)->where('status', 'Active')->exists()) {
+            return;
+        }
+
+        $this->room_id = $roomId;
+        $this->roomPicked = true;
+        $this->normalizeStayInput();
+        $this->rememberStay();
+        $this->syncLimitFeedback();
+    }
+
+    public function setStayDates(string $checkin, string $checkout): void
+    {
+        $this->checkin = $checkin;
+        $this->checkout = $checkout;
+        $this->normalizeStayInput();
+        if (! $this->roomPicked) {
+            $this->applyDefaultRoom();
+        }
+        $this->rememberStay();
+        $this->syncLimitFeedback();
+    }
+
+    public function adjustGuests(string $field, int $delta): void
+    {
+        if ($field === 'adults') {
+            $this->adults = (int) $this->adults + $delta;
+        } elseif ($field === 'children') {
+            $this->children = (int) $this->children + $delta;
+        } elseif ($field === 'room_count') {
+            $this->room_count = (int) $this->room_count + $delta;
+        } else {
+            return;
+        }
+
+        $this->normalizeStayInput();
+        if (! $this->roomPicked) {
+            $this->applyDefaultRoom();
+        }
+        $this->rememberStay();
+        $this->syncLimitFeedback();
+    }
+
+    public function cancelStay(): void
+    {
+        session()->forget($this->staySessionKey());
+        $this->step = 1;
+        $this->roomPicked = false;
+        $this->checkin = now()->toDateString();
+        $this->checkout = now()->addDay()->toDateString();
+        $this->adults = 2;
+        $this->children = 0;
+        $this->room_count = 1;
+        $this->room_id = null;
+        $this->normalizeStayInput();
+        $this->applyDefaultRoom();
+        $this->resetErrorBag();
+    }
+
+    public function backToRooms(): void
+    {
+        if ($this->submitted) {
+            return;
+        }
+
+        $this->step = 1;
+    }
+
+    public function submitReservation(string $via, BookingSubmissionService $bookings): void
+    {
+        $this->confirm_via = $via === 'whatsapp' ? 'whatsapp' : 'email';
+        $this->confirmBooking($bookings);
+    }
+
     public function confirmBooking(BookingSubmissionService $bookings): void
     {
         $this->validateStay();
@@ -167,6 +298,15 @@ class BookNowPage extends Component
         ], [
             'agree_terms.accepted' => site_trans('booking.wizard_terms_required'),
         ]);
+
+        $this->names = trim($this->first_name.' '.$this->last_name);
+        $notes = array_values(array_filter([
+            filled($this->address) ? 'Address: '.$this->address : null,
+            filled($this->city) ? 'City: '.$this->city : null,
+            filled($this->postal_code) ? 'Postal code: '.$this->postal_code : null,
+            filled($this->message) ? trim((string) $this->message) : null,
+            'Confirmation preference: '.$this->confirm_via,
+        ]));
 
         try {
             $request = Request::create('/booking', 'POST', [
@@ -182,7 +322,7 @@ class BookNowPage extends Component
                 'country' => $this->country,
                 'stay_reason' => $this->stay_reason,
                 'party_type' => $this->party_type,
-                'message' => trim((string) $this->message."\nConfirmation preference: ".$this->confirm_via),
+                'message' => implode("\n", $notes),
             ]);
 
             $result = $bookings->submit($request);
@@ -192,7 +332,8 @@ class BookNowPage extends Component
             $this->step = 3;
 
             if ($this->confirm_via === 'whatsapp') {
-                $whatsappUrl = $this->whatsappDeepLink($result['booking']->id);
+                $whatsappUrl = $this->whatsappDeepLink($result['booking']->id, $result['booking']);
+                $this->whatsappUrl = $whatsappUrl;
                 if ($whatsappUrl) {
                     $this->dispatch('open-url', url: $whatsappUrl);
                 }
@@ -246,6 +387,90 @@ class BookNowPage extends Component
         $this->adults = min($maxAdults, (int) $this->adults);
         $this->children = min($maxChildren, (int) $this->children);
         $this->room_count = min($isGroup ? 200 : 20, (int) $this->room_count);
+
+        try {
+            $today = new DateTime(now()->toDateString());
+            $checkin = new DateTime($this->checkin !== '' ? $this->checkin : now()->toDateString());
+            if ($checkin < $today) {
+                $checkin = clone $today;
+            }
+            $checkout = new DateTime($this->checkout !== '' ? $this->checkout : now()->addDay()->toDateString());
+            if ($checkout <= $checkin) {
+                $checkout = (clone $checkin)->modify('+1 day');
+            }
+            $this->checkin = $checkin->format('Y-m-d');
+            $this->checkout = $checkout->format('Y-m-d');
+        } catch (\Throwable) {
+            $this->checkin = now()->toDateString();
+            $this->checkout = now()->addDay()->toDateString();
+        }
+    }
+
+    protected function staySessionKey(): string
+    {
+        return 'skojet.book_stay';
+    }
+
+    protected function rememberStay(): void
+    {
+        session([$this->staySessionKey() => [
+            'checkin' => $this->checkin,
+            'checkout' => $this->checkout,
+            'adults' => (int) $this->adults,
+            'children' => (int) $this->children,
+            'room_count' => (int) $this->room_count,
+            'room_id' => $this->room_id,
+            'room_picked' => (bool) $this->roomPicked,
+        ]]);
+    }
+
+    protected function applyDefaultRoom(): void
+    {
+        $this->room_id = $this->cheapestRoomId();
+    }
+
+    protected function cheapestRoomId(): ?int
+    {
+        $rooms = Room::query()->where('status', 'Active')->get();
+        $bestId = null;
+        $bestTotal = null;
+        $bestDiscounted = false;
+        $bestAvailable = false;
+        $party = (int) $this->adults + (int) $this->children;
+        $roomsRequested = max(1, (int) $this->room_count);
+
+        foreach ($rooms as $room) {
+            $quote = app(RoomDiscountService::class)->quote(
+                $room,
+                (string) $this->checkin,
+                (string) $this->checkout,
+                (int) $this->adults,
+                (int) $this->children,
+                $roomsRequested
+            );
+            $summary = $this->availability()->summary($room, (string) $this->checkin, (string) $this->checkout);
+            $sleeps = max(1, (int) ($room->max_occupancy ?? 2)) * $roomsRequested;
+            $available = ($summary['dates_ready'] ?? false)
+                && (int) ($summary['available'] ?? 0) >= $roomsRequested
+                && $party <= $sleeps;
+            $total = (float) ($quote['total'] ?? 0);
+            $discounted = (bool) ($quote['has_discount'] ?? false);
+            $better = $bestId === null
+                || ($available && ! $bestAvailable)
+                || ($available === $bestAvailable && (
+                    $total < $bestTotal
+                    || ($total == $bestTotal && $discounted && ! $bestDiscounted)
+                ));
+
+            if ($better) {
+                $bestId = (int) $room->id;
+                $bestTotal = $total;
+                $bestDiscounted = $discounted;
+                $bestAvailable = $available;
+            }
+        }
+
+        return $bestId;
     }
 
     /**
@@ -339,19 +564,27 @@ class BookNowPage extends Component
 
     protected function validateGuest(): void
     {
-        $this->names = (string) ($this->names ?? '');
+        $this->first_name = trim((string) ($this->first_name ?? ''));
+        $this->last_name = trim((string) ($this->last_name ?? ''));
+        $this->names = trim($this->first_name.' '.$this->last_name);
         $this->phone = (string) ($this->phone ?? '');
         $this->email = (string) ($this->email ?? '');
         $this->country = (string) ($this->country ?? '');
-        $this->stay_reason = (string) ($this->stay_reason ?? '');
+        $this->address = (string) ($this->address ?? '');
+        $this->city = (string) ($this->city ?? '');
+        $this->postal_code = (string) ($this->postal_code ?? '');
         $this->message = (string) ($this->message ?? '');
 
         $this->validate([
+            'first_name' => 'required|string|max:80',
+            'last_name' => 'required|string|max:80',
             'names' => 'required|string|max:255',
             'phone' => 'required|string|max:20',
-            'email' => 'required|email|max:255',
+            'email' => ['required', 'email', 'max:255', new ActiveEmail],
             'country' => 'required|string|max:100',
-            'stay_reason' => 'required|in:'.implode(',', array_keys(BookingStayReasons::options())),
+            'address' => 'nullable|string|max:255',
+            'city' => 'nullable|string|max:120',
+            'postal_code' => 'nullable|string|max:20',
             'message' => 'nullable|string|max:1000',
         ]);
     }
@@ -378,23 +611,40 @@ class BookNowPage extends Component
         }
     }
 
-    public function estimatedTotal(): float
+    /**
+     * @return array{nights: int, nightly: float, sale_nightly: float, list_total: float, discount_total: float, total: float, label: string, has_discount: bool}
+     */
+    public function quoteFor(?Room $room): array
     {
-        $room = $this->selectedRoom();
-        $nights = $this->nights();
-        if (! $room || $nights < 1) {
-            return 0.0;
+        if (! $room) {
+            return [
+                'nights' => $this->nights(),
+                'nightly' => 0.0,
+                'sale_nightly' => 0.0,
+                'list_total' => 0.0,
+                'discount_total' => 0.0,
+                'total' => 0.0,
+                'label' => '',
+                'has_discount' => false,
+            ];
         }
 
-        $rooms = max(1, (int) $this->room_count);
-        $adultsPerRoom = (int) max(1, ceil((int) $this->adults / $rooms));
-        $childrenPerRoom = (int) max(0, ceil((int) $this->children / $rooms));
-        $nightly = $room->nightlyRateForGuests($adultsPerRoom, $childrenPerRoom);
-
-        return $nightly * $nights * $rooms;
+        return app(RoomDiscountService::class)->quote(
+            $room,
+            (string) $this->checkin,
+            (string) $this->checkout,
+            (int) $this->adults,
+            (int) $this->children,
+            max(1, (int) $this->room_count)
+        );
     }
 
-    protected function whatsappDeepLink(?int $bookingId = null): ?string
+    public function estimatedTotal(): float
+    {
+        return (float) $this->quoteFor($this->selectedRoom())['total'];
+    }
+
+    protected function whatsappDeepLink(?int $bookingId = null, $booking = null): ?string
     {
         $channels = HotelChannels::all();
         $digits = preg_replace('/\D+/', '', (string) ($channels['whatsapp_e164'] ?? ''));
@@ -403,6 +653,13 @@ class BookNowPage extends Component
         }
 
         $room = $this->selectedRoom();
+        $setting = Setting::first();
+        $total = $booking?->total_amount ?? $this->estimatedTotal();
+        $discount = '';
+        if ($booking && (float) ($booking->discount_amount ?? 0) > 0) {
+            $discount = 'Discount: '.($booking->discount_label ?: 'Offer').' — '.hotel_price($booking->discount_amount, $setting);
+        }
+
         $text = site_trans('booking.wizard_whatsapp_message', [
             'names' => (string) $this->names,
             'room' => $room?->title ?? '',
@@ -413,6 +670,10 @@ class BookNowPage extends Component
             'country' => (string) $this->country,
             'party' => (string) $this->party_type,
             'ref' => $bookingId ? '#'.$bookingId : '',
+            'email' => (string) $this->email,
+            'phone' => (string) $this->phone,
+            'total' => hotel_price($total, $setting),
+            'discount' => $discount,
         ]);
 
         return 'https://wa.me/'.$digits.'?text='.rawurlencode($text);
@@ -436,6 +697,30 @@ class BookNowPage extends Component
             ? $availability->summary($selectedRoom, (string) $this->checkin, (string) $this->checkout)
             : null;
 
+        $quotes = [];
+        $availabilityByRoom = [];
+        foreach ($availableRooms as $room) {
+            $availabilityByRoom[$room->id] = $availability->summary($room, (string) $this->checkin, (string) $this->checkout);
+            $quotes[$room->id] = app(RoomDiscountService::class)->quote(
+                $room,
+                (string) $this->checkin,
+                (string) $this->checkout,
+                (int) $this->adults,
+                (int) $this->children,
+                1
+            );
+        }
+        $selectedQuote = $this->quoteFor($selectedRoom);
+        $activeDiscounts = RoomDiscount::query()
+            ->with('room:id,title')
+            ->where('status', 'Active')
+            ->when(filled($this->checkin) && filled($this->checkout), function ($query) {
+                $query->whereDate('starts_on', '<=', $this->checkout)
+                    ->whereDate('ends_on', '>=', $this->checkin);
+            })
+            ->orderBy('starts_on')
+            ->get();
+
         $roomInventory = (int) ($summary['inventory'] ?? 1);
         $roomsAvailable = (int) ($summary['available'] ?? $roomInventory);
         $maxOccupancy = (int) ($summary['max_occupancy'] ?? 2);
@@ -457,7 +742,11 @@ class BookNowPage extends Component
             'datesReady' => (bool) ($summary['dates_ready'] ?? false),
             'stayReasons' => BookingStayReasons::options(),
             'nights' => $this->nights(),
-            'estimatedTotal' => $this->estimatedTotal(),
+            'estimatedTotal' => $selectedQuote['total'],
+            'selectedQuote' => $selectedQuote,
+            'quotes' => $quotes,
+            'availabilityByRoom' => $availabilityByRoom,
+            'activeDiscounts' => $activeDiscounts,
             'publicPhone' => $publicPhone,
             'publicEmail' => $publicEmail,
             'hasWhatsapp' => $hasWhatsapp,

@@ -24,7 +24,7 @@ class UserManagementController extends Controller
     private function ensureManageAllUsersOrAbort(): void
     {
         if (! $this->canManageAllUsers()) {
-            abort(403, 'Only admin@iremetech.com can manage users.');
+            abort(403, 'Only a super admin can manage users.');
         }
     }
 
@@ -73,12 +73,14 @@ class UserManagementController extends Controller
 
         $user = User::create($userData);
 
-        // Send verification email only if not verified immediately
-        if (!$user->email_verified_at) {
-            Mail::to($user->email)->send(new EmailVerificationMail($user));
-            $message = 'User created successfully. Verification email sent.';
-        } else {
-            $message = 'User created and verified successfully.';
+        $message = 'User created and verified successfully.';
+        if (! $user->email_verified_at) {
+            try {
+                Mail::to($user->email)->send(new EmailVerificationMail($user));
+                $message = 'User created successfully. Verification email sent.';
+            } catch (\Throwable) {
+                $message = 'User created. The verification email could not be sent, so verify the address from this page.';
+            }
         }
 
         return response()->json(['success' => true, 'message' => $message]);

@@ -7,7 +7,6 @@
 
 @php
     $galleryImages = $images ?? collect();
-    $cuisineCards = isset($cuisines) ? $cuisines->filter(fn ($c) => filled($c->image)) : collect();
     $restaurantBgImage = filled($restaurant->image ?? null)
         ? asset('storage/images/restaurant/' . $restaurant->image)
         : (filled($images?->first()?->image) ? asset('storage/images/restaurant/' . $images->first()->image) : null);
@@ -17,15 +16,9 @@
         if (filled($img->image ?? null)) {
             $highlightImages->push([
                 'url' => asset('storage/images/restaurant/' . $img->image),
-                'alt' => $restaurant->title ?? site_trans('dining.title'),
+                'alt' => filled($img->caption) ? $img->caption : ($restaurant->title ?? site_trans('dining.title')),
             ]);
         }
-    }
-    foreach ($cuisineCards as $cuisine) {
-        $highlightImages->push([
-            'url' => asset('storage/images/restaurant/cuisines/' . $cuisine->image),
-            'alt' => $cuisine->title,
-        ]);
     }
     if ($highlightImages->isEmpty() && $restaurantBgImage) {
         $highlightImages->push([
@@ -34,86 +27,33 @@
         ]);
     }
 
-    $whyItems = [
+    $offerings = [
         ['icon' => 'fa-solid fa-mug-hot', 'title' => site_trans('dining.why_1_title'), 'text' => site_trans('dining.why_1_text')],
-        ['icon' => 'fa-solid fa-mountain-sun', 'title' => site_trans('dining.why_2_title'), 'text' => site_trans('dining.why_2_text')],
-        ['icon' => 'fa-solid fa-person-hiking', 'title' => site_trans('dining.why_3_title'), 'text' => site_trans('dining.why_3_text')],
-        ['icon' => 'fa-solid fa-heart', 'title' => site_trans('dining.why_4_title'), 'text' => site_trans('dining.why_4_text')],
-    ];
-
-    $menuPillars = [
-        ['icon' => 'fa-solid fa-mug-saucer', 'title' => site_trans('dining.breakfast'), 'text' => site_trans('dining.breakfast_text')],
-        ['icon' => 'fa-solid fa-bread-slice', 'title' => site_trans('dining.lunch'), 'text' => site_trans('dining.lunch_text')],
-        ['icon' => 'fa-solid fa-leaf', 'title' => site_trans('dining.dinner'), 'text' => site_trans('dining.dinner_text')],
-        ['icon' => 'fa-solid fa-glass-water', 'title' => site_trans('dining.beverages'), 'text' => site_trans('dining.beverages_text')],
-        ['icon' => 'fa-solid fa-chair', 'title' => site_trans('dining.private'), 'text' => site_trans('dining.private_text')],
-        ['icon' => 'fa-solid fa-seedling', 'title' => site_trans('dining.chef'), 'text' => site_trans('dining.chef_text')],
+        ['icon' => 'fa-solid fa-seedling', 'title' => site_trans('dining.why_2_title'), 'text' => site_trans('dining.why_2_text')],
+        ['icon' => 'fa-solid fa-utensils', 'title' => site_trans('dining.why_3_title'), 'text' => site_trans('dining.why_3_text')],
+        ['icon' => 'fa-solid fa-wine-glass', 'title' => site_trans('dining.why_4_title'), 'text' => site_trans('dining.why_4_text')],
+        ['icon' => 'fa-solid fa-beer', 'title' => site_trans('dining.why_5_title'), 'text' => site_trans('dining.why_5_text')],
+        ['icon' => 'fa-solid fa-sun', 'title' => site_trans('dining.why_6_title'), 'text' => site_trans('dining.why_6_text')],
     ];
 
     $ctaSetting = $setting ?? \App\Models\Setting::first();
 @endphp
 
-{{-- Intro --}}
-<section class="rts__section section__padding skojet-coffee-intro">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-9 col-xl-8">
-                <header class="skojet-intro">
-                    <span class="skojet-intro__eyebrow">{{ site_trans('dining.eyebrow') }}</span>
-                    <h2 class="skojet-intro__title">{{ $restaurant->title ?? site_trans('dining.title') }}</h2>
-                    <p class="skojet-intro__lead">{{ site_trans('dining.lead') }}</p>
-                    <p class="skojet-coffee-tagline">Stay · Relax · Unwind</p>
-                </header>
-            </div>
-        </div>
-        @if(filled(strip_tags((string) ($restaurant->description ?? ''))))
-            <div class="row justify-content-center">
-                <div class="col-lg-8">
-                    <div class="skojet-coffee-story content-richtext text-center">
-                        {!! $restaurant->description !!}
-                    </div>
-                </div>
-            </div>
-        @endif
-    </div>
-</section>
-
-{{-- Why visit --}}
-<section class="rts__section section__padding pt-0 skojet-coffee-why" aria-labelledby="coffee-why-heading">
-    <div class="container">
-        <header class="skojet-intro">
-            <span class="skojet-intro__eyebrow">{{ site_trans('dining.why_eyebrow') }}</span>
-            <h2 id="coffee-why-heading" class="skojet-intro__title">{{ site_trans('dining.why_title') }}</h2>
-            <p class="skojet-intro__lead">{{ site_trans('dining.why_lead') }}</p>
-        </header>
-        <div class="row g-3 g-lg-4">
-            @foreach ($whyItems as $item)
-            <div class="col-md-6 col-xl-3">
-                <article class="skojet-coffee-why__card h-100">
-                    <span class="skojet-coffee-why__icon" aria-hidden="true"><i class="{{ $item['icon'] }}"></i></span>
-                    <h3 class="skojet-coffee-why__title">{{ $item['title'] }}</h3>
-                    <p class="skojet-coffee-why__text">{{ $item['text'] }}</p>
-                </article>
-            </div>
-            @endforeach
-        </div>
-    </div>
-</section>
-
-{{-- What we serve --}}
+{{-- The table --}}
 <section class="rts__section section__padding skojet-coffee-menu" aria-labelledby="coffee-menu-heading">
     <div class="container">
         <header class="skojet-intro">
-            <span class="skojet-intro__eyebrow">{{ site_trans('dining.eyebrow') }}</span>
+            <span class="skojet-intro__eyebrow">{{ site_trans('dining.why_eyebrow') }}</span>
             <h2 id="coffee-menu-heading" class="skojet-intro__title">{{ site_trans('dining.pillars_title') }}</h2>
+            <p class="skojet-intro__lead">{{ site_trans('dining.why_lead') }}</p>
         </header>
         <div class="row g-3 g-lg-4">
-            @foreach ($menuPillars as $pillar)
+            @foreach ($offerings as $item)
             <div class="col-md-6 col-xl-4">
-                <article class="skojet-coffee-menu__item h-100">
-                    <i class="{{ $pillar['icon'] }}" aria-hidden="true"></i>
-                    <strong>{{ $pillar['title'] }}</strong>
-                    <span>{{ $pillar['text'] }}</span>
+                <article class="skojet-coffee-menu__item">
+                    <i class="{{ $item['icon'] }}" aria-hidden="true"></i>
+                    <strong>{{ $item['title'] }}</strong>
+                    <span>{{ $item['text'] }}</span>
                 </article>
             </div>
             @endforeach
@@ -132,8 +72,8 @@
 
         @if($highlightImages->isNotEmpty())
             <div class="skojet-coffee-gallery__grid">
-                @foreach ($highlightImages->take(8) as $i => $shot)
-                    <figure class="skojet-coffee-gallery__item skojet-coffee-gallery__item--{{ ($i % 5) + 1 }}">
+                @foreach ($highlightImages as $shot)
+                    <figure class="skojet-coffee-gallery__item">
                         <img src="{{ $shot['url'] }}"
                              alt="{{ $shot['alt'] }}"
                              loading="lazy"
@@ -173,7 +113,7 @@
             <a wire:navigate href="{{ localized_route('contact') }}" class="theme-btn btn-style fill">
                 <span>{{ site_trans('buttons.contact_us') }}</span>
             </a>
-            <a wire:navigate href="{{ localized_route('connect') }}" class="theme-btn btn-style border" style="color:#fff;border-color:rgba(247,244,238,.5)">
+            <a wire:navigate href="{{ localized_route('connect') }}" class="theme-btn btn-style border">
                 <span>{{ site_trans('buttons.book_your_stay') }}</span>
             </a>
         </div>

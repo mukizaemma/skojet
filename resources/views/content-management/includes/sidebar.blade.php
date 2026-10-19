@@ -40,6 +40,9 @@ $isDiningAdmin = $currentRoute === 'resto' || str_contains(strtolower((string) $
             <a href="{{ route('content-management.rooms') }}" class="nav-item nav-link {{ str_contains($currentRoute, 'content-management.rooms') ? 'active' : '' }}">
                 <i class="fas fa-bed me-2"></i>Rooms
             </a>
+            <a href="{{ route('content-management.discounts') }}" class="nav-item nav-link {{ str_contains($currentRoute, 'content-management.discounts') ? 'active' : '' }}">
+                <i class="fas fa-percent me-2"></i>Discounts
+            </a>
 
             <a href="{{ route('resto') }}" class="nav-item nav-link {{ $isDiningAdmin ? 'active' : '' }}">
                 <i class="fas fa-utensils me-2"></i>Dining page
@@ -76,6 +79,11 @@ $isDiningAdmin = $currentRoute === 'resto' || str_contains(strtolower((string) $
 
             <hr>
 
+            @if(auth()->user()->isSuperAdmin())
+            <a href="{{ route('content-management.users') }}" class="nav-item nav-link {{ str_contains($currentRoute, 'content-management.users') ? 'active' : '' }}">
+                <i class="fas fa-users-cog me-2"></i>Users
+            </a>
+            @endif
             <a href="{{ route('setting') }}" class="nav-item nav-link {{ $isSettingsAdmin ? 'active' : '' }}">
                 <i class="fas fa-cog me-2"></i>Settings
             </a>

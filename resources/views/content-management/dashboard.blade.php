@@ -38,7 +38,7 @@
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
                 <div>
                     <h4 class="mb-1">Website overview</h4>
-                    <p class="text-muted mb-0">Manage public content and respond to guest reservation requests from the book-now form.</p>
+                    <p class="text-muted mb-0">Manage the public site and guest reservations. User accounts stay with the super admin.</p>
                 </div>
                 <div class="d-flex flex-wrap gap-2">
                     <a href="{{ route('content-management.reservations') }}" class="btn btn-outline-warning text-dark">
@@ -63,17 +63,21 @@
                     </div>
                 </div>
             </div>
+            @if(auth()->user()->isSuperAdmin())
             <div class="col-sm-6 col-xl-3">
-                <div class="bg-white rounded shadow-sm border-start border-4 border-warning d-flex align-items-center justify-content-between p-4 h-100">
-                    <div class="rounded-circle bg-warning bg-opacity-10 p-3">
-                        <i class="fa fa-users fa-2x text-warning"></i>
+                <a href="{{ route('content-management.users') }}" class="text-decoration-none text-dark">
+                    <div class="bg-white rounded shadow-sm border-start border-4 border-warning d-flex align-items-center justify-content-between p-4 h-100">
+                        <div class="rounded-circle bg-warning bg-opacity-10 p-3">
+                            <i class="fa fa-users fa-2x text-warning"></i>
+                        </div>
+                        <div class="ms-3 text-end">
+                            <p class="mb-1 text-muted small">Users</p>
+                            <h4 class="mb-0">{{ $stats['users'] }}</h4>
+                        </div>
                     </div>
-                    <div class="ms-3 text-end">
-                        <p class="mb-1 text-muted small">Total Users</p>
-                        <h4 class="mb-0">{{ $stats['users'] }}</h4>
-                    </div>
-                </div>
+                </a>
             </div>
+            @endif
         </div>
 
         <div class="row g-4 mt-1">
@@ -81,26 +85,28 @@
                 <div class="bg-white rounded shadow-sm h-100 p-4">
                     <h5 class="mb-3">Quick actions</h5>
                     <div class="row g-3">
+                        @foreach ([
+                            ['content-management.reservations', 'fa-calendar-check', 'Reservations'],
+                            ['content-management.rooms', 'fa-bed', 'Rooms'],
+                            ['content-management.discounts', 'fa-percent', 'Discounts'],
+                            ['resto', 'fa-utensils', 'Dining page'],
+                            ['content-management.amenities', 'fa-list', 'Amenities'],
+                            ['content-management.tour-activities', 'fa-hiking', 'Activities'],
+                            ['content-management.why-choose-us.index', 'fa-thumbs-up', 'Why Choose Us'],
+                            ['content-management.attractions.index', 'fa-map-pin', 'Attractions'],
+                            ['getBlogs', 'fa-pen-nib', 'Updates'],
+                            ['staff', 'fa-user-friends', 'Team'],
+                            ['content-management.gallery', 'fa-images', 'Gallery'],
+                            ['content-management.slideshow', 'fa-clone', 'Slideshow'],
+                            ['content-management.page-heroes', 'fa-image', 'Page backgrounds'],
+                            ['setting', 'fa-cog', 'Settings'],
+                        ] as [$routeName, $icon, $label])
                         <div class="col-sm-6 col-md-4">
-                            <a href="{{ route('content-management.reservations') }}" class="btn btn-light border w-100 py-3 text-start">
-                                <i class="fa fa-calendar-check text-warning me-2"></i>Reservations
+                            <a href="{{ route($routeName) }}" class="btn btn-light border w-100 py-3 text-start">
+                                <i class="fa {{ $icon }} text-dark me-2"></i>{{ $label }}
                             </a>
                         </div>
-                        <div class="col-sm-6 col-md-4">
-                            <a href="{{ route('content-management.rooms') }}" class="btn btn-light border w-100 py-3 text-start">
-                                <i class="fa fa-bed text-primary me-2"></i>Rooms
-                            </a>
-                        </div>
-                        <div class="col-sm-6 col-md-4">
-                            <a href="{{ route('content-management.amenities') }}" class="btn btn-light border w-100 py-3 text-start">
-                                <i class="fa fa-list text-warning me-2"></i>Amenities
-                            </a>
-                        </div>
-                        <div class="col-sm-6 col-md-4">
-                            <a href="{{ route('setting') }}" class="btn btn-light border w-100 py-3 text-start">
-                                <i class="fa fa-cog text-dark me-2"></i>Settings
-                            </a>
-                        </div>
+                        @endforeach
                     </div>
                 </div>
             </div>

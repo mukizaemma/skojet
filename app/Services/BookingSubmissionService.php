@@ -7,7 +7,7 @@ use App\Mail\BookingSubmittedGuestMail;
 use App\Models\Booking;
 use App\Models\Room;
 use App\Models\Setting;
-use DateTime;
+use App\Rules\ActiveEmail;
 use Illuminate\Http\Request;
 
 class BookingSubmissionService
@@ -37,7 +37,7 @@ class BookingSubmissionService
 
         $rules = [
             'names' => 'required|string|max:255',
-            'email' => 'required|email|max:255',
+            'email' => ['required', 'email', 'max:255', new ActiveEmail],
             'phone' => 'required|string|max:20',
             'message' => 'nullable|string|max:1000',
             'country' => 'nullable|string|max:100',
@@ -122,9 +122,6 @@ class BookingSubmissionService
             $booking->tour_activity_id = null;
 
             $room = Room::findOrFail($request->input('room_id'));
-            $checkin = new DateTime($request->input('checkin'));
-            $checkout = new DateTime($request->input('checkout'));
-            $nights = max(0, $checkin->diff($checkout)->days);
             $adults = (int) $request->input('adults');
             $children = (int) ($request->input('children') ?? 0);
             $extraBeds = (int) ($request->input('extra_beds') ?? 0);
@@ -139,10 +136,19 @@ class BookingSubmissionService
                 $children
             );
 
-            $adultsPerRoom = (int) max(1, ceil($adults / $roomCount));
-            $childrenPerRoom = (int) max(0, ceil($children / $roomCount));
-            $nightly = $room->nightlyRateForGuests($adultsPerRoom, $childrenPerRoom, $extraBeds);
-            $booking->total_amount = (int) round($nightly * $nights * $roomCount);
+            $quote = app(RoomDiscountService::class)->quote(
+                $room,
+                $request->input('checkin'),
+                $request->input('checkout'),
+                $adults,
+                $children,
+                $roomCount,
+                $extraBeds
+            );
+            $booking->total_amount = (int) round($quote['total']);
+            $booking->list_amount = (int) round($quote['list_total']);
+            $booking->discount_amount = (int) round($quote['discount_total']);
+            $booking->discount_label = $quote['label'] !== '' ? $quote['label'] : null;
             $booking->balance_amount = $booking->total_amount;
         }
 
