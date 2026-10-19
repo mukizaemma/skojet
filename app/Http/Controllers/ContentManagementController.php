@@ -1,0 +1,879 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use App\Models\HotelContact;
+use App\Support\SyncHotelContact;
+use App\Models\About;
+use App\Models\TermsCondition;
+use App\Models\SeoData;
+use App\Models\User;
+use App\Models\Role;
+use Illuminate\Validation\Rule;
+use App\Models\Service;
+use App\Models\Room;
+use App\Models\Facility;
+use App\Models\Amenity;
+use App\Models\Gallery;
+use App\Services\AggregatedGalleryService;
+use App\Models\Slide;
+use App\Models\Setting;
+use App\Models\ServiceImage;
+use App\Models\Roomimage;
+use App\Models\Facilityimage;
+use App\Models\PageHero;
+use App\Mail\BookingStatusUpdateGuestMail;
+use App\Models\Booking;
+use App\Models\BookingTrash;
+use App\Services\SiteNotificationMail;
+use App\Support\BookingReplyDrafts;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
+
+class ContentManagementController extends Controller
+{
+    public function dashboard()
+    {
+        $stats = [
+            'rooms' => Room::count(),
+            'users' => User::count(),
+        ];
+
+        $contentReady = $stats['rooms'] > 0;
+
+        return view('content-management.dashboard', compact('stats', 'contentReady'));
+    }
+
+    /**
+     * Reservations overview for Content Manager.
+     */
+    public function reservations(Request $request)
+    {
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
+
+        $query = Booking::query()
+            ->with(['room', 'assignedRoom', 'facility', 'tourActivity'])
+            ->latest();
+
+        if (filled($startDate)) {
+            try {
+                $start = Carbon::parse($startDate)->startOfDay();
+                $query->where('created_at', '>=', $start);
+            } catch (\Throwable) {
+                // ignore invalid date
+            }
+        }
+
+        if (filled($endDate)) {
+            try {
+                $end = Carbon::parse($endDate)->endOfDay();
+                $query->where('created_at', '<=', $end);
+            } catch (\Throwable) {
+                // ignore invalid date
+            }
+        }
+
+        $bookings = $query->paginate(40)->withQueryString();
+
+        $base = Booking::query();
+        if (filled($startDate)) {
+            try {
+                $base->where('created_at', '>=', Carbon::parse($startDate)->startOfDay());
+            } catch (\Throwable) {
+            }
+        }
+        if (filled($endDate)) {
+            try {
+                $base->where('created_at', '<=', Carbon::parse($endDate)->endOfDay());
+            } catch (\Throwable) {
+            }
+        }
+
+        $allForStats = (clone $base)->get(['id', 'status', 'message']);
+        $stats = [
+            'total' => $allForStats->count(),
+            'whatsapp' => $allForStats->filter(fn (Booking $b) => $this->bookingChannel($b) === 'WhatsApp')->count(),
+            'email' => $allForStats->filter(fn (Booking $b) => $this->bookingChannel($b) === 'Email')->count(),
+            'confirmed' => $allForStats->where('status', 'confirmed')->count(),
+            'pending' => $allForStats->where('status', 'pending')->count(),
+        ];
+
+        return view('content-management.reservations.index', compact('bookings', 'stats', 'startDate', 'endDate'));
+    }
+
+    /**
+     * Reservation detail + respond form.
+     */
+    public function showReservationPage($id)
+    {
+        $booking = Booking::with(['room', 'assignedRoom', 'facility', 'tourActivity'])->findOrFail($id);
+        $drafts = BookingReplyDrafts::for($booking);
+        $channel = $this->bookingChannel($booking);
+
+        return view('content-management.reservations.show', compact('booking', 'drafts', 'channel'));
+    }
+
+    /**
+     * JSON payload for modal/legacy callers.
+     */
+    public function showReservation($id)
+    {
+        $booking = Booking::with(['room', 'assignedRoom', 'facility', 'tourActivity'])->findOrFail($id);
+
+        return response()->json($booking);
+    }
+
+    /**
+     * Reply to reservation with status & custom message; optionally email guest.
+     */
+    public function replyReservation(Request $request, $id)
+    {
+        $request->validate([
+            'status' => 'required|in:confirmed,cancelled,rejected,full-booked,scam',
+            'admin_reply' => 'nullable|string|max:5000',
+            'email_guest' => 'nullable|boolean',
+        ]);
+
+        $booking = Booking::with(['room', 'facility', 'tourActivity'])->findOrFail($id);
+        $status = $request->status === 'rejected' ? 'cancelled' : $request->status;
+        $reply = trim((string) $request->input('admin_reply', ''));
+        if ($reply === '') {
+            $drafts = BookingReplyDrafts::for($booking);
+            $reply = $status === 'confirmed'
+                ? $drafts['confirmed']
+                : ($drafts['cancelled'] ?? $drafts['confirmed']);
+        }
+
+        $booking->status = $status;
+        $booking->admin_reply = $reply;
+        $booking->admin_replied_at = now();
+
+        $emailGuest = $request->boolean('email_guest', true);
+        $guestEmail = $booking->email;
+        if ($emailGuest && filled($guestEmail)) {
+            $statusLabelMap = [
+                'confirmed' => 'Confirmed',
+                'cancelled' => 'Cancelled',
+                'full-booked' => 'Full-booked',
+                'scam' => 'Marked as Scam',
+            ];
+            $statusLabel = $statusLabelMap[$status] ?? ucfirst($status);
+            $sent = SiteNotificationMail::sendToGuest(
+                $guestEmail,
+                new BookingStatusUpdateGuestMail($booking, $statusLabel, $reply)
+            );
+            if (! $sent) {
+                $booking->save();
+
+                return redirect()
+                    ->route('content-management.reservations.show', $booking->id)
+                    ->with('error', 'Status saved but email could not be sent. Check Resend configuration.');
+            }
+        }
+
+        if ($status === 'scam') {
+            BookingTrash::create([
+                'original_booking_id' => $booking->id,
+                'names' => $booking->names,
+                'email' => $booking->email,
+                'phone' => $booking->phone,
+                'reservation_type' => $booking->reservation_type,
+                'status' => $booking->status,
+                'payload' => $booking->toArray(),
+            ]);
+            $booking->delete();
+
+            return redirect()
+                ->route('content-management.reservations')
+                ->with('success', 'Reservation updated'.($emailGuest ? ' and guest notified.' : '.'));
+        }
+
+        $booking->save();
+
+        return redirect()
+            ->route('content-management.reservations.show', $booking->id)
+            ->with('success', 'Reservation updated'.($emailGuest && filled($guestEmail) ? ' and guest notified by email.' : '.'));
+    }
+
+    public function destroyReservation($id)
+    {
+        $booking = Booking::findOrFail($id);
+        $booking->delete();
+
+        return redirect()
+            ->route('content-management.reservations')
+            ->with('success', 'Reservation deleted.');
+    }
+
+    protected function bookingChannel(Booking $booking): string
+    {
+        $message = strtolower((string) ($booking->message ?? ''));
+        if (str_contains($message, 'confirmation preference: whatsapp') || str_contains($message, 'via whatsapp')) {
+            return 'WhatsApp';
+        }
+
+        return 'Email';
+    }
+
+    // Hotel Contacts Management
+    public function contacts()
+    {
+        $contact = HotelContact::first();
+        return view('content-management.contacts.index', compact('contact'));
+    }
+
+    public function updateContacts(Request $request)
+    {
+        SyncHotelContact::fromRequest($request);
+
+        $setting = \App\Models\Setting::first();
+        if ($setting) {
+            foreach (['phone', 'email', 'address', 'facebook', 'instagram', 'linkedin', 'twitter'] as $field) {
+                if ($request->has($field)) {
+                    $setting->{$field} = $request->input($field);
+                }
+            }
+            $setting->save();
+        }
+
+        return redirect()->to(route('setting').'#contacts')->with('success', 'Contacts updated successfully');
+    }
+
+    // About Us Management
+    public function about()
+    {
+        $about = About::first();
+        return view('content-management.about.index', compact('about'));
+    }
+
+    public function updateAbout(Request $request)
+    {
+        $about = About::firstOrNew();
+        $about->fill($request->only(['title', 'subTitle', 'founderDescription', 'mission', 'vision', 'storyDescription', 'backImageText']));
+        $about->user_id = auth()->id();
+        
+        // Handle image uploads
+        if ($request->hasFile('image1')) {
+            if ($about->image1) {
+                \Storage::disk('public')->delete($about->image1);
+            }
+            $about->image1 = store_optimized_image($request->file('image1'), 'abouts');
+        }
+        if ($request->hasFile('image2')) {
+            if ($about->image2) {
+                \Storage::disk('public')->delete($about->image2);
+            }
+            $about->image2 = store_optimized_image($request->file('image2'), 'abouts');
+        }
+        if ($request->hasFile('image3')) {
+            if ($about->image3) {
+                \Storage::disk('public')->delete($about->image3);
+            }
+            $about->image3 = store_optimized_image($request->file('image3'), 'abouts');
+        }
+        if ($request->hasFile('image4')) {
+            if ($about->image4) {
+                \Storage::disk('public')->delete($about->image4);
+            }
+            $about->image4 = store_optimized_image($request->file('image4'), 'abouts');
+        }
+        if ($request->hasFile('storyImage')) {
+            if ($about->storyImage) {
+                \Storage::disk('public')->delete($about->storyImage);
+            }
+            $about->storyImage = store_optimized_image($request->file('storyImage'), 'abouts');
+        }
+        
+        $about->save();
+
+        return redirect()->to(route('setting').'#about')->with('success', 'About information updated successfully');
+    }
+
+    // Terms and Conditions
+    public function termsConditions()
+    {
+        $terms = TermsCondition::first();
+        return view('content-management.terms.index', compact('terms'));
+    }
+
+    public function updateTermsConditions(Request $request)
+    {
+        $terms = TermsCondition::firstOrNew();
+        $terms->content = $request->content;
+        $terms->status = $request->status ?? 'active';
+        $terms->updated_by = auth()->id();
+        $terms->save();
+
+        return redirect()->to(route('setting').'#tab-terms')->with('success', 'Terms and conditions updated successfully');
+    }
+
+    // SEO Data Management
+    public function seoData()
+    {
+        $seoData = SeoData::all();
+        return view('content-management.seo.index', compact('seoData'));
+    }
+
+    public function showSeoData($id)
+    {
+        $seo = SeoData::findOrFail($id);
+        return response()->json($seo);
+    }
+
+    public function updateSeoData(Request $request)
+    {
+        $id = $request->input('id') ?? $request->query('id');
+        
+        if ($id) {
+            $seo = SeoData::findOrFail($id);
+        } else {
+            $request->validate([
+                'page_name' => 'required|unique:seo_data,page_name',
+            ]);
+            $seo = new SeoData();
+        }
+        
+        $seo->fill($request->only(['page_name', 'meta_title', 'meta_description', 'meta_keywords', 'og_title', 'og_description']));
+        $seo->updated_by = auth()->id();
+        
+        if ($request->hasFile('og_image')) {
+            if ($seo->og_image) {
+                \Storage::disk('public')->delete($seo->og_image);
+            }
+            $seo->og_image = store_optimized_image($request->file('og_image'), 'seo');
+        }
+        
+        $seo->save();
+
+        if ($request->wantsJson()) {
+            return response()->json(['success' => true, 'message' => 'SEO data saved successfully']);
+        }
+
+        return redirect()->back()->with('success', 'SEO data updated successfully');
+    }
+
+    // System Users Panel (Super Admin only)
+    public function users()
+    {
+        $users = User::with('role')->latest()->get();
+        $roles = Role::whereIn('slug', ['admin', 'guest'])->orderBy('name')->get();
+        $superAdminRole = Role::where('slug', 'super-admin')->first();
+
+        return view('content-management.users.index', compact('users', 'roles', 'superAdminRole'));
+    }
+
+    public function updateUserRole(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+        $allowedRoleIds = Role::whereIn('slug', ['admin', 'guest'])->pluck('id')->all();
+        $superAdminRoleId = Role::where('slug', 'super-admin')->value('id');
+        if ($superAdminRoleId && (int) $user->role_id === (int) $superAdminRoleId) {
+            $allowedRoleIds[] = (int) $superAdminRoleId;
+        }
+
+        $request->validate([
+            'role_id' => ['required', Rule::in($allowedRoleIds)],
+        ]);
+
+        $user->role_id = $request->role_id;
+        $user->save();
+
+        return redirect()->back()->with('success', 'User role updated successfully');
+    }
+
+    // Services Management
+    public function services()
+    {
+        $services = Service::with('images')->latest()->get();
+        return view('content-management.services.index', compact('services'));
+    }
+
+    public function storeService(Request $request)
+    {
+        $service = new Service();
+        $service->fill($request->all());
+        $service->slug = \Illuminate\Support\Str::slug($request->title);
+        if ($request->hasFile('image')) {
+            $service->image = store_optimized_image($request->file('image'), 'services');
+        }
+        $service->save();
+
+        // Handle multiple images
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $index => $image) {
+                ServiceImage::create([
+                    'service_id' => $service->id,
+                    'image' => store_optimized_image($image, 'services'),
+                    'order' => $index,
+                ]);
+            }
+        }
+
+        return redirect()->back()->with('success', 'Service created successfully');
+    }
+
+    // Rooms Management
+    public function rooms()
+    {
+        $rooms = Room::with(['amenities', 'images'])->latest()->get();
+        $amenities = Amenity::all();
+        return view('content-management.rooms.index', compact('rooms', 'amenities'));
+    }
+
+    public function storeRoom(Request $request)
+    {
+        $room = new Room();
+        $room->fill($request->all());
+        $room->slug = \Illuminate\Support\Str::slug($request->title);
+        if ($request->hasFile('image')) {
+            $room->image = store_optimized_image($request->file('image'), 'rooms');
+        }
+        $room->user_id = auth()->id();
+        $room->save();
+
+        // Attach amenities
+        if ($request->has('amenities')) {
+            $room->amenities()->sync($request->amenities);
+        }
+
+        // Handle multiple images
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $index => $image) {
+                Roomimage::create([
+                    'room_id' => $room->id,
+                    'image' => store_optimized_image($image, 'rooms'),
+                ]);
+            }
+        }
+
+        return redirect()->back()->with('success', 'Room created successfully');
+    }
+
+    // Facilities Management
+    public function facilities()
+    {
+        $facilities = Facility::with('images')->latest()->get();
+        return view('content-management.facilities.index', compact('facilities'));
+    }
+
+    public function storeFacility(Request $request)
+    {
+        $facility = new Facility();
+        $facility->fill($request->all());
+        $facility->slug = \Illuminate\Support\Str::slug($request->title);
+        if ($request->hasFile('image')) {
+            $facility->image = store_optimized_image($request->file('image'), 'facilities');
+        }
+        $facility->save();
+
+        // Handle multiple images
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $index => $image) {
+                Facilityimage::create([
+                    'facility_id' => $facility->id,
+                    'image' => store_optimized_image($image, 'facilities'),
+                ]);
+            }
+        }
+
+        return redirect()->back()->with('success', 'Facility created successfully');
+    }
+
+    public function gallery()
+    {
+        $images = Gallery::query()
+            ->where('media_type', 'image')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        return view('content-management.gallery.index', [
+            'images' => $images,
+            'homeImages' => $images->where('show_on_home', true)->values(),
+            'activeTab' => request('tab') === 'gallery' ? 'gallery' : 'home',
+        ]);
+    }
+
+    public function storeGalleryImage(Request $request)
+    {
+        $validated = $request->validate([
+            'image' => admin_image_validation_rule(true),
+            'caption' => 'nullable|string|max:255',
+            'sort_order' => 'nullable|integer|min:0|max:999',
+            'show_on_home' => 'nullable|boolean',
+            'return_tab' => 'nullable|in:home,gallery',
+        ]);
+
+        $showOnHome = $request->boolean('show_on_home');
+        if ($showOnHome && $this->homeGalleryCount() >= 6) {
+            return redirect()
+                ->route('content-management.gallery', ['tab' => 'home'])
+                ->with('error', 'The home page already shows 6 images. Remove one before adding another.');
+        }
+
+        $gallery = new Gallery();
+        $gallery->media_type = 'image';
+        $gallery->caption = $validated['caption'] ?? null;
+        $gallery->sort_order = $request->filled('sort_order')
+            ? (int) $validated['sort_order']
+            : ((int) Gallery::max('sort_order') + 1);
+        $gallery->show_on_home = $showOnHome;
+        $gallery->image = store_optimized_image($request->file('image'), 'gallery');
+        $gallery->save();
+
+        $tab = $showOnHome ? 'home' : ($validated['return_tab'] ?? 'gallery');
+
+        return redirect()
+            ->route('content-management.gallery', ['tab' => $tab])
+            ->with('success', 'Gallery image added.');
+    }
+
+    public function updateGalleryImage(Request $request, Gallery $gallery)
+    {
+        $validated = $request->validate([
+            'image' => admin_image_validation_rule(false),
+            'caption' => 'nullable|string|max:255',
+            'sort_order' => 'nullable|integer|min:0|max:999',
+            'show_on_home' => 'nullable|boolean',
+            'return_tab' => 'nullable|in:home,gallery',
+        ]);
+
+        $showOnHome = $request->boolean('show_on_home');
+        if ($showOnHome && ! $gallery->show_on_home && $this->homeGalleryCount() >= 6) {
+            return redirect()
+                ->route('content-management.gallery', ['tab' => $request->input('return_tab', 'home')])
+                ->with('error', 'The home page already shows 6 images. Remove one before adding another.');
+        }
+
+        $gallery->caption = $validated['caption'] ?? null;
+        if ($request->filled('sort_order')) {
+            $gallery->sort_order = (int) $validated['sort_order'];
+        }
+        $gallery->show_on_home = $showOnHome;
+
+        if ($request->hasFile('image')) {
+            $this->deleteGalleryFile($gallery->image);
+            $gallery->image = store_optimized_image($request->file('image'), 'gallery');
+        }
+
+        $gallery->save();
+
+        return redirect()
+            ->route('content-management.gallery', ['tab' => $validated['return_tab'] ?? 'gallery'])
+            ->with('success', 'Gallery image updated.');
+    }
+
+    public function destroyGalleryImage(Request $request, Gallery $gallery)
+    {
+        $this->deleteGalleryFile($gallery->image);
+        $gallery->delete();
+
+        $tab = $request->input('return_tab') === 'home' ? 'home' : 'gallery';
+
+        return redirect()
+            ->route('content-management.gallery', ['tab' => $tab])
+            ->with('success', 'Gallery image removed.');
+    }
+
+    private function homeGalleryCount(): int
+    {
+        return Gallery::query()->where('show_on_home', true)->count();
+    }
+
+    private function deleteGalleryFile(?string $path): void
+    {
+        if (! $path || ! str_starts_with($path, 'gallery/')) {
+            return;
+        }
+
+        if (Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->delete($path);
+        }
+    }
+
+    public function updateHomeGalleryFeatures(Request $request, AggregatedGalleryService $galleryService)
+    {
+        $request->validate([
+            'featured_keys' => 'nullable|array|max:3',
+            'featured_keys.*' => 'string|max:120',
+        ]);
+
+        try {
+            $galleryService->syncHomeFeatured($request->input('featured_keys', []));
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->back()->with('success', 'Home page gallery updated successfully.');
+    }
+
+    public function storeGallery(Request $request)
+    {
+        if ($request->media_type === 'image') {
+            $files = $request->file('images');
+            if (empty($files)) {
+                $files = $request->hasFile('image') ? [$request->file('image')] : [];
+            }
+            if (!is_array($files)) {
+                $files = [$files];
+            }
+            $count = 0;
+            $caption = $request->input('caption');
+            $category = $request->input('category');
+            foreach ($files as $file) {
+                if (!$file || !$file->isValid()) {
+                    continue;
+                }
+                $gallery = new Gallery();
+                $gallery->media_type = 'image';
+                $gallery->category = $category;
+                $gallery->caption = $caption;
+                $gallery->image = store_optimized_image($file, 'gallery');
+                $gallery->save();
+                $count++;
+            }
+            if ($count === 0) {
+                return redirect()->back()->with('error', 'Please select at least one image to upload.');
+            }
+            return redirect()->back()->with('success', $count === 1
+                ? 'Gallery image added successfully.'
+                : $count . ' gallery images added successfully.');
+        }
+
+        $gallery = new Gallery();
+        $gallery->media_type = $request->media_type;
+        $gallery->category = $request->category;
+        $gallery->caption = $request->caption;
+
+        if ($request->hasFile('video')) {
+            $gallery->video_path = $request->file('video')->store('gallery/videos', 'public');
+        }
+        if ($request->youtube_link) {
+            $gallery->youtube_link = $request->youtube_link;
+        }
+        if ($request->hasFile('thumbnail')) {
+            $gallery->thumbnail = store_optimized_image($request->file('thumbnail'), 'gallery');
+        }
+
+        $gallery->save();
+
+        return redirect()->back()->with('success', 'Gallery item added successfully');
+    }
+
+    // Slideshow Management
+    public function slideshow()
+    {
+        $slides = Slide::orderBy('sort_order')->orderBy('created_at')->orderBy('id')->get();
+        $setting = Setting::first();
+
+        return view('content-management.slideshow.index', compact('slides', 'setting'));
+    }
+
+    public function updateHomeHero(Request $request)
+    {
+        $validated = $request->validate([
+            'home_hero_text_mode' => 'required|in:global,per_slide',
+            'home_hero_headline' => 'nullable|string|max:255',
+            'home_hero_lead' => 'nullable|string|max:2000',
+        ]);
+
+        $setting = Setting::first();
+        if (! $setting) {
+            return redirect()->back()->with('error', 'No settings record found.');
+        }
+
+        $setting->home_hero_text_mode = $validated['home_hero_text_mode'];
+        $setting->home_hero_headline = filled($validated['home_hero_headline'] ?? null)
+            ? trim($validated['home_hero_headline'])
+            : null;
+        $setting->home_hero_lead = filled($validated['home_hero_lead'] ?? null)
+            ? trim($validated['home_hero_lead'])
+            : null;
+        $setting->save();
+
+        return redirect()->back()->with('success', 'Homepage hero text updated successfully.');
+    }
+
+    public function storeSlide(Request $request)
+    {
+        $request->validate([
+            'caption' => 'nullable|string|max:500',
+            'button' => 'nullable|string|max:255',
+            'link' => 'nullable|url|max:255',
+            'image' => 'required|image|max:2048',
+        ]);
+
+        $slide = new Slide();
+        $slide->heading = $request->input('caption');
+        $slide->subheading = null;
+        $slide->button = $request->filled('button') ? $request->input('button') : null;
+        $slide->link = $request->filled('link') ? $request->input('link') : null;
+        $slide->media_type = 'image';
+        $slide->sort_order = (int) Slide::max('sort_order') + 1;
+
+        if ($request->hasFile('image')) {
+            $slide->image = store_optimized_image($request->file('image'), 'slides');
+        }
+
+        $slide->save();
+
+        return redirect()->back()->with('success', 'Slide added successfully');
+    }
+
+    public function reorderSlides(Request $request)
+    {
+        $request->validate([
+            'order' => 'required|array',
+            'order.*' => 'integer',
+        ]);
+
+        foreach (array_values($request->input('order')) as $position => $id) {
+            Slide::where('id', $id)->update(['sort_order' => $position + 1]);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Slide order updated']);
+    }
+
+    public function updateSlide(Request $request, Slide $slide)
+    {
+        $request->validate([
+            'caption' => 'nullable|string|max:500',
+            'button' => 'nullable|string|max:255',
+            'link' => 'nullable|url|max:255',
+            'image' => 'nullable|image|max:2048',
+        ]);
+
+        $slide->heading = $request->input('caption');
+        $slide->subheading = null;
+        $slide->button = $request->filled('button') ? $request->input('button') : null;
+        $slide->link = $request->filled('link') ? $request->input('link') : null;
+        $slide->media_type = 'image';
+
+        if ($request->hasFile('image')) {
+            if ($slide->image) {
+                Storage::disk('public')->delete($slide->image);
+            }
+            $slide->image = store_optimized_image($request->file('image'), 'slides');
+        }
+
+        $slide->save();
+
+        return redirect()->back()->with('success', 'Slide updated successfully');
+    }
+
+    public function deleteSlide(Slide $slide)
+    {
+        if ($slide->image) {
+            Storage::disk('public')->delete($slide->image);
+        }
+        if ($slide->video_file) {
+            Storage::disk('public')->delete($slide->video_file);
+        }
+
+        $slide->delete();
+
+        return redirect()->back()->with('success', 'Slide deleted successfully');
+    }
+
+    // Page Heroes Management (aligned with config/page_heroes.php + main navigation)
+    public function pageHeroes()
+    {
+        $definitions = config('page_heroes', []);
+
+        foreach ($definitions as $slug => $meta) {
+            $hero = PageHero::firstOrNew(['page_slug' => $slug]);
+            if (! $hero->exists) {
+                $hero->page_name = $meta['label'];
+                $hero->is_active = true;
+                $hero->save();
+            } elseif ($hero->page_name !== $meta['label']) {
+                $hero->page_name = $meta['label'];
+                $hero->save();
+            }
+        }
+
+        $order = array_keys($definitions);
+        $pageHeroes = PageHero::query()
+            ->whereIn('page_slug', $order)
+            ->get()
+            ->sortBy(function ($h) use ($order) {
+                $i = array_search($h->page_slug, $order, true);
+
+                return $i === false ? 1000 + $h->id : $i;
+            })
+            ->values();
+
+        $heroDefinitions = $definitions;
+
+        return view('content-management.page-heroes.index', compact('pageHeroes', 'heroDefinitions'));
+    }
+
+    public function updatePageHero(Request $request, $id)
+    {
+        try {
+            $request->validate([
+                'background_image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:5120',
+                'caption' => 'nullable|string|max:255',
+                'description' => 'nullable|string|max:500',
+                // Remove is_active from validation - we'll handle it manually
+            ]);
+
+            $pageHero = PageHero::findOrFail($id);
+
+            if ($request->boolean('remove_background_image') && $pageHero->background_image) {
+                Storage::disk('public')->delete($pageHero->background_image);
+                $pageHero->background_image = null;
+            }
+
+            if ($request->hasFile('background_image')) {
+                // Delete old image if exists
+                if ($pageHero->background_image) {
+                    Storage::disk('public')->delete($pageHero->background_image);
+                }
+
+                // Ensure directory exists
+                if (! Storage::disk('public')->exists('page-heroes')) {
+                    Storage::disk('public')->makeDirectory('page-heroes');
+                }
+
+                // Store new image
+                $imagePath = store_optimized_image($request->file('background_image'), 'page-heroes');
+                $pageHero->background_image = $imagePath;
+            }
+
+            // Update other fields - always update even if empty
+            $pageHero->caption = $request->input('caption', '');
+            $pageHero->description = $request->input('description', '');
+            
+            // Handle checkbox - if not present in request, it's false
+            $pageHero->is_active = $request->has('is_active') && $request->input('is_active') !== null ? true : false;
+            
+            $saved = $pageHero->save();
+            
+            // Log for debugging
+            \Log::info('Page Hero Update', [
+                'id' => $pageHero->id,
+                'has_image' => $request->hasFile('background_image'),
+                'image_path' => $pageHero->background_image,
+                'caption' => $pageHero->caption,
+                'saved' => $saved
+            ]);
+
+            if ($saved) {
+                return redirect()->back()->with('success', 'Page hero updated successfully');
+            } else {
+                return redirect()->back()->with('error', 'Failed to update page hero. Please try again.');
+            }
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput()
+                ->with('error', 'Validation failed. Please check your input.');
+        } catch (\Exception $e) {
+            \Log::error('Page Hero Update Error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'An error occurred: ' . $e->getMessage());
+        }
+    }
+}
