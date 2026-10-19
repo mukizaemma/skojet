@@ -5,7 +5,7 @@
 <div class="card shadow-sm border-0 mt-4">
     <div class="card-header bg-white py-3">
         <h5 class="mb-1">Public contact page</h5>
-        <p class="text-muted small mb-0">Detailed contact details used on the Contact page, map panels, and footer (city, coordinates, WhatsApp).</p>
+        <p class="text-muted small mb-0">Address, map, and social links. The phone above is also the WhatsApp number.</p>
     </div>
     <form action="{{ route('content-management.contacts.update') }}" method="POST">
         @csrf
@@ -38,10 +38,6 @@
                 <div class="col-md-6">
                     <label class="form-label" for="hc_website">Website</label>
                     <input type="url" class="form-control" id="hc_website" name="website" value="{{ old('website', $contact->website ?? '') }}">
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="hc_whatsapp">WhatsApp</label>
-                    <input type="text" class="form-control" id="hc_whatsapp" name="whatsapp" value="{{ old('whatsapp', $contact->whatsapp ?? '') }}">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label" for="hc_facebook">Facebook</label>

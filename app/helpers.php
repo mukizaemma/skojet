@@ -176,11 +176,6 @@ if (! function_exists('hotel_public_phone')) {
     function hotel_public_phone(?object $setting = null): ?string
     {
         $setting = $setting ?? \App\Models\Setting::first();
-        $reception = trim((string) ($setting?->reception_phone ?? ''));
-        if ($reception !== '') {
-            return $reception;
-        }
-
         $contact = \App\Models\HotelContact::first();
         $fromContact = trim((string) ($contact?->phone ?? ''));
         if ($fromContact !== '') {
@@ -195,33 +190,14 @@ if (! function_exists('hotel_public_phone')) {
 
 if (! function_exists('hotel_whatsapp_digits')) {
     /**
-     * Digits-only WhatsApp destination. Prefers dedicated WhatsApp field,
-     * then the same public phone used for calls across the site.
+     * Digits-only WhatsApp destination. The hotel phone is also the WhatsApp number.
      */
     function hotel_whatsapp_digits(?object $setting = null): ?string
     {
         $setting = $setting ?? \App\Models\Setting::first();
+        $fromPhone = preg_replace('/\D+/', '', (string) (hotel_public_phone($setting) ?? '')) ?: '';
 
-        $fromWhatsapp = preg_replace('/\D+/', '', (string) ($setting?->whatsapp_e164 ?? '')) ?: '';
-        if ($fromWhatsapp !== '') {
-            return $fromWhatsapp;
-        }
-
-        $publicPhone = hotel_public_phone($setting);
-        $fromPhone = preg_replace('/\D+/', '', (string) ($publicPhone ?? '')) ?: '';
-        if ($fromPhone !== '') {
-            return $fromPhone;
-        }
-
-        $contact = \App\Models\HotelContact::first();
-        $fromContactWa = preg_replace('/\D+/', '', (string) ($contact?->whatsapp ?? '')) ?: '';
-        if ($fromContactWa !== '') {
-            return $fromContactWa;
-        }
-
-        $fromConfig = preg_replace('/\D+/', '', (string) config('hotel_channels.whatsapp_e164', '')) ?: '';
-
-        return $fromConfig !== '' ? $fromConfig : null;
+        return $fromPhone !== '' ? $fromPhone : null;
     }
 }
 
@@ -237,14 +213,7 @@ if (! function_exists('hotel_whatsapp_label')) {
             return (string) $phone;
         }
 
-        $raw = trim((string) ($setting?->whatsapp_e164 ?? ''));
-        if ($raw !== '') {
-            return $raw;
-        }
-
-        $digits = hotel_whatsapp_digits($setting);
-
-        return $digits ? '+'.$digits : '';
+        return '';
     }
 }
 

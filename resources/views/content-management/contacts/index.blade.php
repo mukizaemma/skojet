@@ -63,10 +63,6 @@
                 </div>
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">WhatsApp</label>
-                        <input type="text" class="form-control" name="whatsapp" value="{{ $contact->whatsapp ?? '' }}">
-                    </div>
-                    <div class="col-md-6 mb-3">
                         <label class="form-label">Latitude</label>
                         <input type="number" step="any" class="form-control" name="latitude" value="{{ $contact->latitude ?? '' }}">
                     </div>

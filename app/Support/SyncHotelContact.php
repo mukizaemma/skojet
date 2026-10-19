@@ -23,10 +23,10 @@ class SyncHotelContact
             'twitter',
             'instagram',
             'linkedin',
-            'whatsapp',
             'latitude',
             'longitude',
         ]));
+        $contact->whatsapp = $request->input('phone');
 
         $contact->save();
     }

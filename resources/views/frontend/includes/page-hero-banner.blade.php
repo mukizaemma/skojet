@@ -37,10 +37,7 @@
                         @php
                             $hcHero = $hotelContact ?? \App\Models\HotelContact::first();
                             $stHero = $setting ?? \App\Models\Setting::first();
-                            $heroReception = trim((string) ($stHero?->reception_phone ?? ''));
-                            $heroPhone = filled($heroReception)
-                                ? $heroReception
-                                : ($hcHero?->phone ?? $stHero?->phone ?? '');
+                            $heroPhone = hotel_public_phone($stHero) ?? '';
                             $heroEmail = $hcHero?->email ?? $stHero?->email ?? '';
                             $heroSocialLinks = array_values(array_filter(
                                 [
@@ -55,18 +52,13 @@
                                 }
                             ));
                             $heroHasSocial = count($heroSocialLinks) > 0;
-                            $heroWhatsappDigits = hotel_whatsapp_digits($stHero) ?? '';
-                            $heroWhatsappLabel = hotel_whatsapp_label($stHero);
-                            $heroShowBlock = filled($heroPhone) || filled($heroEmail) || filled($heroWhatsappDigits) || $heroHasSocial;
+                            $heroShowBlock = filled($heroPhone) || filled($heroEmail) || $heroHasSocial;
                         @endphp
                         @if($heroShowBlock)
                             <div class="page__hero__contacts wow fadeInUp" data-wow-delay="0.12s">
                                 <div class="page__hero__contacts-row">
                                     @if(filled($heroPhone))
                                         <a href="tel:{{ preg_replace('/\s+/', '', $heroPhone) }}"><i class="flaticon-phone-flip" aria-hidden="true"></i><span>{{ $heroPhone }}</span></a>
-                                    @endif
-                                    @if(filled($heroWhatsappDigits))
-                                        <a href="https://wa.me/{{ $heroWhatsappDigits }}" target="_blank" rel="noopener noreferrer" title="WhatsApp"><i class="fab fa-whatsapp" aria-hidden="true"></i><span>{{ $heroWhatsappLabel }}</span></a>
                                     @endif
                                     @if(filled($heroEmail))
                                         <a href="mailto:{{ $heroEmail }}"><i class="flaticon-envelope" aria-hidden="true"></i><span>{{ $heroEmail }}</span></a>

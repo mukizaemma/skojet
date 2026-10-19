@@ -7,8 +7,7 @@
             : $brandLogoFallback);
 
     $ftHotel = \App\Models\HotelContact::first();
-    $receptionPhone  = $setting?->reception_phone ?? null;
-    $mainPhone = $ftHotel?->phone ?? $setting?->phone ?? '';
+    $mainPhone = hotel_public_phone($setting) ?? '';
     $mainEmail = $ftHotel?->email ?? $setting?->email ?? '';
 
     $ftAddr = '';
@@ -84,9 +83,8 @@
                         <div class="skojet-footer__meta">
                             <p class="skojet-footer__label">{{ site_trans('footer.contact_info') }}</p>
                             <div class="skojet-footer__contacts">
-                                @php $footerPhone = $receptionPhone ?: $mainPhone; @endphp
-                                @if(filled($footerPhone))
-                                    <a href="tel:{{ preg_replace('/\s+/', '', $footerPhone) }}"><i class="fa-solid fa-phone" aria-hidden="true"></i><span>{{ $footerPhone }}</span></a>
+                                @if(filled($mainPhone))
+                                    <a href="tel:{{ preg_replace('/\s+/', '', $mainPhone) }}"><i class="fa-solid fa-phone" aria-hidden="true"></i><span>{{ $mainPhone }}</span></a>
                                 @endif
                                 @if(filled($mainEmail))
                                     <a href="mailto:{{ $mainEmail }}"><i class="fa-solid fa-envelope" aria-hidden="true"></i><span>{{ $mainEmail }}</span></a>

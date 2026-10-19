@@ -392,8 +392,6 @@
         $headerPhone = hotel_public_phone($setting) ?? '';
         $headerEmail = trim((string) (\App\Support\HotelChannels::all()['public_email'] ?? ''))
             ?: ($hotelContactHeader?->email ?? $setting?->email ?? '');
-        $headerWhatsappDigits = hotel_whatsapp_digits($setting) ?? '';
-        $headerWhatsappLabel = hotel_whatsapp_label($setting);
         $headerAddress = '';
         if ($hotelContactHeader) {
             $headerAddress = trim(implode(' ', array_filter([
@@ -430,9 +428,6 @@
                     <div class="social__links d-flex align-items-center flex-wrap gap-2">
                         @if(filled($headerPhone))
                         <a class="link__item gap-10" href="tel:{{ preg_replace('/\s+/', '', $headerPhone) }}"><i class="flaticon-phone-flip"></i> {{ $headerPhone }}</a>
-                        @endif
-                        @if(filled($headerWhatsappDigits))
-                        <a class="link__item gap-10" href="https://wa.me/{{ $headerWhatsappDigits }}" target="_blank" rel="noopener noreferrer" title="WhatsApp"><i class="fab fa-whatsapp" style="color:#25D366"></i> {{ $headerWhatsappLabel }}</a>
                         @endif
                         @if(filled($headerEmail))
                         <a class="link__item gap-10" href="mailto:{{ $headerEmail }}"><i class="flaticon-envelope"></i> {{ $headerEmail }}</a>

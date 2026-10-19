@@ -111,46 +111,13 @@
                                         <input type="text" class="form-control" id="postal_code" name="postal_code" value="{{ old('postal_code', $contact->postal_code ?? '') }}">
                                     </div>
                                     <div class="col-md-6">
-                                        <label for="phone" class="form-label">Main phone</label>
+                                        <label for="phone" class="form-label">Phone</label>
                                         <input type="text" class="form-control" id="phone" name="phone" value="{{ $contactValue('phone') }}">
+                                        <p class="text-muted small mb-0 mt-1">Used for calls and WhatsApp. This is the only number shown in the site header.</p>
                                     </div>
                                     <div class="col-md-6">
                                         <label for="email" class="form-label">Email</label>
                                         <input type="email" class="form-control" id="email" name="email" value="{{ $contactValue('email') }}">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label for="whatsapp" class="form-label">WhatsApp (display)</label>
-                                        <input type="text" class="form-control" id="whatsapp" name="whatsapp" value="{{ old('whatsapp', $contact->whatsapp ?? '') }}" placeholder="+250 ...">
-                                        <p class="text-muted small mb-0 mt-1">Shown on the contact page. For booking CTAs use <strong>Booking &amp; review links</strong>.</p>
-                                    </div>
-                                </div>
-                                <div class="row g-3 mt-1">
-                                    <div class="col-md-4">
-                                        <label for="reception_phone" class="form-label">Reception phone</label>
-                                        <input
-                                            type="text"
-                                            class="form-control"
-                                            id="reception_phone"
-                                            name="reception_phone"
-                                            value="{{ old('reception_phone', $data->reception_phone ?? '') }}">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label for="manager_phone" class="form-label">Manager phone</label>
-                                        <input
-                                            type="text"
-                                            class="form-control"
-                                            id="manager_phone"
-                                            name="manager_phone"
-                                            value="{{ old('manager_phone', $data->manager_phone ?? '') }}">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label for="restaurant_phone" class="form-label">Restaurant phone</label>
-                                        <input
-                                            type="text"
-                                            class="form-control"
-                                            id="restaurant_phone"
-                                            name="restaurant_phone"
-                                            value="{{ old('restaurant_phone', $data->restaurant_phone ?? '') }}">
                                     </div>
                                 </div>
                             </fieldset>
@@ -419,12 +386,8 @@
                             </fieldset>
                             <fieldset class="mb-0">
                                 <legend class="h6 text-secondary border-bottom pb-2 mb-3">WhatsApp &amp; email (CTAs)</legend>
+                                <p class="text-muted small">WhatsApp uses the phone number saved under Contacts.</p>
                                 <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="whatsapp_e164">WhatsApp number</label>
-                                        <input type="text" class="form-control" id="whatsapp_e164" name="whatsapp_e164" value="{{ old('whatsapp_e164', $data->whatsapp_e164 ?? '') }}" placeholder="250787550007" maxlength="32">
-                                        <p class="text-muted small mb-0 mt-1">Optional. Digits with country code (no +). If empty, the site uses the main/reception phone for both calls and WhatsApp.</p>
-                                    </div>
                                     <div class="col-md-6">
                                         <label class="form-label" for="channel_contact_email">Contact email for mailto links</label>
                                         <input type="email" class="form-control" id="channel_contact_email" name="channel_contact_email" value="{{ old('channel_contact_email', $data->channel_contact_email ?? '') }}" placeholder="Leave empty to use main Email above">
