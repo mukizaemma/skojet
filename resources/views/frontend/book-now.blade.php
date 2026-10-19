@@ -146,6 +146,9 @@
                         <aside class="book-channel__panel book-channel__price">
                             <h2>{{ site_trans('booking.channel_price') }}</h2>
                             <p class="book-channel__suite">{{ $selectedRoom->title }}</p>
+                            @if(isset(\App\Models\Room::BOARD_PLANS[$board]) && in_array($occupancy, ['single', 'double'], true))
+                                <p class="book-channel__meta">{{ site_trans('room.board_'.$board) }} · {{ site_trans('room.occ_'.$occupancy.'_long') }}</p>
+                            @endif
                             <p class="book-channel__meta">
                                 {{ \Carbon\Carbon::parse($checkin)->format('D, M j, Y') }}
                                 – {{ \Carbon\Carbon::parse($checkout)->format('D, M j, Y') }}
@@ -339,10 +342,44 @@
                             <div class="book-channel__copy">
                                 <h2>{{ $room->title }}</h2>
                                 <p class="book-channel__facts">
-                                    @if($beds !== '')<span>{{ $beds }}</span>@endif
+                                    @if($room->bed_type && isset(\App\Models\Room::BED_TYPES[$room->bed_type]))
+                                        <span>{{ site_trans('room.bed_'.$room->bed_type) }}</span>
+                                    @elseif($beds !== '')
+                                        <span>{{ $beds }}</span>
+                                    @endif
                                     <span>{{ site_trans('booking.channel_sleeps', ['count' => $sleeps]) }}</span>
                                 </p>
-                                <p>{{ \Illuminate\Support\Str::words(strip_tags($room->description ?? ''), 24, '…') }}</p>
+                                @if($room->publicRatePlans() !== [])
+                                    <div class="suite-rates">
+                                        @foreach($room->publicRatePlans() as $plan)
+                                            <div class="suite-rates__plan">
+                                                <div class="suite-rates__name">
+                                                    {{ site_trans('room.board_'.$plan['key']) }}
+                                                    <small>{{ site_trans('room.board_note_'.$plan['key']) }}</small>
+                                                </div>
+                                                <div class="suite-rates__cells">
+                                                    @foreach(['single', 'double'] as $occupancyKey)
+                                                        @if($plan[$occupancyKey] !== null)
+                                                            @php
+                                                                $isPicked = (int) $room_id === (int) $room->id && $board === $plan['key'] && $occupancy === $occupancyKey;
+                                                            @endphp
+                                                            <button type="button" class="suite-rates__cell {{ $isPicked ? 'is-selected' : '' }}" wire:click.stop="chooseRate({{ $room->id }}, '{{ $plan['key'] }}', '{{ $occupancyKey }}')">
+                                                                <span>{{ site_trans('room.occ_'.$occupancyKey) }}</span>
+                                                                <strong>
+                                                                    @if($plan[$occupancyKey] > $plan[$occupancyKey.'_sale'])
+                                                                        <s>{{ hotel_price($plan[$occupancyKey], $setting) }}</s>
+                                                                    @endif
+                                                                    {{ hotel_price($plan[$occupancyKey.'_sale'], $setting) }}
+                                                                </strong>
+                                                            </button>
+                                                        @endif
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @endif
+                                <p>{{ \Illuminate\Support\Str::words(strip_tags($room->description ?? ''), 18, '…') }}</p>
                             </div>
                             <div class="book-channel__rate">
                                 @if(!empty($quote['has_discount']))
@@ -377,6 +414,9 @@
                     <p class="book-channel__meta">{{ $nights }} {{ $nights === 1 ? 'night' : 'nights' }} · {{ site_trans('booking.channel_guests_line', ['count' => $guestCount]) }}</p>
                     @if($selectedRoom)
                         <p class="book-channel__suite">{{ $selectedRoom->title }}</p>
+                        @if(isset(\App\Models\Room::BOARD_PLANS[$board]) && in_array($occupancy, ['single', 'double'], true))
+                            <p class="book-channel__meta">{{ site_trans('room.board_'.$board) }} · {{ site_trans('room.occ_'.$occupancy.'_long') }}</p>
+                        @endif
                         @if(!empty($selectedQuote['has_discount']))
                             <p class="book-channel__meta"><span class="book-channel__was">{{ hotel_price($selectedQuote['list_total'] ?? 0, $setting) }}</span> {{ hotel_price($selectedQuote['total'] ?? 0, $setting) }}</p>
                         @else

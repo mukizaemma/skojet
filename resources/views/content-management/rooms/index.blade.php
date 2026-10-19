@@ -58,10 +58,15 @@
                                             decoding="async"
                                         >
                                     </td>
-                                    <td>{{ $room->title }}</td>
+                                    <td>
+                                        {{ $room->title }}
+                                        @if(filled($room->bed_type) && isset(\App\Models\Room::BED_TYPES[$room->bed_type]))
+                                            <div class="small text-muted">{{ \App\Models\Room::BED_TYPES[$room->bed_type] }}</div>
+                                        @endif
+                                    </td>
                                     <td>{{ (int) ($room->number_of_rooms ?? 1) }} · max {{ (int) ($room->max_occupancy ?? 2) }}/room</td>
                                     <td><span class="badge bg-{{ $room->status == 'Active' ? 'success' : 'danger' }}">{{ $room->status }}</span></td>
-                                    <td>{{ hotel_price($room->price ?? 0, $setting) }}<span class="text-muted">/night</span></td>
+                                    <td>{{ hotel_price($room->headlineNightly(), $setting) }}<span class="text-muted">/night</span></td>
                                     <td>{{ $room->images->count() }} {{ Str::plural('image', $room->images->count()) }}</td>
                                     <td>{{ $room->amenities->count() }} amenities</td>
                                     <td>
@@ -102,10 +107,21 @@
                     <p class="text-muted small mb-3">
                         Create one listing per room <strong>type</strong> (e.g. Single, Double with kitchen, VIP). Set how many physical rooms of that type you have — guests request a count of that type; front office assigns specific rooms later.
                     </p>
-                    <div class="mb-3">
-                        <label class="form-label">Title <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="room_title" name="title" required>
-                        <div class="invalid-feedback">Please provide a title.</div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label">Title <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="room_title" name="title" required>
+                            <div class="invalid-feedback">Please provide a title.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="room_bed_type">Bed style</label>
+                            <select class="form-control" id="room_bed_type" name="bed_type">
+                                <option value="">Select a bed style</option>
+                                @foreach(\App\Models\Room::BED_TYPES as $bedKey => $bedLabel)
+                                    <option value="{{ $bedKey }}">{{ $bedLabel }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                     </div>
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
@@ -120,6 +136,52 @@
                         <div class="col-md-4">
                             <label class="form-label">Max guests / room <span class="text-danger">*</span></label>
                             <input type="number" class="form-control" id="room_max_occupancy" name="max_occupancy" min="1" max="20" value="2" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Board and occupancy rates</label>
+                        <p class="text-muted small mb-2">Set single and double occupancy for each board. Leave a board blank to keep it off the website. A discount can be a fixed amount or a percentage off those rates.</p>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Board</th>
+                                        <th>Single occupancy</th>
+                                        <th>Double occupancy</th>
+                                        <th>Discount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach([
+                                        'bed_breakfast' => ['Bed & breakfast', 'Breakfast only'],
+                                        'half_board' => ['Half board', 'Breakfast and dinner'],
+                                        'full_board' => ['Full board', 'Breakfast, lunch and dinner'],
+                                    ] as $planKey => [$planLabel, $planNote])
+                                    <tr>
+                                        <td>
+                                            <strong>{{ $planLabel }}</strong>
+                                            <div class="small text-muted">{{ $planNote }}</div>
+                                        </td>
+                                        <td style="min-width: 8rem;">
+                                            <input type="number" class="form-control" id="rate_{{ $planKey }}_single" name="rates[{{ $planKey }}][single]" min="0" step="1" placeholder="—">
+                                        </td>
+                                        <td style="min-width: 8rem;">
+                                            <input type="number" class="form-control" id="rate_{{ $planKey }}_double" name="rates[{{ $planKey }}][double]" min="0" step="1" placeholder="—">
+                                        </td>
+                                        <td style="min-width: 14rem;">
+                                            <div class="d-flex gap-2">
+                                                <select class="form-control" id="rate_{{ $planKey }}_discount_type" name="rates[{{ $planKey }}][discount_type]">
+                                                    <option value="">None</option>
+                                                    <option value="percent">Percent</option>
+                                                    <option value="amount">Amount</option>
+                                                </select>
+                                                <input type="number" class="form-control" id="rate_{{ $planKey }}_discount_value" name="rates[{{ $planKey }}][discount_value]" min="0" step="0.01" placeholder="0">
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                     <div class="mb-3">
@@ -292,6 +354,13 @@ function resetForm() {
     document.getElementById('room_number_of_rooms').value = '1';
     document.getElementById('room_max_occupancy').value = '2';
     document.getElementById('room_status').value = 'Active';
+    document.getElementById('room_bed_type').value = '';
+    ['bed_breakfast', 'half_board', 'full_board'].forEach(function (key) {
+        document.getElementById('rate_' + key + '_single').value = '';
+        document.getElementById('rate_' + key + '_double').value = '';
+        document.getElementById('rate_' + key + '_discount_type').value = '';
+        document.getElementById('rate_' + key + '_discount_value').value = '';
+    });
     clearRoomCurrentMedia();
     // Reset Summernote
     if (window.CmsSummernote) {
@@ -314,6 +383,14 @@ function editRoom(id) {
                 CmsSummernote.setCode('#room_description', data.description || '');
             }
             document.getElementById('room_price').value = data.price ?? '';
+            document.getElementById('room_bed_type').value = data.bed_type || '';
+            ['bed_breakfast', 'half_board', 'full_board'].forEach(function (key) {
+                const plan = (data.rate_plans && data.rate_plans[key]) ? data.rate_plans[key] : {};
+                document.getElementById('rate_' + key + '_single').value = plan.single ?? '';
+                document.getElementById('rate_' + key + '_double').value = plan.double ?? '';
+                document.getElementById('rate_' + key + '_discount_type').value = plan.discount_type || '';
+                document.getElementById('rate_' + key + '_discount_value').value = plan.discount_value ?? '';
+            });
             document.getElementById('room_number_of_rooms').value = data.number_of_rooms ?? 1;
             document.getElementById('room_max_occupancy').value = data.max_occupancy ?? 2;
             document.getElementById('room_status').value = data.status || 'Active';
@@ -435,6 +512,7 @@ function viewRoom(id) {
             document.getElementById('viewRoomTitle').textContent = data.title;
             document.getElementById('viewRoomDetails').innerHTML = `
                 <p><strong>Price:</strong> ${data.price != null && data.price !== '' ? __formatRoomAdminPrice(data.price) : 'N/A'}</p>
+                <p><strong>Bed:</strong> ${({twin:'Twin Beds', king:'King Size Bed', double:'Double Bed', deluxe:'Deluxe Bed'})[data.bed_type] || '—'}</p>
                 <p><strong>Status:</strong> <span class="badge bg-${data.status == 'Active' ? 'success' : 'danger'}">${data.status}</span></p>
                 <p><strong>Description:</strong> ${data.description || 'N/A'}</p>
             `;

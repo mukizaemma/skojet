@@ -55,6 +55,9 @@
                                         <a wire:navigate href="{{ localized_route('room',['slug'=>$room->slug]) }}" class="room__title">
                                             <h5>{{ $room->title }}</h5>
                                         </a>
+                                        @if($room->bed_type && isset(\App\Models\Room::BED_TYPES[$room->bed_type]))
+                                            <p class="mb-0" style="letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.8rem;">{{ site_trans('room.bed_'.$room->bed_type) }}</p>
+                                        @endif
                                     {{-- <div class="room__content__meta" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px;">
                                         @foreach($room->amenities as $amenity)
                                             <span style="display: flex; align-items: center; font-size: 14px;">
@@ -68,7 +71,7 @@
 
                                     </div>
                                 <div class="price h4 d-flex justify-content-between align-items-center flex-wrap" style="gap: 10px;">
-                                    <span>{{ hotel_price($room->price ?? 0, $setting) }}<span class="h6 fw-normal">/ night</span></span>
+                                    <span>{{ hotel_price($room->headlineNightly(), $setting) }}<span class="h6 fw-normal">/ night</span></span>
                                     <div class="main__right d-flex align-items-center flex-wrap" style="gap: 8px;">
                                         <a wire:navigate href="{{ localized_route('room',['slug'=>$room->slug]) }}"
                                         class="theme-btn btn-style sm-btn border"

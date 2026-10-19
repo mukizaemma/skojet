@@ -27,6 +27,12 @@ class RoomManagementController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
+            'bed_type' => 'nullable|in:twin,king,double,deluxe',
+            'rates' => 'nullable|array',
+            'rates.*.single' => 'nullable|numeric|min:0',
+            'rates.*.double' => 'nullable|numeric|min:0',
+            'rates.*.discount_type' => 'nullable|in:amount,percent',
+            'rates.*.discount_value' => 'nullable|numeric|min:0|max:1000000',
             'number_of_rooms' => 'required|integer|min:1|max:200',
             'max_occupancy' => 'required|integer|min:1|max:20',
             'cover_image' => admin_image_validation_rule(),
@@ -43,6 +49,8 @@ class RoomManagementController extends Controller
         $room->room_type = 'room';
         $room->price = $request->price;
         $room->couplePrice = null;
+        $room->bed_type = $request->filled('bed_type') ? $request->bed_type : null;
+        $room->rate_plans = $this->ratePlansFromRequest($request);
         $room->number_of_rooms = (int) $request->number_of_rooms;
         $room->guests_included_in_price = min(2, (int) $request->max_occupancy);
         $room->extra_adult_price = null;
@@ -50,7 +58,6 @@ class RoomManagementController extends Controller
         $room->extra_bed_price = null;
         $room->max_occupancy = (int) $request->max_occupancy;
         $room->bed_count = 1;
-        $room->bed_type = null;
         $room->status = $request->status;
         $room->room_status = 'available';
         $room->user_id = auth()->id();
@@ -85,6 +92,12 @@ class RoomManagementController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
+            'bed_type' => 'nullable|in:twin,king,double,deluxe',
+            'rates' => 'nullable|array',
+            'rates.*.single' => 'nullable|numeric|min:0',
+            'rates.*.double' => 'nullable|numeric|min:0',
+            'rates.*.discount_type' => 'nullable|in:amount,percent',
+            'rates.*.discount_value' => 'nullable|numeric|min:0|max:1000000',
             'number_of_rooms' => 'required|integer|min:1|max:200',
             'max_occupancy' => 'required|integer|min:1|max:20',
             'cover_image' => admin_image_validation_rule(),
@@ -101,6 +114,8 @@ class RoomManagementController extends Controller
         $room->description = $request->description;
         $room->room_type = 'room';
         $room->price = $request->price;
+        $room->bed_type = $request->filled('bed_type') ? $request->bed_type : null;
+        $room->rate_plans = $this->ratePlansFromRequest($request);
         $room->number_of_rooms = (int) $request->number_of_rooms;
         $room->max_occupancy = (int) $request->max_occupancy;
         $room->guests_included_in_price = min((int) $room->guests_included_in_price ?: 2, (int) $request->max_occupancy);
@@ -164,6 +179,8 @@ class RoomManagementController extends Controller
             'title' => $room->title,
             'description' => $room->description,
             'price' => $room->price,
+            'bed_type' => $room->bed_type,
+            'rate_plans' => $room->ratePlans(),
             'number_of_rooms' => $room->number_of_rooms,
             'max_occupancy' => $room->max_occupancy,
             'status' => $room->status,
@@ -210,5 +227,52 @@ class RoomManagementController extends Controller
         }
 
         return response()->json(['success' => true, 'message' => 'Images added successfully']);
+    }
+
+    /**
+     * @return array<string, array{single: ?float, double: ?float, discount_type: string, discount_value: ?float}>|null
+     */
+    protected function ratePlansFromRequest(Request $request): ?array
+    {
+        $incoming = $request->input('rates', []);
+        $plans = [];
+        $any = false;
+
+        foreach (array_keys(Room::BOARD_PLANS) as $key) {
+            $row = is_array($incoming[$key] ?? null) ? $incoming[$key] : [];
+            $single = $this->rateMoney($row['single'] ?? null);
+            $double = $this->rateMoney($row['double'] ?? null);
+            $type = in_array($row['discount_type'] ?? '', ['amount', 'percent'], true) ? $row['discount_type'] : '';
+            $value = $this->rateMoney($row['discount_value'] ?? null);
+            if ($type === 'percent' && $value !== null) {
+                $value = min(100, $value);
+            }
+            if ($type === '' || $value === null || $value <= 0 || ($single === null && $double === null)) {
+                $type = '';
+                $value = null;
+            }
+            if ($single !== null || $double !== null) {
+                $any = true;
+            }
+            $plans[$key] = [
+                'single' => $single,
+                'double' => $double,
+                'discount_type' => $type,
+                'discount_value' => $value,
+            ];
+        }
+
+        return $any ? $plans : null;
+    }
+
+    protected function rateMoney(mixed $value): ?float
+    {
+        if ($value === null || $value === '' || ! is_numeric($value)) {
+            return null;
+        }
+
+        $number = round((float) $value, 2);
+
+        return $number < 0 ? null : $number;
     }
 }

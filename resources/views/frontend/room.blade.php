@@ -68,9 +68,12 @@
                     <h1 class="room-detail-aside__title">{{ $room->title }}</h1>
 
                     <div class="room-detail-price-card rates-panel">
+                        @if($room->bed_type && isset(\App\Models\Room::BED_TYPES[$room->bed_type]))
+                            <span class="room-detail-bed">{{ site_trans('room.bed_'.$room->bed_type) }}</span>
+                        @endif
                         <span class="room-detail-price-card__label">{{ site_trans('room.from') }}</span>
                         <div class="room-detail-price-card__amount">
-                            <span class="room-detail-price-card__value">{{ hotel_price($room->price ?? 0, $setting) }}</span>
+                            <span class="room-detail-price-card__value">{{ hotel_price($room->headlineNightly(), $setting) }}</span>
                             <span class="room-detail-price-card__unit">{{ site_trans('room.per_night') }}</span>
                         </div>
                         <p class="room-detail-price-card__note">{{ site_trans('room.price_note') }}</p>
@@ -98,6 +101,47 @@
         </div>
     </div>
 </section>
+
+@if($room->publicRatePlans() !== [])
+<section class="room-rate-board rts__section section__padding pt-0">
+    <div class="container">
+        <header class="room-rate-board__header">
+            <h2>{{ site_trans('room.rates_title') }}</h2>
+            <p>{{ site_trans('room.rates_lead') }}</p>
+        </header>
+        <div class="room-rate-board__grid">
+            @foreach($room->publicRatePlans() as $plan)
+                <article class="room-rate-board__card">
+                    <header class="room-rate-board__head">
+                        <h3>{{ site_trans('room.board_'.$plan['key']) }}</h3>
+                        <p>{{ site_trans('room.board_note_'.$plan['key']) }}</p>
+                    </header>
+                    <div class="room-rate-board__body">
+                        @if($plan['discount_type'] === 'percent' && $plan['discount_value'])
+                            <span class="room-rate-board__ribbon">{{ site_trans('room.off_percent', ['value' => rtrim(rtrim(number_format((float) $plan['discount_value'], 2, '.', ''), '0'), '.')]) }}</span>
+                        @elseif($plan['discount_type'] === 'amount' && $plan['discount_value'])
+                            <span class="room-rate-board__ribbon">{{ site_trans('room.off_amount', ['value' => hotel_price($plan['discount_value'], $setting)]) }}</span>
+                        @endif
+                        @foreach(['single', 'double'] as $occupancyKey)
+                            @if($plan[$occupancyKey] !== null)
+                                <div class="room-rate-board__row">
+                                    <span>{{ site_trans('room.occ_'.$occupancyKey.'_long') }}</span>
+                                    <strong>
+                                        @if($plan[$occupancyKey] > $plan[$occupancyKey.'_sale'])
+                                            <s>{{ hotel_price($plan[$occupancyKey], $setting) }}</s>
+                                        @endif
+                                        {{ hotel_price($plan[$occupancyKey.'_sale'], $setting) }}
+                                    </strong>
+                                </div>
+                            @endif
+                        @endforeach
+                    </div>
+                </article>
+            @endforeach
+        </div>
+    </div>
+</section>
+@endif
 
 @if(filled(strip_tags((string) $room->description)))
 <section class="room-detail-about rts__section section__padding pt-0">

@@ -12,13 +12,23 @@
             <div class="home-room-card__head">
                 <a wire:navigate href="{{ localized_route('room', ['slug' => $room->slug]) }}" class="home-room-card__title">{{ $room->title }}</a>
                 <div class="home-room-card__price">
-                    <span class="home-room-card__price-from">Starts from</span>
+                    <span class="home-room-card__price-from">{{ site_trans('room.from') }}</span>
                     <div class="home-room-card__price-line">
-                        <span class="home-room-card__price-amount">{{ hotel_price($room->price ?? 0, $setting) }}</span>
+                        <span class="home-room-card__price-amount">{{ hotel_price($room->headlineNightly(), $setting) }}</span>
                         <span class="home-room-card__price-unit">/ night</span>
                     </div>
                 </div>
             </div>
+            @if($room->bed_type && isset(\App\Models\Room::BED_TYPES[$room->bed_type]))
+                <p class="home-room-card__bed">{{ site_trans('room.bed_'.$room->bed_type) }}</p>
+            @endif
+            @if($room->publicRatePlans() !== [])
+                <p class="home-room-card__plans">
+                    @foreach($room->publicRatePlans() as $plan)
+                        <span>{{ site_trans('room.board_'.$plan['key']) }}</span>
+                    @endforeach
+                </p>
+            @endif
             <p class="home-room-card__excerpt">
                 {!! Str::words(strip_tags($room->description ?? ''), 28, '…') !!}
             </p>

@@ -25,13 +25,19 @@ class RoomDiscountService
      *     has_discount: bool
      * }
      */
-    public function quote(Room $room, string $checkin, string $checkout, int $adults, int $children, int $roomCount = 1, int $extraBeds = 0): array
+    public function quote(Room $room, string $checkin, string $checkout, int $adults, int $children, int $roomCount = 1, int $extraBeds = 0, ?string $board = null, ?string $occupancy = null): array
     {
         $nights = $this->nights($checkin, $checkout);
         $rooms = max(1, $roomCount);
         $adultsPerRoom = (int) max(1, ceil(max(1, $adults) / $rooms));
         $childrenPerRoom = (int) max(0, ceil(max(0, $children) / $rooms));
-        $nightly = $room->nightlyRateForGuests($adultsPerRoom, $childrenPerRoom, max(0, $extraBeds));
+        $prefer = $adultsPerRoom <= 1 ? 'single' : 'double';
+        $resolved = $room->publicRatePlans() !== []
+            ? $room->resolveRate($board, $occupancy, $prefer)
+            : null;
+        $nightly = $resolved
+            ? (float) $resolved['sale']
+            : $room->nightlyRateForGuests($adultsPerRoom, $childrenPerRoom, max(0, $extraBeds));
         $list = $nightly * $nights * $rooms;
 
         $empty = [
@@ -43,6 +49,9 @@ class RoomDiscountService
             'total' => $list,
             'label' => '',
             'has_discount' => false,
+            'board' => $resolved['board'] ?? '',
+            'occupancy' => $resolved['occupancy'] ?? '',
+            'rack_nightly' => $resolved['rack'] ?? $nightly,
         ];
 
         if ($nights < 1 || $nightly <= 0) {
@@ -93,6 +102,9 @@ class RoomDiscountService
             'total' => $total,
             'label' => implode(', ', array_keys($labels)),
             'has_discount' => $saved >= 0.5,
+            'board' => $resolved['board'] ?? '',
+            'occupancy' => $resolved['occupancy'] ?? '',
+            'rack_nightly' => $resolved['rack'] ?? $nightly,
         ];
     }
 

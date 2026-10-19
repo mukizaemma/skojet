@@ -98,6 +98,12 @@ class BookNowPage extends Component
     /** @var bool Guest chose a suite; otherwise the cheapest (or discounted) rate stays selected. */
     public $roomPicked = false;
 
+    /** @var string Board plan key, such as half_board. */
+    public $board = '';
+
+    /** @var string single or double occupancy. */
+    public $occupancy = '';
+
     public function mount(): void
     {
         if (hotel_book_now_is_external()) {
@@ -115,6 +121,8 @@ class BookNowPage extends Component
             $this->room_count = (int) ($saved['room_count'] ?? 1);
             $this->room_id = $saved['room_id'] ?? null;
             $this->roomPicked = (bool) ($saved['room_picked'] ?? false);
+            $this->board = (string) ($saved['board'] ?? '');
+            $this->occupancy = (string) ($saved['occupancy'] ?? '');
             $savedStep = (int) ($saved['step'] ?? 1);
             if (in_array($savedStep, [1, 2], true)) {
                 $this->step = $savedStep;
@@ -144,6 +152,7 @@ class BookNowPage extends Component
             $this->roomPicked = false;
             $this->applyDefaultRoom();
         }
+        $this->alignRate();
         $this->rememberStay();
     }
 
@@ -226,6 +235,23 @@ class BookNowPage extends Component
         $this->room_id = $roomId;
         $this->roomPicked = true;
         $this->normalizeStayInput();
+        $this->alignRate();
+        $this->rememberStay();
+        $this->syncLimitFeedback();
+    }
+
+    public function chooseRate(int $roomId, string $board, string $occupancy): void
+    {
+        $room = Room::query()->where('id', $roomId)->where('status', 'Active')->first();
+        if (! $room || ! $room->rateCell($board, $occupancy)) {
+            return;
+        }
+
+        $this->room_id = $roomId;
+        $this->roomPicked = true;
+        $this->board = $board;
+        $this->occupancy = $occupancy;
+        $this->normalizeStayInput();
         $this->rememberStay();
         $this->syncLimitFeedback();
     }
@@ -273,8 +299,12 @@ class BookNowPage extends Component
         $this->children = 0;
         $this->room_count = 1;
         $this->room_id = null;
+        $this->board = '';
+        $this->occupancy = '';
         $this->normalizeStayInput();
         $this->applyDefaultRoom();
+        $this->alignRate();
+        $this->rememberStay();
         $this->resetErrorBag();
     }
 
@@ -306,7 +336,10 @@ class BookNowPage extends Component
         ]);
 
         $this->names = trim($this->first_name.' '.$this->last_name);
+        $this->alignRate();
+        $rateNote = $this->rateNote();
         $notes = array_values(array_filter([
+            $rateNote,
             filled($this->address) ? 'Address: '.$this->address : null,
             filled($this->postal_code) ? 'Postal code: '.$this->postal_code : null,
             filled($this->message) ? trim((string) $this->message) : null,
@@ -327,6 +360,8 @@ class BookNowPage extends Component
                 'country' => $this->country,
                 'stay_reason' => $this->stay_reason,
                 'party_type' => $this->party_type,
+                'board' => $this->board,
+                'occupancy' => $this->occupancy,
                 'message' => implode("\n", $notes),
             ]);
 
@@ -429,6 +464,8 @@ class BookNowPage extends Component
             'room_count' => (int) $this->room_count,
             'room_id' => $this->room_id,
             'room_picked' => (bool) $this->roomPicked,
+            'board' => (string) $this->board,
+            'occupancy' => (string) $this->occupancy,
             'step' => (int) $this->step,
         ]]);
     }
@@ -436,6 +473,32 @@ class BookNowPage extends Component
     protected function applyDefaultRoom(): void
     {
         $this->room_id = $this->cheapestRoomId();
+        $this->alignRate();
+    }
+
+    protected function alignRate(): void
+    {
+        $room = $this->selectedRoom();
+        if (! $room || $room->publicRatePlans() === []) {
+            $this->board = '';
+            $this->occupancy = '';
+
+            return;
+        }
+
+        $prefer = (int) $this->adults <= 1 ? 'single' : 'double';
+        $resolved = $room->resolveRate($this->board, $this->occupancy, $prefer);
+        $this->board = $resolved['board'];
+        $this->occupancy = $resolved['occupancy'];
+    }
+
+    protected function rateNote(): ?string
+    {
+        if (! isset(Room::BOARD_PLANS[$this->board]) || ! in_array($this->occupancy, ['single', 'double'], true)) {
+            return null;
+        }
+
+        return 'Rate: '.site_trans('room.board_'.$this->board).', '.site_trans('room.occ_'.$this->occupancy.'_long');
     }
 
     protected function cheapestRoomId(): ?int
@@ -455,7 +518,10 @@ class BookNowPage extends Component
                 (string) $this->checkout,
                 (int) $this->adults,
                 (int) $this->children,
-                $roomsRequested
+                $roomsRequested,
+                0,
+                $this->board !== '' ? $this->board : null,
+                $this->occupancy !== '' ? $this->occupancy : null
             );
             $summary = $this->availability()->summary($room, (string) $this->checkin, (string) $this->checkout);
             $sleeps = max(1, (int) ($room->max_occupancy ?? 2)) * $roomsRequested;
@@ -644,7 +710,10 @@ class BookNowPage extends Component
             (string) $this->checkout,
             (int) $this->adults,
             (int) $this->children,
-            max(1, (int) $this->room_count)
+            max(1, (int) $this->room_count),
+            0,
+            $this->board !== '' ? $this->board : null,
+            $this->occupancy !== '' ? $this->occupancy : null
         );
     }
 
@@ -716,7 +785,10 @@ class BookNowPage extends Component
                 (string) $this->checkout,
                 (int) $this->adults,
                 (int) $this->children,
-                1
+                1,
+                0,
+                $this->board !== '' ? $this->board : null,
+                $this->occupancy !== '' ? $this->occupancy : null
             );
         }
         $selectedQuote = $this->quoteFor($selectedRoom);

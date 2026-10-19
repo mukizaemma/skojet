@@ -2482,3 +2482,187 @@ a.text-primary {
         border-bottom: 1px solid rgba(0, 0, 0, 0.08);
     }
 }
+
+.suite-rates {
+    display: grid;
+    gap: 0.55rem;
+    margin: 0.75rem 0 0.35rem;
+}
+
+.suite-rates__plan {
+    display: grid;
+    grid-template-columns: minmax(6.5rem, 8.5rem) minmax(0, 1fr);
+    gap: 0.45rem;
+    align-items: stretch;
+}
+
+.suite-rates__name {
+    font-size: 0.72rem;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1.25;
+}
+
+.suite-rates__name small {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.68rem;
+    font-weight: 450;
+    letter-spacing: 0;
+    text-transform: none;
+    color: #6f6962;
+}
+
+.suite-rates__cells {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35rem;
+}
+
+.suite-rates__cell {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.1rem;
+    border: 1px solid #e4ddd4;
+    background: #fff;
+    border-radius: 10px;
+    padding: 0.4rem 0.55rem;
+    text-align: left;
+    color: inherit;
+}
+
+.suite-rates__cell span {
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #6f6962;
+}
+
+.suite-rates__cell strong {
+    font-size: 0.92rem;
+    font-weight: 650;
+}
+
+.suite-rates__cell s {
+    margin-right: 0.25rem;
+    font-weight: 450;
+    opacity: 0.55;
+}
+
+.suite-rates__cell.is-selected {
+    border-color: #111;
+    background: #111;
+    color: #fff;
+}
+
+.suite-rates__cell.is-selected span,
+.suite-rates__cell.is-selected s {
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.home-room-card__bed,
+.room-detail-bed {
+    display: inline-flex;
+    width: fit-content;
+    margin: 0 0 0.45rem;
+    padding: 0.18rem 0.55rem;
+    border: 1px solid #111;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.home-room-card__plans {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin: 0 0 0.65rem;
+}
+
+.home-room-card__plans span {
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    background: #efeae2;
+    font-size: 0.75rem;
+}
+
+.room-rate-board__header {
+    margin-bottom: 1.25rem;
+}
+
+.room-rate-board__header h2 {
+    margin-bottom: 0.35rem;
+}
+
+.room-rate-board__header p {
+    margin: 0;
+    color: #6f6962;
+}
+
+.room-rate-board__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+}
+
+.room-rate-board__card {
+    overflow: hidden;
+    border-radius: 18px;
+    background: #f6f1ea;
+}
+
+.room-rate-board__head {
+    padding: 1rem 1.1rem 0.85rem;
+    background: #111;
+    color: #fff;
+}
+
+.room-rate-board__head h3,
+.room-rate-board__head p {
+    margin: 0;
+    color: #fff;
+}
+
+.room-rate-board__head p {
+    margin-top: 0.2rem;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.88rem;
+}
+
+.room-rate-board__body {
+    display: grid;
+    gap: 0.65rem;
+    padding: 1rem 1.1rem 1.15rem;
+}
+
+.room-rate-board__ribbon {
+    justify-self: start;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: #111;
+    color: #fff;
+    font-size: 0.75rem;
+}
+
+.room-rate-board__row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-top: 0.55rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.room-rate-board__row s {
+    margin-right: 0.35rem;
+    color: #8a847a;
+    font-weight: 450;
+}
+
+@media (max-width: 680px) {
+    .suite-rates__plan {
+        grid-template-columns: 1fr;
+    }
+}

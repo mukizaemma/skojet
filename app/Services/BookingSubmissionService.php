@@ -143,7 +143,9 @@ class BookingSubmissionService
                 $adults,
                 $children,
                 $roomCount,
-                $extraBeds
+                $extraBeds,
+                $request->input('board'),
+                $request->input('occupancy')
             );
             $booking->total_amount = (int) round($quote['total']);
             $booking->list_amount = (int) round($quote['list_total']);
