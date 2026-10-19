@@ -483,51 +483,160 @@ class ContentManagementController extends Controller
 
     public function gallery()
     {
+        $ordered = $this->orderedGalleryImages();
         $images = Gallery::query()
             ->where('media_type', 'image')
             ->orderBy('sort_order')
             ->orderBy('id')
-            ->get();
+            ->paginate(15)
+            ->appends(['tab' => 'gallery']);
 
         return view('content-management.gallery.index', [
             'images' => $images,
-            'homeImages' => $images->where('show_on_home', true)->values(),
+            'homeImages' => $ordered->where('show_on_home', true)->values(),
+            'galleryTotal' => $ordered->count(),
+            'nextSort' => ((int) $ordered->max('sort_order')) + 1,
+            'firstGalleryId' => $ordered->first()?->id,
+            'lastGalleryId' => $ordered->last()?->id,
             'activeTab' => request('tab') === 'gallery' ? 'gallery' : 'home',
         ]);
     }
 
     public function storeGalleryImage(Request $request)
     {
+        $files = $request->file('images', []);
+        if (! is_array($files)) {
+            $files = $files ? [$files] : [];
+        }
+        $files = array_values(array_filter($files));
+        if ($files === [] && $request->hasFile('image')) {
+            $files = [$request->file('image')];
+        }
+        $request->files->set('images', $files);
+
         $validated = $request->validate([
-            'image' => admin_image_validation_rule(true),
+            'images' => 'required|array|min:1|max:30',
+            'images.*' => admin_image_validation_rule(true),
             'caption' => 'nullable|string|max:255',
-            'sort_order' => 'nullable|integer|min:0|max:999',
+            'sort_order' => 'nullable|integer|min:0|max:9999',
             'show_on_home' => 'nullable|boolean',
             'return_tab' => 'nullable|in:home,gallery',
         ]);
 
-        $showOnHome = $request->boolean('show_on_home');
-        if ($showOnHome && $this->homeGalleryCount() >= 6) {
-            return redirect()
-                ->route('content-management.gallery', ['tab' => 'home'])
-                ->with('error', 'The home page already shows 6 images. Remove one before adding another.');
+        $wantHome = $request->boolean('show_on_home');
+        $homeSlots = max(0, 6 - $this->homeGalleryCount());
+        $homeFullNote = '';
+        if ($wantHome && $homeSlots === 0) {
+            $wantHome = false;
+            $homeFullNote = ' The home page already has 6 images, so these were added to the gallery page only.';
         }
 
-        $gallery = new Gallery();
-        $gallery->media_type = 'image';
-        $gallery->caption = $validated['caption'] ?? null;
-        $gallery->sort_order = $request->filled('sort_order')
+        $sort = $request->filled('sort_order')
             ? (int) $validated['sort_order']
-            : ((int) Gallery::max('sort_order') + 1);
-        $gallery->show_on_home = $showOnHome;
-        $gallery->image = store_optimized_image($request->file('image'), 'gallery');
-        $gallery->save();
+            : ((int) Gallery::query()->max('sort_order') + 1);
+        $placedHome = 0;
 
-        $tab = $showOnHome ? 'home' : ($validated['return_tab'] ?? 'gallery');
+        foreach ($files as $file) {
+            $onHome = $wantHome && $placedHome < $homeSlots;
+            if ($onHome) {
+                $placedHome++;
+            }
+
+            $gallery = new Gallery();
+            $gallery->media_type = 'image';
+            $gallery->caption = $validated['caption'] ?? null;
+            $gallery->sort_order = $sort;
+            $gallery->show_on_home = $onHome;
+            $gallery->image = store_optimized_image($file, 'gallery');
+            $gallery->save();
+            $sort++;
+        }
+
+        $count = count($files);
+        $message = $count === 1
+            ? 'Gallery image added.'
+            : $count.' gallery images added.';
+        if ($homeFullNote !== '') {
+            $message .= $homeFullNote;
+        } elseif ($wantHome && $placedHome < $count) {
+            $message .= ' '.$placedHome.' '.($placedHome === 1 ? 'is' : 'are').' on the home page. The home page holds 6 images, so the rest stay on the gallery page.';
+        }
+
+        $tab = $wantHome && $placedHome > 0 ? 'home' : ($validated['return_tab'] ?? 'gallery');
 
         return redirect()
             ->route('content-management.gallery', ['tab' => $tab])
-            ->with('success', 'Gallery image added.');
+            ->with('success', $message);
+    }
+
+    public function moveGalleryImage(Request $request, Gallery $gallery)
+    {
+        $request->validate([
+            'direction' => 'required|in:up,down',
+        ]);
+
+        $images = $this->orderedGalleryImages()->values();
+        $index = $images->search(fn (Gallery $row) => (int) $row->id === (int) $gallery->id);
+        $swap = $request->input('direction') === 'up' ? $index - 1 : $index + 1;
+
+        if ($index === false || $swap < 0 || $swap >= $images->count()) {
+            return redirect()->route('content-management.gallery', [
+                'tab' => 'gallery',
+                'page' => $request->input('page'),
+            ]);
+        }
+
+        $items = $images->all();
+        [$items[$index], $items[$swap]] = [$items[$swap], $items[$index]];
+        $this->writeGalleryOrder(collect($items));
+
+        return redirect()->route('content-management.gallery', [
+            'tab' => 'gallery',
+            'page' => $request->input('page'),
+        ])->with('success', 'Gallery order updated.');
+    }
+
+    public function removeDuplicateGalleryImages()
+    {
+        $groups = [];
+        foreach ($this->orderedGalleryImages() as $image) {
+            $full = storage_path('app/public/'.ltrim((string) $image->image, '/'));
+            $key = is_file($full) ? md5_file($full) : 'missing-'.$image->id;
+            $groups[$key][] = $image;
+        }
+
+        $removed = 0;
+        foreach ($groups as $group) {
+            if (count($group) < 2) {
+                continue;
+            }
+
+            usort($group, function (Gallery $a, Gallery $b) {
+                if ($a->show_on_home !== $b->show_on_home) {
+                    return $a->show_on_home ? -1 : 1;
+                }
+                if ((int) $a->sort_order !== (int) $b->sort_order) {
+                    return (int) $a->sort_order <=> (int) $b->sort_order;
+                }
+
+                return (int) $a->id <=> (int) $b->id;
+            });
+
+            array_shift($group);
+            foreach ($group as $duplicate) {
+                $this->deleteGalleryFile($duplicate->image);
+                $duplicate->delete();
+                $removed++;
+            }
+        }
+
+        $this->writeGalleryOrder($this->orderedGalleryImages());
+
+        return redirect()
+            ->route('content-management.gallery', ['tab' => 'gallery'])
+            ->with('success', $removed > 0
+                ? $removed.' duplicate '.($removed === 1 ? 'image was' : 'images were').' removed.'
+                : 'No duplicate images were found.');
     }
 
     public function updateGalleryImage(Request $request, Gallery $gallery)
@@ -535,7 +644,7 @@ class ContentManagementController extends Controller
         $validated = $request->validate([
             'image' => admin_image_validation_rule(false),
             'caption' => 'nullable|string|max:255',
-            'sort_order' => 'nullable|integer|min:0|max:999',
+            'sort_order' => 'nullable|integer|min:0|max:9999',
             'show_on_home' => 'nullable|boolean',
             'return_tab' => 'nullable|in:home,gallery',
         ]);
@@ -580,6 +689,26 @@ class ContentManagementController extends Controller
     private function homeGalleryCount(): int
     {
         return Gallery::query()->where('show_on_home', true)->count();
+    }
+
+    private function orderedGalleryImages()
+    {
+        return Gallery::query()
+            ->where('media_type', 'image')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+    }
+
+    private function writeGalleryOrder($images): void
+    {
+        foreach ($images->values() as $index => $image) {
+            $next = $index + 1;
+            if ((int) $image->sort_order !== $next) {
+                $image->sort_order = $next;
+                $image->save();
+            }
+        }
     }
 
     private function deleteGalleryFile(?string $path): void

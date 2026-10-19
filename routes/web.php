@@ -187,6 +187,8 @@ Route::middleware(['auth', 'admin'])->prefix('content-management')->name('conten
     // Gallery
     Route::get('/gallery', ContentManagementGallery::class)->name('gallery');
     Route::post('/gallery/store', [App\Http\Controllers\ContentManagementController::class, 'storeGalleryImage'])->name('gallery.store');
+    Route::post('/gallery/remove-duplicates', [App\Http\Controllers\ContentManagementController::class, 'removeDuplicateGalleryImages'])->name('gallery.remove-duplicates');
+    Route::post('/gallery/{gallery}/move', [App\Http\Controllers\ContentManagementController::class, 'moveGalleryImage'])->name('gallery.move');
     Route::post('/gallery/{gallery}/update', [App\Http\Controllers\ContentManagementController::class, 'updateGalleryImage'])->name('gallery.update');
     Route::delete('/gallery/{gallery}', [App\Http\Controllers\ContentManagementController::class, 'destroyGalleryImage'])->name('gallery.destroy');
     

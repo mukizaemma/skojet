@@ -22,7 +22,7 @@ class GalleryPage extends Component
             ->whereNotNull('image')
             ->orderBy('sort_order')
             ->orderBy('id')
-            ->paginate(12);
+            ->paginate(15);
 
         $galleryImages = $page->getCollection()->map(fn (Gallery $image) => [
             'key' => 'gallery-'.$image->id,

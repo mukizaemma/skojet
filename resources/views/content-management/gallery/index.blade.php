@@ -8,7 +8,7 @@
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
                 <div>
                     <h4 class="mb-1">Gallery</h4>
-                    <p class="text-muted small mb-0">Home shows the first 6 images in a 3-column grid. The gallery page shows every image, 12 per page, in 3 columns.</p>
+                    <p class="text-muted small mb-0">Home shows the first 6 images in a 3-column grid. The gallery page shows every uploaded image, 15 per page.</p>
                 </div>
             </div>
 
@@ -27,7 +27,7 @@
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link {{ $activeTab === 'gallery' ? 'active' : '' }}" id="site-gallery-tab" data-bs-toggle="tab" data-bs-target="#site-gallery-pane" type="button" role="tab" aria-controls="site-gallery-pane" aria-selected="{{ $activeTab === 'gallery' ? 'true' : 'false' }}">
-                        Gallery page <span class="badge bg-secondary ms-1">{{ $images->count() }}</span>
+                        Gallery page <span class="badge bg-secondary ms-1">{{ $galleryTotal }}</span>
                     </button>
                 </li>
             </ul>
@@ -58,10 +58,16 @@
 
                 <div class="tab-pane fade {{ $activeTab === 'gallery' ? 'show active' : '' }}" id="site-gallery-pane" role="tabpanel" aria-labelledby="site-gallery-tab">
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-                        <p class="text-muted small mb-0">Every image here is on the public gallery page.</p>
-                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#galleryAddModal" data-show-home="0" data-return-tab="gallery">
-                            <i class="fa fa-plus me-2"></i>Add image
-                        </button>
+                        <p class="text-muted small mb-0">Every uploaded image is listed here, 15 per page. Move them to change the public order, or remove copies of the same photo.</p>
+                        <div class="d-flex flex-wrap gap-2">
+                            <form action="{{ route('content-management.gallery.remove-duplicates') }}" method="POST" onsubmit="return confirm('Remove duplicate copies and keep one of each photo?');">
+                                @csrf
+                                <button type="submit" class="btn btn-outline-danger">Remove duplicates</button>
+                            </form>
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#galleryAddModal" data-show-home="0" data-return-tab="gallery">
+                                <i class="fa fa-plus me-2"></i>Add images
+                            </button>
+                        </div>
                     </div>
 
                     @if($images->isEmpty())
@@ -74,6 +80,9 @@
                                 </div>
                             @endforeach
                         </div>
+                        @if($images->hasPages())
+                            <div class="mt-4">{{ $images->links() }}</div>
+                        @endif
                     @endif
                 </div>
             </div>
@@ -88,13 +97,14 @@
                 @csrf
                 <input type="hidden" name="return_tab" id="galleryAddReturnTab" value="home">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="galleryAddModalLabel">Add gallery image</h5>
+                    <h5 class="modal-title" id="galleryAddModalLabel">Add gallery images</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label" for="galleryAddImage">Image</label>
-                        <input type="file" class="form-control" id="galleryAddImage" name="image" accept="image/*" required>
+                        <label class="form-label" for="galleryAddImage">Images</label>
+                        <input type="file" class="form-control" id="galleryAddImage" name="images[]" accept="image/*" multiple required>
+                        <p class="text-muted small mb-0 mt-1">Select one image or several at once. Up to 30 per upload.</p>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="galleryAddCaption">Caption</label>
@@ -102,7 +112,8 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="galleryAddSort">Sort order</label>
-                        <input type="number" class="form-control" id="galleryAddSort" name="sort_order" min="0" max="999" value="{{ ((int) $images->max('sort_order')) + 1 }}">
+                        <input type="number" class="form-control" id="galleryAddSort" name="sort_order" min="0" max="9999" value="{{ $nextSort }}">
+                        <p class="text-muted small mb-0 mt-1">Starting order. Extra images continue from this number.</p>
                     </div>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="galleryAddShowHome" name="show_on_home" value="1" {{ $homeImages->count() >= 6 ? 'disabled' : '' }}>
@@ -111,7 +122,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save image</button>
+                    <button type="submit" class="btn btn-primary">Save images</button>
                 </div>
             </form>
         </div>
@@ -140,7 +151,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="galleryEditSort">Sort order</label>
-                        <input type="number" class="form-control" id="galleryEditSort" name="sort_order" min="0" max="999">
+                        <input type="number" class="form-control" id="galleryEditSort" name="sort_order" min="0" max="9999">
                     </div>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="galleryEditShowHome" name="show_on_home" value="1">
