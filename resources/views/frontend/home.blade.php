@@ -91,8 +91,9 @@
         </header>
         <div class="skojet-home-gallery__grid">
             @foreach($homeGallery as $image)
+                @continue($image->publicImageUrl() === '')
                 <a wire:navigate href="{{ localized_route('gallery') }}" class="skojet-home-gallery__item">
-                    <img src="{{ asset('storage/'.$image->image) }}" alt="{{ $image->caption ?: site_trans('home.gallery_eyebrow') }}" loading="lazy" decoding="async">
+                    <img src="{{ $image->publicImageUrl() }}" alt="{{ $image->caption ?: site_trans('home.gallery_eyebrow') }}" decoding="async">
                 </a>
             @endforeach
         </div>

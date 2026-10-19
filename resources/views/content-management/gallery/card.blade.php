@@ -1,5 +1,5 @@
 <div class="card h-100">
-    <img src="{{ asset('storage/'.$image->image) }}" alt="{{ $image->caption }}" class="card-img-top" style="height:180px;object-fit:cover;">
+    <img src="{{ $image->publicImageUrl() }}" alt="{{ $image->caption }}" class="card-img-top" style="height:180px;object-fit:cover;">
     <div class="card-body py-3">
         <p class="mb-1 fw-semibold">{{ $image->caption ?: 'Untitled' }}</p>
         <p class="small text-muted mb-2">Order {{ $image->sort_order }}@if($image->show_on_home) · On home page @endif</p>
@@ -31,7 +31,7 @@
                 data-caption="{{ $image->caption }}"
                 data-sort="{{ $image->sort_order }}"
                 data-home="{{ $image->show_on_home ? '1' : '0' }}"
-                data-preview="{{ asset('storage/'.$image->image) }}"
+                data-preview="{{ $image->publicImageUrl() }}"
                 data-return-tab="{{ $returnTab }}"
             >Edit</button>
             <form action="{{ route('content-management.gallery.destroy', $image) }}" method="POST" onsubmit="return confirm('Remove this image?');">

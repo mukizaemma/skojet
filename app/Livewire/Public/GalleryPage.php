@@ -26,9 +26,9 @@ class GalleryPage extends Component
 
         $galleryImages = $page->getCollection()->map(fn (Gallery $image) => [
             'key' => 'gallery-'.$image->id,
-            'url' => asset('storage/'.$image->image),
+            'url' => $image->publicImageUrl(),
             'caption' => (string) ($image->caption ?? ''),
-        ])->values();
+        ])->filter(fn (array $image) => $image['url'] !== '')->values();
 
         return view('frontend.gallery', array_merge(PublicWebsiteData::galleryPageStatic(), [
             'galleryImages' => $galleryImages,
