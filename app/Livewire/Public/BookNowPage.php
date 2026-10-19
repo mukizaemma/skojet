@@ -115,6 +115,10 @@ class BookNowPage extends Component
             $this->room_count = (int) ($saved['room_count'] ?? 1);
             $this->room_id = $saved['room_id'] ?? null;
             $this->roomPicked = (bool) ($saved['room_picked'] ?? false);
+            $savedStep = (int) ($saved['step'] ?? 1);
+            if (in_array($savedStep, [1, 2], true)) {
+                $this->step = $savedStep;
+            }
         } else {
             $this->checkin = now()->toDateString();
             $this->checkout = now()->addDay()->toDateString();
@@ -210,6 +214,7 @@ class BookNowPage extends Component
         $this->chooseRoom($roomId);
         $this->validateStay();
         $this->step = 2;
+        $this->rememberStay();
     }
 
     public function chooseRoom(int $roomId): void
@@ -280,6 +285,7 @@ class BookNowPage extends Component
         }
 
         $this->step = 1;
+        $this->rememberStay();
     }
 
     public function submitReservation(string $via, BookingSubmissionService $bookings): void
@@ -302,7 +308,6 @@ class BookNowPage extends Component
         $this->names = trim($this->first_name.' '.$this->last_name);
         $notes = array_values(array_filter([
             filled($this->address) ? 'Address: '.$this->address : null,
-            filled($this->city) ? 'City: '.$this->city : null,
             filled($this->postal_code) ? 'Postal code: '.$this->postal_code : null,
             filled($this->message) ? trim((string) $this->message) : null,
             'Confirmation preference: '.$this->confirm_via,
@@ -330,14 +335,17 @@ class BookNowPage extends Component
             $this->guestEmailSent = (bool) ($result['guest_sent'] ?? false);
             $this->submitted = true;
             $this->step = 3;
-
+            $whatsappUrl = null;
             if ($this->confirm_via === 'whatsapp') {
                 $whatsappUrl = $this->whatsappDeepLink($result['booking']->id, $result['booking']);
                 $this->whatsappUrl = $whatsappUrl;
-                if ($whatsappUrl) {
-                    $this->dispatch('open-url', url: $whatsappUrl);
-                }
             }
+            $this->dispatch(
+                'reservation-submitted',
+                via: $this->confirm_via,
+                whatsappUrl: $whatsappUrl,
+                reference: $this->submittedBookingId,
+            );
         } catch (ValidationException $e) {
             throw $e;
         }
@@ -421,6 +429,7 @@ class BookNowPage extends Component
             'room_count' => (int) $this->room_count,
             'room_id' => $this->room_id,
             'room_picked' => (bool) $this->roomPicked,
+            'step' => (int) $this->step,
         ]]);
     }
 

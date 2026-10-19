@@ -117,6 +117,24 @@ class UserManagementController extends Controller
         return response()->json(['success' => true, 'message' => 'User updated successfully']);
     }
 
+    public function promoteToAdmin($id)
+    {
+        $this->ensureManageAllUsersOrAbort();
+
+        $user = User::with('role')->findOrFail($id);
+        if ($user->isSuperAdmin()) {
+            return redirect()->back()->with('error', 'The super admin account stays as it is.');
+        }
+
+        $adminRoleId = Role::where('slug', 'admin')->value('id');
+        abort_unless($adminRoleId, 500);
+
+        $user->role_id = $adminRoleId;
+        $user->save();
+
+        return redirect()->back()->with('success', $user->name.' is now an Admin and will open the hotel dashboard.');
+    }
+
     public function verifyEmail($id)
     {
         $this->ensureManageAllUsersOrAbort();

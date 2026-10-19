@@ -27,9 +27,50 @@
                     </a>
                 </div>
             @elseif($step === 2 && $selectedRoom)
-                <div class="book-channel__checkout">
+                <div
+                    class="book-channel__checkout"
+                    x-data="{
+                        first: @entangle('first_name').live,
+                        last: @entangle('last_name').live,
+                        phone: @entangle('phone').live,
+                        email: @entangle('email').live,
+                        country: @entangle('country').live,
+                        terms: @entangle('agree_terms').live,
+                        copy: @js([
+                            'emailTitle' => site_trans('booking.channel_confirm_email_title'),
+                            'emailText' => site_trans('booking.channel_confirm_email_text'),
+                            'whatsappTitle' => site_trans('booking.channel_confirm_whatsapp_title'),
+                            'whatsappText' => site_trans('booking.channel_confirm_whatsapp_text'),
+                            'confirm' => site_trans('booking.channel_confirm'),
+                            'cancel' => site_trans('booking.channel_cancel'),
+                        ]),
+                        get ready() {
+                            return [this.first, this.last, this.phone, this.email, this.country].every((value) => String(value || '').trim() !== '') && !!this.terms;
+                        },
+                        ask(via) {
+                            if (!this.ready || typeof Swal === 'undefined') {
+                                return;
+                            }
+                            const whatsapp = via === 'whatsapp';
+                            Swal.fire({
+                                title: whatsapp ? this.copy.whatsappTitle : this.copy.emailTitle,
+                                text: whatsapp ? this.copy.whatsappText : this.copy.emailText,
+                                icon: 'question',
+                                showCancelButton: true,
+                                confirmButtonText: this.copy.confirm,
+                                cancelButtonText: this.copy.cancel,
+                                confirmButtonColor: '#111111',
+                                cancelButtonColor: '#8a847a',
+                            }).then((result) => {
+                                if (result.isConfirmed) {
+                                    this.$wire.submitReservation(via);
+                                }
+                            });
+                        },
+                    }"
+                >
                     <button type="button" class="book-channel__back" wire:click="backToRooms">
-                        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> {{ site_trans('booking.channel_back') }}
+                        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> {{ site_trans('booking.channel_back_suites') }}
                     </button>
                     <h1>{{ site_trans('booking.channel_checkout') }}</h1>
 
@@ -41,54 +82,49 @@
                             <div class="book-channel__fields">
                                 <label>
                                     <span>{{ site_trans('booking.channel_first_name') }} *</span>
-                                    <input type="text" wire:model="first_name" autocomplete="given-name">
+                                    <input type="text" x-model="first" autocomplete="given-name">
                                     @error('first_name') <small>{{ $message }}</small> @enderror
                                 </label>
                                 <label>
                                     <span>{{ site_trans('booking.channel_last_name') }} *</span>
-                                    <input type="text" wire:model="last_name" autocomplete="family-name">
+                                    <input type="text" x-model="last" autocomplete="family-name">
                                     @error('last_name') <small>{{ $message }}</small> @enderror
                                 </label>
                                 <label>
                                     <span>{{ site_trans('booking.form_phone') }} *</span>
-                                    <input type="tel" wire:model="phone" autocomplete="tel">
+                                    <input type="tel" x-model="phone" autocomplete="tel">
                                     @error('phone') <small>{{ $message }}</small> @enderror
                                 </label>
                                 <label>
                                     <span>{{ site_trans('booking.form_email') }} *</span>
-                                    <input type="email" wire:model="email" autocomplete="email">
+                                    <input type="email" x-model="email" autocomplete="email">
                                     @error('email') <small>{{ $message }}</small> @enderror
                                 </label>
-                                <label class="is-wide">
-                                    <span>{{ site_trans('booking.form_country') }} *</span>
-                                    <input type="text" wire:model="country" autocomplete="country-name">
-                                    @error('country') <small>{{ $message }}</small> @enderror
-                                </label>
-                                <label class="is-wide">
-                                    <span>{{ site_trans('booking.channel_address') }}</span>
-                                    <input type="text" wire:model="address" autocomplete="street-address">
-                                </label>
-                                <label>
-                                    <span>City</span>
-                                    <input type="text" wire:model="city" autocomplete="address-level2">
-                                </label>
-                                <label>
-                                    <span>Postal code</span>
-                                    <input type="text" wire:model="postal_code" autocomplete="postal-code">
-                                </label>
+                                <div class="book-channel__address-row">
+                                    <label>
+                                        <span>{{ site_trans('booking.form_country') }} *</span>
+                                        <input type="text" x-model="country" autocomplete="country-name">
+                                        @error('country') <small>{{ $message }}</small> @enderror
+                                    </label>
+                                    <label>
+                                        <span>{{ site_trans('booking.channel_address') }}</span>
+                                        <input type="text" wire:model="address" autocomplete="street-address">
+                                    </label>
+                                    <label>
+                                        <span>{{ site_trans('booking.channel_postal') }}</span>
+                                        <input type="text" wire:model="postal_code" autocomplete="postal-code">
+                                    </label>
+                                </div>
                                 <label class="is-wide">
                                     <span>{{ site_trans('booking.channel_requests') }}</span>
-                                    <textarea wire:model="message" rows="3"></textarea>
+                                    <textarea wire:model="message" rows="2"></textarea>
                                 </label>
                             </div>
 
-                            <div class="book-channel__policies">
-                                <h2>{{ site_trans('booking.channel_policies') }}</h2>
-                                <p>{{ site_trans('booking.channel_policy') }}</p>
-                            </div>
+                            <p class="book-channel__policy-line">{{ site_trans('booking.channel_policy') }}</p>
 
                             <label class="book-channel__terms">
-                                <input type="checkbox" wire:model="agree_terms">
+                                <input type="checkbox" x-model="terms">
                                 <span>{{ site_trans('booking.channel_terms') }} *</span>
                             </label>
                             @error('agree_terms') <small class="book-channel__error">{{ $message }}</small> @enderror
@@ -96,11 +132,11 @@
                             @error('room_count') <small class="book-channel__error">{{ $message }}</small> @enderror
 
                             <div class="book-channel__submit">
-                                <button type="button" class="theme-btn btn-style fill" wire:click="submitReservation('email')" wire:loading.attr="disabled" wire:target="submitReservation">
+                                <button type="button" class="theme-btn btn-style fill" :disabled="!ready" @click="ask('email')" wire:loading.attr="disabled" wire:target="submitReservation">
                                     <span><i class="fa-solid fa-envelope" aria-hidden="true"></i> {{ site_trans('booking.channel_send_email') }}</span>
                                 </button>
                                 @if($hasWhatsapp)
-                                    <button type="button" class="theme-btn btn-style border book-channel__whatsapp" wire:click="submitReservation('whatsapp')" wire:loading.attr="disabled" wire:target="submitReservation">
+                                    <button type="button" class="theme-btn btn-style border book-channel__whatsapp" :disabled="!ready" @click="ask('whatsapp')" wire:loading.attr="disabled" wire:target="submitReservation">
                                         <span><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> {{ site_trans('booking.channel_send_whatsapp') }}</span>
                                     </button>
                                 @endif
@@ -440,11 +476,28 @@
 </script>
 @script
 <script>
-    $wire.on('open-url', (event) => {
-        const url = event.url || (event[0] && event[0].url);
-        if (url) {
-            window.open(url, '_blank', 'noopener,noreferrer');
+    $wire.on('reservation-submitted', (event) => {
+        const detail = event && event.via ? event : (event && event[0] ? event[0] : {});
+        const via = detail.via || 'email';
+        const url = detail.whatsappUrl || '';
+        const whatsapp = via === 'whatsapp' && url;
+        if (typeof Swal === 'undefined') {
+            if (whatsapp) {
+                window.open(url, '_blank', 'noopener,noreferrer');
+            }
+            return;
         }
+        Swal.fire({
+            icon: 'success',
+            title: @js(site_trans('booking.channel_sent_title')),
+            text: whatsapp ? @js(site_trans('booking.channel_sent_whatsapp')) : @js(site_trans('booking.channel_sent_email')),
+            confirmButtonText: whatsapp ? @js(site_trans('booking.channel_open_whatsapp')) : @js(site_trans('booking.channel_done')),
+            confirmButtonColor: '#111111',
+        }).then(() => {
+            if (whatsapp) {
+                window.open(url, '_blank', 'noopener,noreferrer');
+            }
+        });
     });
 </script>
 @endscript

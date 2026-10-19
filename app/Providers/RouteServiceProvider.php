@@ -20,29 +20,18 @@ class RouteServiceProvider extends ServiceProvider
             return '/dashboard';
         }
 
-        // Check by role_id first (more reliable)
-        switch ($user->role_id) {
-            case 1: // Super Admin
-                return '/content-management/dashboard';
-            case 2: // Admin
-                return '/content-management/dashboard';
-            case 3: // Normal user (guest role)
-                return '/account';
-            default:
-                // Fallback to slug-based check for backward compatibility
-                if ($user->role) {
-                    $roleSlug = $user->role->slug;
-                    switch ($roleSlug) {
-                        case 'super-admin':
-                            return '/content-management/dashboard';
-                        case 'admin':
-                            return '/content-management/dashboard';
-                        case 'guest':
-                            return '/account';
-                    }
-                }
-                return '/dashboard';
+        $user->loadMissing('role');
+        $slug = $user->role->slug ?? null;
+
+        if ($user->isSuperAdmin() || $user->isContentManager() || in_array($slug, ['super-admin', 'admin'], true)) {
+            return '/content-management/dashboard';
         }
+
+        if ($user->isGuest() || $slug === 'guest') {
+            return '/account';
+        }
+
+        return '/account';
     }
 
     /**

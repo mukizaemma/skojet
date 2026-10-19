@@ -60,6 +60,12 @@
                         <td>
                             <div class="btn-group js-user-actions" role="group">
                                 @if(!empty($isManager))
+                                @if($user->role && $user->role->slug === 'guest')
+                                <form action="{{ route('content-management.users.promote', $user->id) }}" method="POST" class="d-inline">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm btn-primary" title="Make Admin">Make Admin</button>
+                                </form>
+                                @endif
                                 @if(!$user->email_verified_at)
                                 <button type="button" class="btn btn-sm btn-success" data-user-action="verify" data-user-id="{{ $user->id }}" title="Verify Email">
                                     <i class="fa fa-check"></i>

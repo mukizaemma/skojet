@@ -2293,11 +2293,40 @@ a.text-primary {
 }
 
 .book-channel__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
     border: 0;
     background: transparent;
     padding: 0;
-    margin-bottom: 0.8rem;
+    margin-bottom: 0.65rem;
     font-size: 0.95rem;
+    cursor: pointer;
+}
+
+.book-channel__checkout h1 {
+    margin-bottom: 0.85rem;
+}
+
+.book-channel__address-row {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) minmax(7rem, 0.75fr);
+    gap: 0.75rem;
+}
+
+.book-channel__policy-line {
+    margin: 0.9rem 0 0;
+    color: #5c584f;
+    font-size: 0.9rem;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.book-channel__submit .theme-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 .book-channel__checkout-grid {
@@ -2327,14 +2356,20 @@ a.text-primary {
     border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
 
-.book-channel__terms {
+.book-channel label.book-channel__terms {
     flex-direction: row;
-    align-items: center;
-    gap: 0.6rem;
-    margin-top: 1rem;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 0.55rem;
+    margin-top: 0.75rem;
     text-transform: none;
     letter-spacing: 0;
-    font-size: 0.95rem;
+    font-size: 0.92rem;
+}
+
+.book-channel__fields textarea {
+    min-height: 4.5rem;
+    resize: vertical;
 }
 
 .book-channel__terms input {
@@ -2414,7 +2449,8 @@ a.text-primary {
     .book-channel__pick,
     .book-channel__card,
     .book-channel__checkout-grid,
-    .book-channel__fields {
+    .book-channel__fields,
+    .book-channel__address-row {
         grid-template-columns: 1fr;
     }
 

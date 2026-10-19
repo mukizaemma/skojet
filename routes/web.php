@@ -75,6 +75,7 @@ Route::middleware(['auth', 'admin'])->prefix('content-management')->name('conten
     Route::post('/users/store', [App\Http\Controllers\UserManagementController::class, 'store'])->name('users.store');
     Route::get('/users/{id}', [App\Http\Controllers\UserManagementController::class, 'show'])->name('users.show');
     Route::post('/users/{id}/update', [App\Http\Controllers\UserManagementController::class, 'update'])->name('users.update');
+    Route::post('/users/{id}/make-admin', [App\Http\Controllers\UserManagementController::class, 'promoteToAdmin'])->name('users.promote');
     Route::delete('/users/{id}', [App\Http\Controllers\UserManagementController::class, 'destroy'])->name('users.destroy');
     Route::post('/users/{id}/verify-email', [App\Http\Controllers\UserManagementController::class, 'verifyEmail'])->name('users.verify-email');
     Route::post('/users/{id}/resend-verification', [App\Http\Controllers\UserManagementController::class, 'resendVerification'])->name('users.resend-verification');
@@ -210,7 +211,9 @@ Route::middleware(['auth', 'admin'])->prefix('content-management')->name('conten
 
 // Legacy Admin Routes (keeping for backward compatibility)
 Route::middleware(['auth', 'admin'])->group(function () {
-    Route::get('/dashboard', [App\Http\Controllers\AdminController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', function () {
+        return redirect()->route('content-management.dashboard');
+    })->name('dashboard');
     Route::get('/logouts', [App\Http\Controllers\AdminController::class, 'logouts'])->name('logouts');
     Route::get('/Users', [App\Http\Controllers\AdminController::class, 'users'])->name('users');
     Route::get('/Users/{id}', [App\Http\Controllers\AdminController::class, 'makeAdmin'])->name('makeAdmin');
