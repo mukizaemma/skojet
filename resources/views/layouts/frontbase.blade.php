@@ -783,6 +783,12 @@
     @persist('site-footer')
     @include('layouts.includes.site-footer')
     <!-- back to top -->
+    @php $stickyWhatsappDigits = hotel_whatsapp_digits($setting); @endphp
+    @if(filled($stickyWhatsappDigits))
+        <a class="skojet-whatsapp-fab" href="https://wa.me/{{ $stickyWhatsappDigits }}" target="_blank" rel="noopener noreferrer" aria-label="{{ site_trans('footer.whatsapp_chat') }}">
+            <i class="fab fa-whatsapp" aria-hidden="true"></i>
+        </a>
+    @endif
     <button type="button" class="rts__back__top" id="rts-back-to-top">
         <svg width="20" height="20" viewBox="0 0 13 22" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M7.30201 1.51317L7.29917 21.3422C7.29912 21.7057 6.97211 21.9993 6.5674 21.9993C6.16269 21.9992 5.83577 21.7055 5.83582 21.342L5.83844 3.10055L1.39753 7.08842C1.11169 7.34511 0.647535 7.34506 0.361762 7.0883C0.0759894 6.83155 0.0760493 6.41464 0.361896 6.15795L6.05367 1.04682C6.26405 0.857899 6.5773 0.802482 6.85167 0.905201C7.12374 1.00792 7.30205 1.24823 7.30201 1.51317Z" fill="#FFF" />

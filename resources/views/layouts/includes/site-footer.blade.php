@@ -41,9 +41,6 @@
         }
     }
 
-    $footerWhatsappDigits = hotel_whatsapp_digits($setting) ?? '';
-    $footerWhatsappLabel = hotel_whatsapp_label($setting);
-
     $footerMainMenuLinks = [
         ['route' => 'home', 'label' => site_trans('nav.home')],
         ['route' => 'rooms', 'label' => site_trans('nav.suites')],
@@ -67,6 +64,15 @@
                 <p class="skojet-footer__mark">{{ site_trans('footer.tagline') }}</p>
                 <h2 class="skojet-footer__title">{{ site_trans('footer.why_title') }}</h2>
                 <p class="skojet-footer__line">{{ site_trans('footer.brand_line') }}</p>
+                @if(count($socialLinks) > 0)
+                    <div class="skojet-footer__social" aria-label="{{ site_trans('footer.follow_us') }}">
+                        @foreach($socialLinks as $social)
+                            <a href="{{ $social['url'] }}" aria-label="{{ $social['label'] }}" target="_blank" rel="noopener noreferrer">
+                                <i class="{{ $social['icon'] }}" aria-hidden="true"></i>
+                            </a>
+                        @endforeach
+                    </div>
+                @endif
             </div>
 
                 <div class="skojet-footer__aside">
@@ -92,9 +98,6 @@
                                 @if(filled($ftAddr))
                                     <a href="{{ $ftMapUrl }}" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-location-dot" aria-hidden="true"></i><span>{{ $ftAddr }}</span></a>
                                 @endif
-                                @if(filled($footerWhatsappDigits))
-                                    <a href="https://wa.me/{{ $footerWhatsappDigits }}" target="_blank" rel="noopener noreferrer"><i class="fab fa-whatsapp" aria-hidden="true"></i><span>{{ site_trans('footer.whatsapp') }}</span></a>
-                                @endif
                             </div>
                             @include('frontend.includes.language-switcher', ['variant' => 'site-lang-switcher--footer'])
                         </div>
@@ -111,42 +114,11 @@
                     </a>
                 </div>
                 </div>
-
-                @php
-                    $footerSocials = $socialLinks;
-                    if (filled($footerWhatsappDigits) && ! collect($footerSocials)->contains(fn ($row) => $row['label'] === 'WhatsApp')) {
-                        $footerSocials[] = [
-                            'url' => 'https://wa.me/'.$footerWhatsappDigits,
-                            'icon' => 'fab fa-whatsapp',
-                            'label' => 'WhatsApp',
-                        ];
-                    }
-                @endphp
-                @if(count($footerSocials) > 0)
-                    <div class="skojet-footer__social" aria-label="{{ site_trans('footer.follow_us') }}">
-                        @foreach($footerSocials as $social)
-                            <a href="{{ $social['url'] }}" aria-label="{{ $social['label'] }}" target="_blank" rel="noopener noreferrer">
-                                <i class="{{ $social['icon'] }}" aria-hidden="true"></i>
-                            </a>
-                        @endforeach
-                    </div>
-                @endif
         </div>
     </div>
 
     <div class="site-footer__copyright">
         <div class="container">
-            @if(filled($footerWhatsappDigits))
-                <a class="skojet-footer__whatsapp" href="https://wa.me/{{ $footerWhatsappDigits }}" target="_blank" rel="noopener noreferrer">
-                    <i class="fab fa-whatsapp" aria-hidden="true"></i>
-                    <span>
-                        <strong>{{ site_trans('footer.whatsapp_chat') }}</strong>
-                        @if(filled($footerWhatsappLabel))
-                            <small>{{ $footerWhatsappLabel }}</small>
-                        @endif
-                    </span>
-                </a>
-            @endif
             <div class="site-footer__legal">
             <p class="site-footer__copyright-text mb-0">
                 &copy; {{ date('Y') }} {{ $setting?->company ?? 'Skojet Boutique Hotel' }}. {{ site_trans('footer.all_rights') }}
