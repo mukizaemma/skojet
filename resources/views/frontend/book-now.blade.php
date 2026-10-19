@@ -349,37 +349,12 @@
                                     @endif
                                     <span>{{ site_trans('booking.channel_sleeps', ['count' => $sleeps]) }}</span>
                                 </p>
-                                @if($room->publicRatePlans() !== [])
-                                    <div class="suite-rates">
-                                        @foreach($room->publicRatePlans() as $plan)
-                                            <div class="suite-rates__plan">
-                                                <div class="suite-rates__name">
-                                                    {{ site_trans('room.board_'.$plan['key']) }}
-                                                    <small>{{ site_trans('room.board_note_'.$plan['key']) }}</small>
-                                                </div>
-                                                <div class="suite-rates__cells">
-                                                    @foreach(['single', 'double'] as $occupancyKey)
-                                                        @if($plan[$occupancyKey] !== null)
-                                                            @php
-                                                                $isPicked = (int) $room_id === (int) $room->id && $board === $plan['key'] && $occupancy === $occupancyKey;
-                                                            @endphp
-                                                            <button type="button" class="suite-rates__cell {{ $isPicked ? 'is-selected' : '' }}" wire:click.stop="chooseRate({{ $room->id }}, '{{ $plan['key'] }}', '{{ $occupancyKey }}')">
-                                                                <span>{{ site_trans('room.occ_'.$occupancyKey) }}</span>
-                                                                <strong>
-                                                                    @if($plan[$occupancyKey] > $plan[$occupancyKey.'_sale'])
-                                                                        <s>{{ hotel_price($plan[$occupancyKey], $setting) }}</s>
-                                                                    @endif
-                                                                    {{ hotel_price($plan[$occupancyKey.'_sale'], $setting) }}
-                                                                </strong>
-                                                            </button>
-                                                        @endif
-                                                    @endforeach
-                                                </div>
-                                            </div>
-                                        @endforeach
-                                    </div>
+                                <p>{{ \Illuminate\Support\Str::words(strip_tags($room->description ?? ''), 22, '…') }}</p>
+                                @if(filled($room->slug))
+                                    <a wire:navigate href="{{ localized_route('room', ['slug' => $room->slug]) }}" class="book-channel__details" onclick="event.stopPropagation()">
+                                        {{ site_trans('booking.channel_details') }}
+                                    </a>
                                 @endif
-                                <p>{{ \Illuminate\Support\Str::words(strip_tags($room->description ?? ''), 18, '…') }}</p>
                             </div>
                             <div class="book-channel__rate">
                                 @if(!empty($quote['has_discount']))
@@ -521,6 +496,9 @@
         const via = detail.via || 'email';
         const url = detail.whatsappUrl || '';
         const whatsapp = via === 'whatsapp' && url;
+        const guestSent = detail.guestSent ?? detail.guest_sent;
+        const adminSent = detail.adminSent ?? detail.admin_sent;
+        const mailed = guestSent === true && adminSent === true;
         if (typeof Swal === 'undefined') {
             if (whatsapp) {
                 window.open(url, '_blank', 'noopener,noreferrer');
@@ -528,9 +506,11 @@
             return;
         }
         Swal.fire({
-            icon: 'success',
+            icon: mailed ? 'success' : 'warning',
             title: @js(site_trans('booking.channel_sent_title')),
-            text: whatsapp ? @js(site_trans('booking.channel_sent_whatsapp')) : @js(site_trans('booking.channel_sent_email')),
+            text: !mailed
+                ? @js(site_trans('booking.channel_sent_mail_failed'))
+                : (whatsapp ? @js(site_trans('booking.channel_sent_whatsapp')) : @js(site_trans('booking.channel_sent_email'))),
             confirmButtonText: whatsapp ? @js(site_trans('booking.channel_open_whatsapp')) : @js(site_trans('booking.channel_done')),
             confirmButtonColor: '#111111',
         }).then(() => {

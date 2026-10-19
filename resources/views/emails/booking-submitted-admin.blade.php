@@ -17,7 +17,7 @@
     @endif
 
     <p style="margin: 24px 0;">
-        <a href="{{ route('dashboard') }}" style="display: inline-block; background: #0356b7; color: #fff; text-decoration: none; padding: 12px 20px; border-radius: 6px; font-weight: bold;">Open bookings in admin</a>
+        <a href="{{ route('content-management.reservations.show', $booking->id) }}" style="display: inline-block; background: #111111; color: #fff; text-decoration: none; padding: 12px 20px; border-radius: 6px; font-weight: bold;">Open this reservation</a>
     </p>
     <p style="font-size: 13px; color: #666;">Confirm or reject from the admin dashboard and the guest will be notified by email.</p>
 </body>

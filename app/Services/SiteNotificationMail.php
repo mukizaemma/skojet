@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\HotelContact;
+use App\Models\Setting;
+use App\Models\User;
 use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -10,7 +13,60 @@ class SiteNotificationMail
 {
     public static function adminTo(): string
     {
-        return (string) config('mail.notification.admin_to', config('mail.from.address'));
+        return self::teamRecipients()[0] ?? '';
+    }
+
+    /**
+     * Hotel inbox, plus every Admin and Super Admin account.
+     *
+     * @return list<string>
+     */
+    public static function teamRecipients(): array
+    {
+        $emails = [];
+
+        foreach ([
+            config('mail.notification.admin_to'),
+            config('mail.notification.admin_cc'),
+            HotelContact::query()->value('email'),
+            Setting::query()->value('email'),
+        ] as $candidate) {
+            self::pushEmail($emails, $candidate);
+        }
+
+        User::query()
+            ->whereIn('role_id', [1, 2])
+            ->pluck('email')
+            ->each(function ($email) use (&$emails) {
+                self::pushEmail($emails, $email);
+            });
+
+        return array_values($emails);
+    }
+
+    /**
+     * @param  array<string, string>  $emails
+     */
+    private static function pushEmail(array &$emails, mixed $candidate): void
+    {
+        $email = strtolower(trim((string) $candidate));
+        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        $emails[$email] = $email;
+    }
+
+    private static function resendReady(): bool
+    {
+        $key = config('resend.api_key') ?? config('services.resend.key');
+        if (is_string($key) && trim($key) !== '') {
+            return true;
+        }
+
+        Log::warning('Site notification skipped: RESEND_API_KEY is empty.');
+
+        return false;
     }
 
     public static function adminCc(): ?string
@@ -25,19 +81,18 @@ class SiteNotificationMail
      */
     public static function sendToTeam(Mailable $mailable): bool
     {
-        $to = self::adminTo();
-        if ($to === '') {
-            Log::warning('Site notification: MAIL_NOTIFICATION_TO is empty.');
+        if (! self::resendReady()) {
+            return false;
+        }
+
+        $recipients = self::teamRecipients();
+        if ($recipients === []) {
+            Log::warning('Site notification: no hotel or admin email is configured.');
 
             return false;
         }
         try {
-            $pending = Mail::to($to);
-            $cc = self::adminCc();
-            if ($cc !== null && $cc !== '') {
-                $pending->cc($cc);
-            }
-            $pending->send($mailable);
+            Mail::to($recipients)->send($mailable);
 
             return true;
         } catch (\Throwable $e) {
@@ -55,6 +110,9 @@ class SiteNotificationMail
     {
         $email = trim($email);
         if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+        if (! self::resendReady()) {
             return false;
         }
         try {

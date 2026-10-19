@@ -136,6 +136,18 @@
 
     <div class="site-footer__copyright">
         <div class="container">
+            @if(filled($footerWhatsappDigits))
+                <a class="skojet-footer__whatsapp" href="https://wa.me/{{ $footerWhatsappDigits }}" target="_blank" rel="noopener noreferrer">
+                    <i class="fab fa-whatsapp" aria-hidden="true"></i>
+                    <span>
+                        <strong>{{ site_trans('footer.whatsapp_chat') }}</strong>
+                        @if(filled($footerWhatsappLabel))
+                            <small>{{ $footerWhatsappLabel }}</small>
+                        @endif
+                    </span>
+                </a>
+            @endif
+            <div class="site-footer__legal">
             <p class="site-footer__copyright-text mb-0">
                 &copy; {{ date('Y') }} {{ $setting?->company ?? 'Skojet Boutique Hotel' }}. {{ site_trans('footer.all_rights') }}
             </p>
@@ -154,6 +166,7 @@
                     @endif
                 </p>
             @endif
+            </div>
         </div>
     </div>
 </footer>

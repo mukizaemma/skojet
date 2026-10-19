@@ -103,7 +103,7 @@ return [
     */
 
     'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'info@kibehomagnificathotel.com'),
+        'address' => env('MAIL_FROM_ADDRESS', 'info@skojethotel.com'),
         'name' => env('MAIL_FROM_NAME', 'Skojet Boutique Hotel'),
     ],
 
@@ -118,7 +118,7 @@ return [
     */
 
     'notification' => [
-        'admin_to' => env('MAIL_NOTIFICATION_TO', 'info@kibehomagnificathotel.com'),
+        'admin_to' => env('MAIL_NOTIFICATION_TO', 'info@skojethotel.com'),
         'admin_cc' => env('MAIL_NOTIFICATION_CC', ''),
     ],
 

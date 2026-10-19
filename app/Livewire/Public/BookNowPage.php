@@ -380,6 +380,8 @@ class BookNowPage extends Component
                 via: $this->confirm_via,
                 whatsappUrl: $whatsappUrl,
                 reference: $this->submittedBookingId,
+                guestSent: (bool) ($result['guest_sent'] ?? false),
+                adminSent: (bool) ($result['admin_sent'] ?? false),
             );
         } catch (ValidationException $e) {
             throw $e;

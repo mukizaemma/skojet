@@ -32,7 +32,7 @@ class MailSendTestCommand extends Command
         try {
             Mail::raw('Mail test from '.config('app.url').' at '.now()->toIso8601String(), function ($message) use ($to) {
                 $message->to($to)
-                    ->subject('Kibeho Magnificat Hotel — mail test');
+                    ->subject(config('app.name').' — mail test');
             });
         } catch (\Throwable $e) {
             $this->error('Send failed: '.$e->getMessage());

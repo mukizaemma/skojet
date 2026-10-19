@@ -1670,12 +1670,71 @@ a.text-primary {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.9rem;
     text-align: center;
 }
 
+.skojet-footer__whatsapp {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.45rem 1.15rem 0.45rem 0.45rem;
+    background: #25d366;
+    color: #06210f;
+    border-radius: 999px;
+    text-decoration: none;
+    line-height: 1.15;
+    box-shadow: 0 8px 22px rgba(37, 211, 102, 0.28);
+}
+
+.skojet-footer__whatsapp i {
+    width: 2.35rem;
+    height: 2.35rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    color: #128c7e;
+    border-radius: 50%;
+    font-size: 1.35rem;
+    flex: 0 0 auto;
+}
+
+.skojet-footer__whatsapp span {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.12rem;
+    text-align: left;
+}
+
+.skojet-footer__whatsapp strong {
+    font-size: 0.92rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.skojet-footer__whatsapp small {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: rgba(6, 33, 15, 0.78);
+}
+
+.skojet-footer__whatsapp:hover {
+    background: #1ebe5a;
+    color: #06210f;
+}
+
+.site-footer--skojet .site-footer__legal {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    width: 100%;
+}
+
 @media (min-width: 768px) {
-    .site-footer--skojet .site-footer__copyright .container {
+    .site-footer--skojet .site-footer__legal {
         flex-direction: row;
         justify-content: space-between;
         align-items: center;
@@ -2212,21 +2271,28 @@ a.text-primary {
 
 .book-channel__card {
     display: grid;
-    grid-template-columns: 148px minmax(0, 1fr);
-    gap: 0.9rem 1rem;
-    padding: 1rem;
-    align-items: center;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+        "photo photo"
+        "copy rate";
+    gap: 0.85rem 1.15rem;
+    padding: 0.85rem;
+    align-items: end;
     cursor: pointer;
 }
 
+.book-channel__photo {
+    grid-area: photo;
+}
+
+.book-channel__copy {
+    grid-area: copy;
+}
+
 .book-channel__rate {
-    grid-column: 1 / -1;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: baseline;
+    grid-area: rate;
+    align-self: end;
     justify-content: flex-end;
-    text-align: right;
-    gap: 0.35rem 0.75rem;
 }
 
 .book-channel__rate .theme-btn {
@@ -2239,17 +2305,37 @@ a.text-primary {
 }
 
 .book-channel__photo {
-    aspect-ratio: 4 / 3;
+    min-height: 0;
+    aspect-ratio: 16 / 9;
     overflow: hidden;
-    border-radius: 12px;
-    background: #e7e1d8;
+    border-radius: 14px;
+    background: #efeae2;
 }
 
 .book-channel__photo img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
+    object-position: center;
     display: block;
+}
+
+.book-channel__details {
+    display: inline-flex;
+    margin-top: 0.75rem;
+    color: #111;
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.book-channel__details:hover {
+    color: #111;
+}
+
+.book-channel__copy {
+    padding: 0.65rem 0.15rem 0.35rem;
 }
 
 .book-channel__copy h2,
@@ -2467,6 +2553,18 @@ a.text-primary {
         align-items: flex-start;
         text-align: left;
         position: static;
+    }
+
+    .book-channel__card {
+        grid-template-areas:
+            "photo"
+            "copy"
+            "rate";
+        grid-template-columns: 1fr;
+    }
+
+    .book-channel__photo {
+        aspect-ratio: 16 / 10;
     }
 }
 
