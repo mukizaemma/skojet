@@ -151,6 +151,10 @@ class BookingSubmissionService
             $booking->list_amount = (int) round($quote['list_total']);
             $booking->discount_amount = (int) round($quote['discount_total']);
             $booking->discount_label = $quote['label'] !== '' ? $quote['label'] : null;
+            if (\Illuminate\Support\Facades\Schema::hasColumn('bookings', 'board')) {
+                $booking->board = filled($quote['board'] ?? null) ? $quote['board'] : ($request->input('board') ?: null);
+                $booking->occupancy = filled($quote['occupancy'] ?? null) ? $quote['occupancy'] : ($request->input('occupancy') ?: null);
+            }
             $booking->balance_amount = $booking->total_amount;
         }
 

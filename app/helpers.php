@@ -18,6 +18,17 @@ if (! function_exists('hotel_price')) {
     }
 }
 
+if (! function_exists('reservations_manager_enabled')) {
+    function reservations_manager_enabled(): bool
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasColumn('settings', 'reservations_manager_enabled')) {
+            return false;
+        }
+
+        return (bool) \App\Models\Setting::query()->value('reservations_manager_enabled');
+    }
+}
+
 if (! function_exists('booking_channel_enabled')) {
     function booking_channel_enabled(): bool
     {

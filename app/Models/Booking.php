@@ -18,6 +18,10 @@ class Booking extends Model
         'country',
         'stay_reason',
         'party_type',
+        'board',
+        'occupancy',
+        'address',
+        'postal_code',
         'checkin',
         'checkout',
         'checkin_date',
@@ -88,5 +92,45 @@ class Booking extends Model
 
     public function roomMovements(){
         return $this->hasMany(RoomMovement::class);
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(BookingPayment::class);
+    }
+
+    public function stayRoom(): ?Room
+    {
+        return $this->assignedRoom ?? $this->room;
+    }
+
+    public function nights(): int
+    {
+        if (! $this->checkin_date || ! $this->checkout_date) {
+            return 0;
+        }
+
+        return max(0, $this->checkin_date->diffInDays($this->checkout_date));
+    }
+
+    public function deskState(): string
+    {
+        if (in_array($this->status, ['cancelled', 'No Show'], true)) {
+            return 'cancelled';
+        }
+        if ($this->checked_out_at) {
+            return 'checked_out';
+        }
+        if ($this->checked_in_at) {
+            return 'checked_in';
+        }
+        if ($this->status === 'confirmed') {
+            return 'confirmed';
+        }
+        if ((float) $this->balance_amount > 0 && (float) $this->paid_amount > 0) {
+            return 'incomplete';
+        }
+
+        return 'unallocated';
     }
 }

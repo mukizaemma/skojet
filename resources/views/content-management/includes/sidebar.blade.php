@@ -33,9 +33,40 @@ $isDiningAdmin = $currentRoute === 'resto' || str_contains(strtolower((string) $
                 <i class="fas fa-grip-horizontal me-2"></i>Dashboard
             </a>
 
-            <a href="{{ route('content-management.reservations') }}" class="nav-item nav-link {{ str_contains($currentRoute, 'content-management.reservations') ? 'active' : '' }}">
+            <a href="{{ route('content-management.reservations') }}" class="nav-item nav-link {{ $currentRoute === 'content-management.reservations' || str_starts_with((string) $currentRoute, 'content-management.reservations.') ? 'active' : '' }}">
                 <i class="fas fa-calendar-check me-2"></i>Reservations
             </a>
+
+            @if(auth()->user()->isSuperAdmin())
+            <a href="{{ route('content-management.reservations-manager') }}" class="nav-item nav-link {{ str_contains($currentRoute, 'reservations-manager') ? 'active' : '' }}">
+                <i class="fas fa-toggle-on me-2"></i>Reservations Manager
+            </a>
+
+            @if(reservations_manager_enabled())
+            <div class="nav-item px-3 pt-3 pb-1 text-uppercase text-muted" style="font-size: 0.68rem; letter-spacing: 0.08em;">Front Office</div>
+            <a href="{{ route('content-management.front-office.home') }}" class="nav-item nav-link {{ $currentRoute === 'content-management.front-office.home' ? 'active' : '' }}">
+                <i class="fas fa-concierge-bell me-2"></i>Front Office
+            </a>
+            <a href="{{ route('content-management.front-office.calendar') }}" class="nav-item nav-link {{ str_contains($currentRoute, 'front-office.calendar') ? 'active' : '' }}">
+                <i class="fas fa-calendar me-2"></i>Calendar
+            </a>
+            <a href="{{ route('content-management.front-office.reservations') }}" class="nav-item nav-link {{ str_contains($currentRoute, 'front-office.reservations') || str_contains($currentRoute, 'front-office.show') || str_contains($currentRoute, 'front-office.create') ? 'active' : '' }}">
+                <i class="fas fa-list me-2"></i>Reservations
+            </a>
+            <a href="{{ route('content-management.front-office.payments') }}" class="nav-item nav-link {{ str_contains($currentRoute, 'front-office.payments') ? 'active' : '' }}">
+                <i class="fas fa-money-bill me-2"></i>Payments
+            </a>
+            <a href="{{ route('content-management.front-office.inventory') }}" class="nav-item nav-link {{ str_contains($currentRoute, 'front-office.inventory') ? 'active' : '' }}">
+                <i class="fas fa-th me-2"></i>Room inventory
+            </a>
+            <a href="{{ route('content-management.front-office.reports') }}" class="nav-item nav-link {{ str_contains($currentRoute, 'front-office.reports') ? 'active' : '' }}">
+                <i class="fas fa-chart-bar me-2"></i>Reports
+            </a>
+            <a href="{{ route('content-management.front-office.settings') }}" class="nav-item nav-link {{ str_contains($currentRoute, 'front-office.settings') ? 'active' : '' }}">
+                <i class="fas fa-sliders-h me-2"></i>Settings
+            </a>
+            @endif
+            @endif
 
             <a href="{{ route('content-management.rooms') }}" class="nav-item nav-link {{ str_contains($currentRoute, 'content-management.rooms') ? 'active' : '' }}">
                 <i class="fas fa-bed me-2"></i>Rooms

@@ -483,8 +483,47 @@ h1, h2, h3, h4, h5, h6,
     color: #FFFFFF;
 }
 
-.skojet-signature__panel .skojet-intro__eyebrow { color: rgba(255, 255, 255, 0.55); text-align: left; }
-.skojet-signature__panel .skojet-intro__title { color: #fff; text-align: left; margin-bottom: 1rem; }
+.skojet-signature__heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1.25rem 1.75rem;
+    margin-bottom: 1rem;
+}
+
+.skojet-signature__panel .skojet-intro__title {
+    color: #fff;
+    text-align: left;
+    margin-bottom: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.skojet-signature__price {
+    margin: 0;
+    flex: 0 0 auto;
+    text-align: right;
+    color: #fff;
+    line-height: 1.1;
+}
+
+.skojet-signature__price-amount {
+    display: block;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: clamp(1.75rem, 2.4vw, 2.35rem);
+    font-weight: 500;
+    letter-spacing: 0;
+}
+
+.skojet-signature__price-unit {
+    display: block;
+    margin-top: 0.2rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.62);
+}
+
 .skojet-signature__panel .skojet-intro__lead { color: rgba(255, 255, 255, 0.75); text-align: left; margin-bottom: 1.75rem; }
 
 .skojet-signature__meta {
@@ -504,30 +543,50 @@ h1, h2, h3, h4, h5, h6,
     gap: 0.85rem;
 }
 
-.skojet-signature:not(.skojet-signature--flip) .theme-btn.btn-style.fill,
-.skojet-signature:not(.skojet-signature--flip) .theme-btn.btn-style.fill span {
-    background: #FFFFFF !important;
-    border-color: #FFFFFF !important;
+.skojet-signature__actions .theme-btn span {
+    mix-blend-mode: normal !important;
+}
+
+.skojet-signature:not(.skojet-signature--flip) .skojet-signature__details,
+.skojet-signature:not(.skojet-signature--flip) .skojet-signature__details span {
+    background: transparent !important;
+    border-color: #ffffff !important;
+    color: #ffffff !important;
+}
+
+.skojet-signature:not(.skojet-signature--flip) .skojet-signature__details:hover,
+.skojet-signature:not(.skojet-signature--flip) .skojet-signature__details:hover span {
+    background: #ffffff !important;
+    border-color: #ffffff !important;
     color: #000000 !important;
 }
 
-.skojet-signature:not(.skojet-signature--flip) .theme-btn.btn-style.fill:hover,
-.skojet-signature:not(.skojet-signature--flip) .theme-btn.btn-style.fill:hover span {
-    background: transparent !important;
-    border-color: #FFFFFF !important;
-    color: #FFFFFF !important;
+.skojet-signature:not(.skojet-signature--flip) .skojet-signature__book,
+.skojet-signature:not(.skojet-signature--flip) .skojet-signature__book span {
+    background: #ffffff !important;
+    border-color: #ffffff !important;
+    color: #000000 !important;
 }
 
-.skojet-signature__ghost {
-    color: #fff !important;
-    border-color: rgba(255, 255, 255, 0.5) !important;
+.skojet-signature:not(.skojet-signature--flip) .skojet-signature__book:hover,
+.skojet-signature:not(.skojet-signature--flip) .skojet-signature__book:hover span {
     background: transparent !important;
+    border-color: #ffffff !important;
+    color: #ffffff !important;
 }
 
-.skojet-signature__ghost:hover {
-    background: #fff !important;
-    color: #000 !important;
-    border-color: #fff !important;
+.skojet-signature--flip .skojet-signature__book,
+.skojet-signature--flip .skojet-signature__book span {
+    background: #111111 !important;
+    border-color: #111111 !important;
+    color: #ffffff !important;
+}
+
+.skojet-signature--flip .skojet-signature__book:hover,
+.skojet-signature--flip .skojet-signature__book:hover span {
+    background: transparent !important;
+    border-color: #111111 !important;
+    color: #111111 !important;
 }
 
 @media (min-width: 992px) {
@@ -545,12 +604,13 @@ h1, h2, h3, h4, h5, h6,
     color: #111111;
 }
 
-.skojet-signature--flip .skojet-signature__panel .skojet-intro__eyebrow {
-    color: rgba(17, 17, 17, 0.5);
+.skojet-signature--flip .skojet-signature__panel .skojet-intro__title,
+.skojet-signature--flip .skojet-signature__price {
+    color: #111111;
 }
 
-.skojet-signature--flip .skojet-signature__panel .skojet-intro__title {
-    color: #111111;
+.skojet-signature--flip .skojet-signature__price-unit {
+    color: rgba(17, 17, 17, 0.55);
 }
 
 .skojet-signature--flip .skojet-signature__panel .skojet-intro__lead {

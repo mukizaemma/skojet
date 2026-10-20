@@ -88,6 +88,8 @@ return [
         'rooms_lead' => 'Each suite offers a seating lounge, private bathroom, sauna chair, balcony, outdoor shower and garden views — crafted for couples and individual guests.',
         'view_room' => 'View suite',
         'view_suite' => 'Discover this suite',
+        'view_details' => 'View details',
+        'book_this_suite' => 'Book now',
         'view_all_rooms' => 'Explore all suites',
         'explore_all_suites' => 'Explore All Suites',
         'rooms_coming_soon' => 'Suites coming soon.',

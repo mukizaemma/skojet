@@ -45,6 +45,7 @@
     {{-- <link rel="stylesheet" href="{{ asset('css/app.css') }}"> --}}
 
     @livewireStyles
+    @stack('styles')
 </head>
 
 <body>

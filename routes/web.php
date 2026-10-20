@@ -204,6 +204,32 @@ Route::middleware(['auth', 'admin'])->prefix('content-management')->name('conten
     Route::get('/page-heroes', ContentManagementPageHeroes::class)->name('page-heroes');
     Route::post('/page-heroes/{id}/update', [App\Http\Controllers\ContentManagementController::class, 'updatePageHero'])->name('page-heroes.update');
     
+    Route::middleware('superadmin')->group(function () {
+        Route::get('/reservations-manager', [App\Http\Controllers\FrontDeskController::class, 'grant'])->name('reservations-manager');
+        Route::post('/reservations-manager', [App\Http\Controllers\FrontDeskController::class, 'updateGrant'])->name('reservations-manager.update');
+    });
+
+    Route::middleware(['superadmin', 'reservations.manager'])->prefix('front-office')->name('front-office.')->group(function () {
+        Route::get('/', [App\Http\Controllers\FrontDeskController::class, 'home'])->name('home');
+        Route::get('/calendar', [App\Http\Controllers\FrontDeskController::class, 'calendar'])->name('calendar');
+        Route::get('/reservations', [App\Http\Controllers\FrontDeskController::class, 'reservations'])->name('reservations');
+        Route::get('/reservations/create', [App\Http\Controllers\FrontDeskController::class, 'create'])->name('create');
+        Route::post('/reservations', [App\Http\Controllers\FrontDeskController::class, 'store'])->name('store');
+        Route::get('/reservations/{booking}', [App\Http\Controllers\FrontDeskController::class, 'show'])->name('show');
+        Route::post('/reservations/{booking}', [App\Http\Controllers\FrontDeskController::class, 'update'])->name('update');
+        Route::post('/reservations/{booking}/check-in', [App\Http\Controllers\FrontDeskController::class, 'checkIn'])->name('check-in');
+        Route::post('/reservations/{booking}/check-out', [App\Http\Controllers\FrontDeskController::class, 'checkOut'])->name('check-out');
+        Route::post('/reservations/{booking}/cancel', [App\Http\Controllers\FrontDeskController::class, 'cancel'])->name('cancel');
+        Route::post('/reservations/{booking}/payments', [App\Http\Controllers\FrontDeskController::class, 'pay'])->name('pay');
+        Route::get('/reservations/{booking}/receipt', [App\Http\Controllers\FrontDeskController::class, 'receipt'])->name('receipt');
+        Route::get('/payments', [App\Http\Controllers\FrontDeskController::class, 'payments'])->name('payments');
+        Route::get('/inventory', [App\Http\Controllers\FrontDeskController::class, 'inventory'])->name('inventory');
+        Route::get('/reports', [App\Http\Controllers\FrontDeskController::class, 'reports'])->name('reports');
+        Route::get('/settings', [App\Http\Controllers\FrontDeskController::class, 'settings'])->name('settings');
+        Route::post('/closures', [App\Http\Controllers\FrontDeskController::class, 'storeClosure'])->name('closures.store');
+        Route::delete('/closures/{closure}', [App\Http\Controllers\FrontDeskController::class, 'destroyClosure'])->name('closures.destroy');
+    });
+
     // Reservations — guest booking requests from the public book-now form
     Route::get('/reservations', [App\Http\Controllers\ContentManagementController::class, 'reservations'])->name('reservations');
     Route::get('/reservations/{id}', [App\Http\Controllers\ContentManagementController::class, 'showReservationPage'])->name('reservations.show');

@@ -85,6 +85,8 @@ return [
         'rooms_title' => 'Reposer après le pèlerinage',
         'rooms_lead' => '35 chambres préparées pour le confort et le calme après une journée de prière et de découverte.',
         'view_room' => 'Voir la chambre',
+        'view_details' => 'Voir les détails',
+        'book_this_suite' => 'Réserver',
         'view_all_rooms' => 'Voir toutes les chambres',
         'rooms_coming_soon' => 'Chambres bientôt disponibles.',
         'per_night' => '/ nuit',

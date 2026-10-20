@@ -58,8 +58,13 @@
                  height="900">
         </div>
         <div class="skojet-signature__panel">
-            <span class="skojet-intro__eyebrow">{{ $suiteIndex === 0 ? site_trans('home.signature_eyebrow') : site_trans('home.also_eyebrow') }}</span>
-            <h2 id="signature-suite-heading-{{ $featuredSuite->id }}" class="skojet-intro__title">{{ $featuredSuite->title }}</h2>
+            <div class="skojet-signature__heading">
+                <h2 id="signature-suite-heading-{{ $featuredSuite->id }}" class="skojet-intro__title">{{ $featuredSuite->title }}</h2>
+                <p class="skojet-signature__price">
+                    <span class="skojet-signature__price-amount">{{ hotel_price($featuredSuite->headlineNightly(), $setting) }}</span>
+                    <span class="skojet-signature__price-unit">{{ site_trans('home.per_night') }}</span>
+                </p>
+            </div>
             <p class="skojet-intro__lead">{{ $suiteBlurb }}</p>
             <div class="skojet-signature__meta">
                 <span>{{ site_trans('home.signature_meta_lounge') }}</span>
@@ -67,14 +72,12 @@
                 <span>{{ site_trans('home.signature_meta_balcony') }}</span>
             </div>
             <div class="skojet-signature__actions">
-                <a wire:navigate href="{{ localized_route('room', ['slug' => $featuredSuite->slug]) }}" class="theme-btn btn-style fill">
-                    <span>{{ site_trans('home.view_suite') }}</span>
+                <a wire:navigate href="{{ localized_route('room', ['slug' => $featuredSuite->slug]) }}" class="theme-btn btn-style border skojet-signature__details">
+                    <span>{{ site_trans('home.view_details') }}</span>
                 </a>
-                @if($suiteIndex === 0)
-                <a wire:navigate href="{{ localized_route('rooms') }}" class="theme-btn btn-style border skojet-signature__ghost">
-                    <span>{{ site_trans('home.explore_all_suites') }}</span>
+                <a wire:navigate href="{{ localized_route('connect', ['room' => $featuredSuite->id]) }}" class="theme-btn btn-style fill skojet-signature__book">
+                    <span>{{ site_trans('home.book_this_suite') }}</span>
                 </a>
-                @endif
             </div>
         </div>
     </div>
