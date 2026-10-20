@@ -98,7 +98,7 @@
     @stack('scripts')
 
     {{-- System Users (content-management/users): inline scripts in Livewire slots do not run reliably after SPA navigation --}}
-    <script src="{{ asset('admin/js/user-management-actions.js') }}"></script>
+    <script src="{{ asset('admin/js/user-management-actions.js') }}?v={{ filemtime(public_path('admin/js/user-management-actions.js')) }}"></script>
     <script src="{{ asset('admin/js/amenity-management-actions.js') }}"></script>
     <script src="{{ asset('admin/js/cms-destination-page-actions.js') }}"></script>
     <script src="{{ asset('admin/js/image-upload-preview.js') }}?v={{ filemtime(public_path('admin/js/image-upload-preview.js')) }}"></script>
@@ -110,7 +110,10 @@
             if (!modalEl) return;
 
             if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                var bsInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+                var Modal = bootstrap.Modal;
+                var bsInstance = typeof Modal.getOrCreateInstance === 'function'
+                    ? Modal.getOrCreateInstance(modalEl)
+                    : (Modal.getInstance(modalEl) || new Modal(modalEl));
                 if (bsInstance) {
                     bsInstance.hide();
                     return;

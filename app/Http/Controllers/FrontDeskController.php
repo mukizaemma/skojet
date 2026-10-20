@@ -3,49 +3,67 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
+use App\Models\BookingCharge;
 use App\Models\BookingPayment;
+use App\Models\ExtraItem;
 use App\Models\Room;
 use App\Models\RoomClosure;
+use App\Models\RoomDiscount;
 use App\Models\Setting;
 use App\Services\RoomDiscountService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class FrontDeskController extends Controller
 {
     public function grant()
     {
-        $enabled = reservations_manager_enabled();
+        $this->assertReservationsManagerOwner();
 
-        return view('content-management.reservations-manager.index', compact('enabled'));
+        return redirect()->to(route('setting').'#reservations-manager');
     }
 
     public function updateGrant(Request $request)
     {
+        $this->assertReservationsManagerOwner();
+
         $setting = Setting::query()->firstOrFail();
         $setting->reservations_manager_enabled = $request->boolean('reservations_manager_enabled');
         $setting->save();
 
         return redirect()
-            ->route('content-management.reservations-manager')
+            ->to(route('setting').'#reservations-manager')
             ->with('success', $setting->reservations_manager_enabled
                 ? 'Reservations Manager is active.'
                 : 'Reservations Manager is off. Website management and guest reservations stay available.');
     }
 
+    private function assertReservationsManagerOwner(): void
+    {
+        $email = strtolower((string) auth()->user()?->email);
+        abort_unless($email === 'admin@iremetech.com', 403);
+    }
+
     public function home()
     {
-        $recent = $this->roomBookings()->with(['room', 'assignedRoom'])->latest()->limit(8)->get();
+        $recent = $this->roomBookings()->with(['room', 'assignedRoom', 'creator', 'user'])->latest()->limit(8)->get();
         $today = now()->toDateString();
+        $setting = Setting::query()->first();
         $stats = [
             'arriving' => $this->roomBookings()->whereDate('checkin_date', $today)->whereNull('checked_in_at')->count(),
             'in_house' => $this->roomBookings()->whereNotNull('checked_in_at')->whereNull('checked_out_at')->count(),
             'departing' => $this->roomBookings()->whereDate('checkout_date', $today)->whereNotNull('checked_in_at')->whereNull('checked_out_at')->count(),
-            'balance' => (float) $this->roomBookings()->where('balance_amount', '>', 0)->sum('balance_amount'),
+            'balance' => $this->roomBookings()
+                ->where('balance_amount', '>', 0)
+                ->get(['currency', 'balance_amount'])
+                ->groupBy(fn (Booking $booking) => $booking->currencyKey())
+                ->map(fn ($rows, $currency) => hotel_price($rows->sum('balance_amount'), $setting, $currency))
+                ->implode(' · ') ?: hotel_price(0, $setting),
         ];
 
-        return view('content-management.front-office.home', compact('recent', 'stats'));
+        return view('content-management.front-office.home', compact('recent', 'stats', 'setting'));
     }
 
     public function calendar(Request $request)
@@ -92,7 +110,7 @@ class FrontDeskController extends Controller
         $start = $request->input('start_date');
         $end = $request->input('end_date');
         $reservations = $this->roomBookings()
-            ->with(['room', 'assignedRoom'])
+            ->with(['room', 'assignedRoom', 'creator', 'user'])
             ->when($start, fn ($query) => $query->whereDate('checkout_date', '>=', $start))
             ->when($end, fn ($query) => $query->whereDate('checkin_date', '<=', $end))
             ->latest()
@@ -102,42 +120,100 @@ class FrontDeskController extends Controller
         return view('content-management.front-office.reservations', compact('reservations', 'start', 'end'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $rooms = Room::query()->where('status', 'Active')->orderBy('title')->get();
+        $booking = new Booking();
+        $roomId = (int) $request->input('room');
+        if ($rooms->contains(fn (Room $room) => (int) $room->id === $roomId)) {
+            $booking->room_id = $roomId;
+        }
+        $checkin = $this->calendarDate($request->input('checkin'));
+        if ($checkin) {
+            $booking->checkin_date = $checkin;
+            $checkout = $this->calendarDate($request->input('checkout'));
+            $booking->checkout_date = ($checkout && $checkout->greaterThan($checkin))
+                ? $checkout
+                : $checkin->copy()->addDay();
+        }
+        if (! $booking->room_id) {
+            $booking->room_id = $rooms->first()?->id;
+        }
+        if (! $booking->checkin_date) {
+            $booking->checkin_date = now()->startOfDay();
+            $booking->checkout_date = now()->addDay()->startOfDay();
+        }
+        $booking->reservation_channel = 'walkin';
+        $booking->guest_source = 'unspecified';
+        $booking->adults = 2;
+        $booking->occupancy = 'double';
+        $booking->currency = hotel_currency();
 
         return view('content-management.front-office.create', [
             'rooms' => $rooms,
             'roomRates' => $this->roomRateMap($rooms),
+            'booking' => $booking,
+            'setting' => Setting::query()->first(),
+            'preview' => $booking->room_id ? $this->presentStay([
+                'room_id' => $booking->room_id,
+                'checkin_date' => $booking->checkin_date->toDateString(),
+                'checkout_date' => $booking->checkout_date->toDateString(),
+                'adults' => 2,
+                'children' => 0,
+                'board' => null,
+                'occupancy' => 'double',
+                'currency' => $booking->currency,
+            ], 0) : null,
         ]);
+    }
+
+    public function quote(Request $request)
+    {
+        $data = $request->validate([
+            'first_name' => 'nullable|string|max:120',
+            'last_name' => 'nullable|string|max:120',
+            'checkin_date' => 'required|date',
+            'checkout_date' => 'required|date|after:checkin_date',
+            'room_id' => 'required|exists:rooms,id',
+            'board' => ['nullable', Rule::in(array_keys(Room::BOARD_PLANS))],
+            'occupancy' => 'nullable|in:single,double',
+            'currency' => 'nullable|in:usd,rwf',
+            'adults' => 'required|integer|min:1|max:6',
+            'children' => 'nullable|integer|min:0|max:4',
+            'booking_id' => 'nullable|integer|exists:bookings,id',
+        ]);
+        $paid = 0.0;
+        if (! empty($data['booking_id'])) {
+            $existing = Booking::query()->find($data['booking_id']);
+            if ($existing) {
+                $this->assertRoomBooking($existing);
+                $paid = (float) $existing->paid_amount;
+                $charges = (float) $existing->charges_amount;
+            }
+        }
+
+        return response()->json($this->presentStay($data, $paid, $charges ?? 0));
     }
 
     public function store(Request $request)
     {
         $data = $this->validateStay($request);
         $booking = new Booking();
-        $booking->booking_type = 'walkin';
-        $booking->status = $request->boolean('check_in_now') ? 'confirmed' : 'pending';
+        $booking->status = 'pending';
         $booking->payment_status = 'pending';
         $booking->paid_amount = 0;
         $booking->reservation_type = 'room';
         $this->fillStay($booking, $data, true);
-        if ($request->boolean('check_in_now')) {
-            $booking->assigned_room_id = $data['room_id'];
-            $booking->checked_in_at = now();
-            $booking->checked_in_by = auth()->id();
-        }
+        $booking->created_by = auth()->id();
         $booking->save();
 
-        return redirect()
-            ->route('content-management.front-office.show', $booking)
-            ->with('success', 'Reservation saved.');
+        return $this->redirectAfterStay($request, $booking, true);
     }
 
     public function show(Booking $booking)
     {
         $this->assertRoomBooking($booking);
-        $booking->load(['room', 'assignedRoom', 'payments.receiver']);
+        $booking->load(['room', 'assignedRoom', 'payments.receiver', 'charges']);
         $rooms = Room::query()->where('status', 'Active')->orderBy('title')->get();
         $selected = $rooms->firstWhere('id', $booking->assigned_room_id ?: $booking->room_id) ?? $booking->stayRoom();
 
@@ -147,6 +223,8 @@ class FrontDeskController extends Controller
             'selected' => $selected,
             'roomRates' => $this->roomRateMap($rooms),
             'plans' => $selected ? $selected->publicRatePlans() : [],
+            'setting' => Setting::query()->first(),
+            'items' => ExtraItem::query()->where('status', 'Active')->orderBy('name')->get(),
         ]);
     }
 
@@ -154,69 +232,138 @@ class FrontDeskController extends Controller
     {
         $this->assertRoomBooking($booking);
         $data = $this->validateStay($request, $booking);
+        $this->guardCurrency($booking, $data);
         $changed = $this->rateChanged($booking, $data);
         $this->fillStay($booking, $data, $changed || (float) $booking->total_amount <= 0);
-        if ($request->input('after') === 'checkin') {
-            $booking->assigned_room_id = $data['room_id'];
-            $booking->status = 'confirmed';
-            $booking->checked_in_at = $booking->checked_in_at ?: now();
-            $booking->checked_in_by = $booking->checked_in_by ?: auth()->id();
-        }
         $booking->save();
 
-        if ($request->input('after') === 'checkin') {
+        return $this->redirectAfterStay($request, $booking, false);
+    }
+
+    public function confirmCancel(Booking $booking)
+    {
+        $this->assertRoomBooking($booking);
+        if ($booking->status === 'cancelled') {
             return redirect()
-                ->route('content-management.front-office.show', $booking)
-                ->with('success', 'Guest checked in.');
+                ->route('content-management.front-office.reservations')
+                ->with('error', 'This reservation is already cancelled.');
         }
 
-        return redirect()
-            ->route('content-management.front-office.show', $booking)
-            ->with('success', 'Reservation updated.');
+        $booking->load(['room', 'assignedRoom']);
+
+        return view('content-management.front-office.cancel', compact('booking'));
     }
 
-    public function checkIn(Booking $booking)
+    public function checkInForm(Booking $booking)
+    {
+        return $this->sessionForm($booking, 'checkin');
+    }
+
+    public function checkOutForm(Booking $booking)
+    {
+        return $this->sessionForm($booking, 'checkout');
+    }
+
+    public function checkIn(Request $request, Booking $booking)
+    {
+        return $this->saveSession($request, $booking, 'checkin');
+    }
+
+    public function checkOut(Request $request, Booking $booking)
+    {
+        return $this->saveSession($request, $booking, 'checkout');
+    }
+
+    public function storeCharge(Request $request, Booking $booking)
     {
         $this->assertRoomBooking($booking);
-        $roomId = $booking->assigned_room_id ?: $booking->room_id;
-        if (! $roomId) {
-            return back()->with('error', 'Choose a suite before check-in.');
+        $data = $request->validate([
+            'lines' => 'required|array|min:1|max:30',
+            'lines.*.extra_item_id' => 'required|exists:extra_items,id',
+            'lines.*.quantity' => 'required|integer|min:1|max:20',
+            'lines.*.sale_price' => 'required|numeric|min:0',
+            'lines.*.included' => 'nullable|boolean',
+        ]);
+        $count = 0;
+        foreach ($data['lines'] as $line) {
+            $item = ExtraItem::query()->where('status', 'Active')->find($line['extra_item_id']);
+            if (! $item) {
+                continue;
+            }
+            $included = filter_var($line['included'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            $sale = round((float) $line['sale_price'], 2);
+            $quantity = (int) $line['quantity'];
+            $catalog = $booking->currencyKey() === 'rwf' ? $item->price_rwf : $item->price;
+            $booking->charges()->create([
+                'extra_item_id' => $item->id,
+                'name' => $item->name,
+                'category' => $item->category,
+                'kind' => $item->kind,
+                'quantity' => $quantity,
+                'unit_price' => round((float) ($catalog ?? $sale), 2),
+                'sale_price' => $sale,
+                'included' => $included,
+                'line_total' => $included ? 0 : round($sale * $quantity, 2),
+                'created_by' => auth()->id(),
+            ]);
+            $count++;
         }
-        if ($booking->checked_out_at) {
-            return back()->with('error', 'This guest has already checked out.');
+        if ($count === 0) {
+            return back()->with('error', 'Choose an active item before adding it to the bill.');
         }
-
-        $booking->assigned_room_id = $roomId;
-        $booking->room_id = $booking->room_id ?: $roomId;
-        $booking->status = 'confirmed';
-        $booking->checked_in_at = $booking->checked_in_at ?: now();
-        $booking->checked_in_by = $booking->checked_in_by ?: auth()->id();
+        $this->refreshBalance($booking);
         $booking->save();
 
-        return back()->with('success', 'Guest checked in.');
+        return back()->with('success', $count === 1 ? '1 item was added to the bill.' : $count.' items were added to the bill.');
     }
 
-    public function checkOut(Booking $booking)
+    public function complimentary(Booking $booking)
     {
         $this->assertRoomBooking($booking);
-        if (! $booking->checked_in_at) {
-            return back()->with('error', 'Check the guest in before check-out.');
+        $this->refreshBalance($booking);
+        $due = (float) $booking->total_amount + (float) $booking->charges_amount - (float) $booking->paid_amount;
+        if ($due <= 0) {
+            return back()->with('error', 'This bill has nothing left to mark complimentary.');
         }
-
-        $booking->checked_out_at = now();
-        $booking->checked_out_by = auth()->id();
+        $booking->waived_amount = round($due, 2);
+        $this->refreshBalance($booking);
         $booking->save();
 
-        return back()->with('success', 'Guest checked out.');
+        return back()->with('success', 'The remaining balance was marked complimentary.');
     }
 
-    public function cancel(Booking $booking)
+    public function destroyCharge(Booking $booking, BookingCharge $charge)
     {
         $this->assertRoomBooking($booking);
+        abort_unless((int) $charge->booking_id === (int) $booking->id, 404);
+        $charge->delete();
+        $this->refreshBalance($booking);
+        $booking->save();
+
+        return back()->with('success', 'The charge was removed.');
+    }
+
+    public function cancel(Request $request, Booking $booking)
+    {
+        $this->assertRoomBooking($booking);
+        $request->validate([
+            'confirm_cancel' => 'accepted',
+        ], [
+            'confirm_cancel.accepted' => 'Confirm the cancellation before it can be saved.',
+        ]);
+
+        if ($booking->status === 'cancelled') {
+            return redirect()
+                ->route('content-management.front-office.reservations')
+                ->with('error', 'This reservation is already cancelled.');
+        }
+
         $booking->status = 'cancelled';
         $booking->save();
 
-        return back()->with('success', 'Reservation cancelled.');
+        return redirect()
+            ->route('content-management.front-office.reservations')
+            ->with('success', $booking->names.' was cancelled.');
     }
 
     public function pay(Request $request, Booking $booking)
@@ -234,10 +381,8 @@ class FrontDeskController extends Controller
             'note' => $data['note'] ?? null,
             'received_by' => auth()->id(),
         ]);
-        $paid = (float) $booking->payments()->sum('amount');
-        $booking->paid_amount = $paid;
-        $booking->balance_amount = max(0, (float) $booking->total_amount - $paid);
-        $booking->payment_status = $booking->balance_amount <= 0 ? 'paid' : 'partial';
+        $booking->paid_amount = (float) $booking->payments()->sum('amount');
+        $this->refreshBalance($booking);
         $booking->save();
 
         return back()->with('success', 'Payment recorded.');
@@ -246,7 +391,7 @@ class FrontDeskController extends Controller
     public function receipt(Booking $booking)
     {
         $this->assertRoomBooking($booking);
-        $booking->load(['room', 'assignedRoom', 'payments.receiver']);
+        $booking->load(['room', 'assignedRoom', 'payments.receiver', 'charges']);
         $setting = Setting::query()->first();
 
         return view('content-management.front-office.receipt', compact('booking', 'setting'));
@@ -274,7 +419,7 @@ class FrontDeskController extends Controller
 
         $blocks = $rooms->map(function (Room $room) use ($dates, $bookings, $closures) {
             $availability = $dates->map(function (Carbon $date) use ($room, $bookings, $closures) {
-                $taken = $bookings->contains(function (Booking $booking) use ($room, $date) {
+                $booked = $bookings->contains(function (Booking $booking) use ($room, $date) {
                     $roomId = $booking->assigned_room_id ?: $booking->room_id;
                     if ((int) $roomId !== (int) $room->id || ! $booking->checkin_date || ! $booking->checkout_date) {
                         return false;
@@ -282,19 +427,23 @@ class FrontDeskController extends Controller
 
                     return $date->gte($booking->checkin_date) && $date->lt($booking->checkout_date);
                 });
+                if ($booked) {
+                    return 'booked';
+                }
+
                 $closed = $closures->contains(function (RoomClosure $closure) use ($room, $date) {
                     return (int) $closure->room_id === (int) $room->id
                         && $date->gte($closure->starts_on)
                         && $date->lte($closure->ends_on);
                 });
 
-                return $taken || $closed ? 0 : 1;
+                return $closed ? 'closed' : 'open';
             });
 
             return [
                 'room' => $room,
                 'availability' => $availability,
-                'plans' => $room->publicRatePlans(),
+                'plans' => $room->ratePlans(),
             ];
         });
 
@@ -302,6 +451,7 @@ class FrontDeskController extends Controller
             'start' => $start,
             'dates' => $dates,
             'blocks' => $blocks,
+            'setting' => Setting::query()->first(),
             'prev' => $start->copy()->subDays($days)->toDateString(),
             'next' => $start->copy()->addDays($days)->toDateString(),
         ]);
@@ -317,22 +467,178 @@ class FrontDeskController extends Controller
             ->where('status', '!=', 'cancelled')
             ->get();
 
+        $charges = BookingCharge::query()
+            ->with('booking')
+            ->whereDate('created_at', '>=', $start)
+            ->whereDate('created_at', '<=', $end)
+            ->get();
+        $setting = Setting::query()->first();
+        $summaries = collect(['usd', 'rwf'])->map(function (string $currency) use ($bookings, $charges) {
+            $rows = $bookings->filter(fn (Booking $booking) => $booking->currencyKey() === $currency);
+            $posted = $charges->filter(fn (BookingCharge $charge) => ($charge->booking?->currencyKey() ?? 'usd') === $currency);
+
+            return [
+                'currency' => $currency,
+                'total' => (float) $rows->sum('total_amount'),
+                'restaurant' => (float) $posted->where('category', 'restaurant')->where('included', false)->sum('line_total'),
+                'services' => (float) $posted->where('category', 'service')->where('included', false)->sum('line_total'),
+                'paid' => (float) $rows->sum('paid_amount'),
+                'balance' => (float) $rows->sum('balance_amount'),
+                'visible' => $rows->isNotEmpty() || $posted->isNotEmpty(),
+            ];
+        })->filter(fn (array $row) => $row['visible'])->values();
+        if ($summaries->isEmpty()) {
+            $summaries = collect([[
+                'currency' => 'usd',
+                'total' => 0.0,
+                'restaurant' => 0.0,
+                'services' => 0.0,
+                'paid' => 0.0,
+                'balance' => 0.0,
+            ]]);
+        }
+
         return view('content-management.front-office.reports', [
             'bookings' => $bookings,
+            'charges' => $charges,
             'start' => $start,
             'end' => $end,
-            'total' => (float) $bookings->sum('total_amount'),
-            'paid' => (float) $bookings->sum('paid_amount'),
-            'balance' => (float) $bookings->sum('balance_amount'),
+            'summaries' => $summaries,
+            'setting' => $setting,
+            'channels' => $bookings->countBy(fn (Booking $booking) => $booking->channelKey())->all(),
+            'sources' => $bookings->countBy(fn (Booking $booking) => $booking->guest_source ?: 'unspecified')->all(),
         ]);
+    }
+
+    public function extras()
+    {
+        $items = ExtraItem::query()->orderBy('category')->orderBy('name')->get();
+
+        return view('content-management.front-office.settings.extras', compact('items'));
+    }
+
+    public function storeExtra(Request $request)
+    {
+        ExtraItem::query()->create($this->validatedExtra($request));
+
+        return redirect()
+            ->route('content-management.front-office.settings.extras.index')
+            ->with('success', 'The item was added.');
+    }
+
+    public function updateExtra(Request $request, ExtraItem $item)
+    {
+        $item->update($this->validatedExtra($request));
+
+        return redirect()
+            ->route('content-management.front-office.settings.extras.index')
+            ->with('success', $item->name.' was saved.');
+    }
+
+    public function destroyExtra(ExtraItem $item)
+    {
+        $name = $item->name;
+        $item->delete();
+
+        return redirect()
+            ->route('content-management.front-office.settings.extras.index')
+            ->with('success', $name.' was removed. Charges already on a bill keep their saved price.');
     }
 
     public function settings()
     {
-        $rooms = Room::query()->where('status', 'Active')->orderBy('title')->get();
-        $closures = RoomClosure::query()->with('room')->orderByDesc('starts_on')->get();
+        return redirect()->route('content-management.front-office.settings.rates.index');
+    }
 
-        return view('content-management.front-office.settings', compact('rooms', 'closures'));
+    public function rates()
+    {
+        $rooms = Room::query()->orderBy('title')->get();
+        $closures = RoomClosure::query()->with('room')->orderByDesc('starts_on')->get();
+        $discounts = RoomDiscount::query()->with('room')->orderByDesc('starts_on')->get();
+        $setting = Setting::query()->first();
+
+        return view('content-management.front-office.settings.rates', compact('rooms', 'closures', 'discounts', 'setting'));
+    }
+
+    public function invoiceSettings()
+    {
+        $setting = Setting::query()->first();
+
+        return view('content-management.front-office.settings.invoice', compact('setting'));
+    }
+
+    public function updateInvoice(Request $request)
+    {
+        $data = $request->validate([
+            'invoice_legal_name' => 'nullable|string|max:255',
+            'invoice_address' => 'nullable|string|max:500',
+            'invoice_phone' => 'nullable|string|max:40',
+            'invoice_email' => 'nullable|email|max:255',
+            'invoice_tax_id' => 'nullable|string|max:80',
+            'invoice_footer' => 'nullable|string|max:1000',
+        ]);
+
+        $setting = Setting::query()->firstOrFail();
+        foreach ($data as $field => $value) {
+            $setting->{$field} = filled($value) ? $value : null;
+        }
+        $setting->save();
+
+        return redirect()
+            ->to(url('/content-management/front-office/settings/invoice'))
+            ->with('success', 'Invoice details saved.');
+    }
+
+    public function updateRoomRates(Request $request, Room $room)
+    {
+        $data = $request->validate([
+            'price' => 'required|numeric|min:0',
+            'price_rwf' => 'nullable|numeric|min:0',
+            'rates' => 'nullable|array',
+            'rates.*.single' => 'nullable|numeric|min:0',
+            'rates.*.double' => 'nullable|numeric|min:0',
+            'rates.*.single_rwf' => 'nullable|numeric|min:0',
+            'rates.*.double_rwf' => 'nullable|numeric|min:0',
+            'rates.*.discount_type' => 'nullable|in:amount,percent',
+            'rates.*.discount_value' => 'nullable|numeric|min:0',
+            'rates.*.discount_value_rwf' => 'nullable|numeric|min:0',
+        ]);
+
+        $room->price = round((float) $data['price'], 2);
+        $room->price_rwf = $request->filled('price_rwf') ? round((float) $data['price_rwf'], 2) : null;
+        $room->rate_plans = $this->ratePlansFromRequest($request);
+        $room->save();
+
+        return redirect()
+            ->to(url('/content-management/front-office/settings/rates'))
+            ->with('success', $room->title.' rates saved.');
+    }
+
+    public function storeDiscount(Request $request)
+    {
+        RoomDiscount::query()->create($this->validatedDiscount($request));
+
+        return redirect()
+            ->to(url('/content-management/front-office/settings/rates'))
+            ->with('success', 'Discount saved.');
+    }
+
+    public function updateDiscount(Request $request, RoomDiscount $discount)
+    {
+        $discount->update($this->validatedDiscount($request));
+
+        return redirect()
+            ->to(url('/content-management/front-office/settings/rates'))
+            ->with('success', 'Discount updated.');
+    }
+
+    public function destroyDiscount(RoomDiscount $discount)
+    {
+        $discount->delete();
+
+        return redirect()
+            ->to(url('/content-management/front-office/settings/rates'))
+            ->with('success', 'Discount removed.');
     }
 
     public function storeClosure(Request $request)
@@ -362,12 +668,313 @@ class FrontDeskController extends Controller
         });
     }
 
+    private function sessionForm(Booking $booking, string $mode)
+    {
+        $this->assertRoomBooking($booking);
+        if ($mode === 'checkin' && $booking->checked_out_at) {
+            return redirect()
+                ->route('content-management.front-office.show', $booking)
+                ->with('error', 'This guest has already checked out.');
+        }
+        if ($mode === 'checkout' && ! $booking->checked_in_at) {
+            return redirect()
+                ->route('content-management.front-office.check-in.form', $booking)
+                ->with('error', 'Check the guest in before check-out.');
+        }
+        if ($mode === 'checkin' && $booking->checked_in_at) {
+            return redirect()
+                ->route('content-management.front-office.show', $booking)
+                ->with('success', 'This guest is already checked in.');
+        }
+
+        $booked = $mode === 'checkin'
+            ? ($booking->booked_checkin_date ?: $booking->checkin_date)
+            : ($booking->booked_checkout_date ?: $booking->checkout_date);
+        $suggested = $booked ? Carbon::parse($booked)->startOfDay() : now()->startOfDay();
+        if ($mode === 'checkout' && $suggested->gt(now()->startOfDay())) {
+            $suggested = now()->startOfDay();
+        }
+
+        $booking->load(['room', 'assignedRoom', 'charges', 'payments.receiver']);
+
+        return view('content-management.front-office.session', [
+            'booking' => $booking,
+            'mode' => $mode,
+            'suggested' => $suggested,
+            'setting' => Setting::query()->first(),
+            'items' => ExtraItem::query()->where('status', 'Active')->orderBy('name')->get(),
+        ]);
+    }
+
+    private function saveSession(Request $request, Booking $booking, string $mode)
+    {
+        $this->assertRoomBooking($booking);
+        $data = $request->validate([
+            'stay_date' => 'required|date',
+            'reason' => 'nullable|string|max:500',
+            'first_name' => 'required|string|max:120',
+            'last_name' => 'nullable|string|max:120',
+            'email' => 'nullable|email|max:255',
+            'phone' => 'nullable|string|max:30',
+            'adults' => 'required|integer|min:1|max:6',
+            'children' => 'nullable|integer|min:0|max:4',
+            'comment' => 'nullable|string|max:1000',
+            'intent' => 'required|in:revise,confirm',
+        ]);
+        $confirm = $data['intent'] === 'confirm';
+        if ($confirm && ! $request->boolean('confirm_session')) {
+            return back()->withInput()->with('error', $mode === 'checkin'
+                ? 'Confirm that the guest is here before check-in is saved.'
+                : 'Confirm that the guest has left before check-out is saved.');
+        }
+
+        $stayDate = Carbon::parse($data['stay_date'])->startOfDay();
+        $today = now()->startOfDay();
+        $booked = $mode === 'checkin'
+            ? Carbon::parse($booking->booked_checkin_date ?: $booking->checkin_date)->startOfDay()
+            : Carbon::parse($booking->booked_checkout_date ?: $booking->checkout_date)->startOfDay();
+        $changed = $stayDate->toDateString() !== $booked->toDateString();
+        if ($changed && strlen(trim((string) ($data['reason'] ?? ''))) < 3) {
+            return back()->withInput()->with('error', 'Say why this date is different from the booked date.');
+        }
+        if ($confirm && $stayDate->gt($today)) {
+            return back()->withInput()->with('error', $mode === 'checkin'
+                ? 'Check-in is for a guest who is here. Save the date change if the guest is still coming later.'
+                : 'Set the checkout date to today or earlier. A later date keeps the suite booked.');
+        }
+
+        $checkin = $mode === 'checkin' ? $stayDate->copy() : Carbon::parse($booking->checkin_date)->startOfDay();
+        $checkout = $mode === 'checkout' ? $stayDate->copy() : Carbon::parse($booking->checkout_date)->startOfDay();
+        if (! $checkout->gt($checkin)) {
+            return back()->withInput()->with('error', 'Check-out has to be after check-in.');
+        }
+        $conflict = $this->stayConflict($booking, $checkin->toDateString(), $checkout->toDateString());
+        if ($conflict) {
+            return back()->withInput()->with('error', $conflict);
+        }
+
+        if (! $booking->booked_checkin_date) {
+            $booking->booked_checkin_date = $booking->checkin_date;
+            $booking->booked_checkout_date = $booking->checkout_date;
+        }
+        $booking->names = trim($data['first_name'].' '.($data['last_name'] ?? ''));
+        $booking->email = $data['email'] ?? null;
+        $booking->phone = $data['phone'] ?? null;
+        $booking->adults = $data['adults'];
+        $booking->children = $data['children'] ?? 0;
+        $booking->message = $data['comment'] ?? $booking->message;
+        $booking->checkin_date = $checkin->toDateString();
+        $booking->checkout_date = $checkout->toDateString();
+        $booking->checkin = $booking->checkin_date;
+        $booking->checkout = $booking->checkout_date;
+        if ($mode === 'checkin') {
+            $booking->checkin_note = $changed ? trim((string) $data['reason']) : $booking->checkin_note;
+        } else {
+            $booking->checkout_note = $changed ? trim((string) $data['reason']) : $booking->checkout_note;
+        }
+        $this->repriceStay($booking);
+
+        if ($confirm && $mode === 'checkin') {
+            $roomId = $booking->assigned_room_id ?: $booking->room_id;
+            $booking->assigned_room_id = $roomId;
+            $booking->room_id = $booking->room_id ?: $roomId;
+            $booking->status = 'confirmed';
+            $booking->checked_in_at = $booking->checked_in_at ?: now();
+            $booking->checked_in_by = $booking->checked_in_by ?: auth()->id();
+        }
+        if ($confirm && $mode === 'checkout') {
+            $booking->checked_out_at = now();
+            $booking->checked_out_by = auth()->id();
+        }
+        $booking->save();
+
+        if (! $confirm) {
+            return back()->with('success', 'The date was updated. The guest was not '.($mode === 'checkin' ? 'checked in.' : 'checked out.'));
+        }
+
+        return redirect()
+            ->route('content-management.front-office.reservations')
+            ->with('success', $mode === 'checkin' ? 'Guest checked in.' : 'Guest checked out.');
+    }
+
+    private function repriceStay(Booking $booking): void
+    {
+        $room = Room::query()->find($booking->room_id);
+        if (! $room || ! $booking->checkin_date || ! $booking->checkout_date) {
+            $this->refreshBalance($booking);
+
+            return;
+        }
+        $quote = app(RoomDiscountService::class)->quote(
+            $room,
+            Carbon::parse($booking->checkin_date)->toDateString(),
+            Carbon::parse($booking->checkout_date)->toDateString(),
+            (int) $booking->adults,
+            (int) ($booking->children ?? 0),
+            1,
+            0,
+            $booking->board,
+            $booking->occupancy,
+            $booking->currencyKey()
+        );
+        $booking->total_amount = round($quote['total'], 2);
+        $booking->list_amount = round($quote['list_total'], 2);
+        $booking->discount_amount = round($quote['discount_total'], 2);
+        $booking->discount_label = $quote['label'] !== '' ? $quote['label'] : null;
+        $this->refreshBalance($booking);
+    }
+
+    private function refreshBalance(Booking $booking): void
+    {
+        $charges = $booking->exists
+            ? (float) $booking->charges()->where('included', false)->sum('line_total')
+            : (float) ($booking->charges_amount ?? 0);
+        $booking->charges_amount = round($charges, 2);
+        $due = max(0, round((float) $booking->total_amount + $booking->charges_amount - (float) $booking->paid_amount, 2));
+        $waived = min((float) ($booking->waived_amount ?? 0), $due);
+        $booking->waived_amount = round($waived, 2);
+        $booking->balance_amount = round($due - $waived, 2);
+        if ($booking->balance_amount <= 0 && ((float) $booking->paid_amount > 0 || $waived > 0)) {
+            $booking->payment_status = 'paid';
+        } elseif ((float) $booking->paid_amount > 0 || $waived > 0) {
+            $booking->payment_status = 'partial';
+        } else {
+            $booking->payment_status = 'pending';
+        }
+    }
+
+    private function stayConflict(Booking $booking, string $checkin, string $checkout): ?string
+    {
+        $roomId = (int) ($booking->assigned_room_id ?: $booking->room_id);
+        if (! $roomId) {
+            return 'Choose a suite before changing these dates.';
+        }
+        $overlap = $this->overlapping(Carbon::parse($checkin), Carbon::parse($checkout))
+            ->where('id', '!=', $booking->id)
+            ->get()
+            ->first(function (Booking $other) use ($roomId) {
+                return (int) ($other->assigned_room_id ?: $other->room_id) === $roomId;
+            });
+        if ($overlap) {
+            return $overlap->names.' already has this suite for those nights.';
+        }
+        $closed = RoomClosure::query()
+            ->where('room_id', $roomId)
+            ->whereDate('starts_on', '<', $checkout)
+            ->whereDate('ends_on', '>=', $checkin)
+            ->exists();
+
+        return $closed ? 'The suite is closed for one of these nights.' : null;
+    }
+
+    private function validatedExtra(Request $request): array
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:120',
+            'kind' => ['required', Rule::in(array_keys(ExtraItem::KINDS))],
+            'price' => 'required|numeric|min:0',
+            'price_rwf' => 'nullable|numeric|min:0',
+            'status' => 'required|in:Active,Inactive',
+        ]);
+        $data['category'] = ExtraItem::KINDS[$data['kind']]['category'];
+        $data['price'] = round((float) $data['price'], 2);
+        $data['price_rwf'] = $request->filled('price_rwf') ? round((float) $data['price_rwf'], 2) : null;
+
+        return $data;
+    }
+
     private function overlapping(Carbon $start, Carbon $end)
     {
         return $this->roomBookings()
             ->whereNotIn('status', ['cancelled', 'No Show'])
             ->whereDate('checkin_date', '<', $end->toDateString())
             ->whereDate('checkout_date', '>', $start->toDateString());
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validatedDiscount(Request $request): array
+    {
+        $data = $request->validate([
+            'title' => 'required|string|max:120',
+            'room_id' => 'nullable|exists:rooms,id',
+            'discount_type' => 'required|in:percent,amount',
+            'amount' => 'required|numeric|min:0.01',
+            'amount_rwf' => 'nullable|numeric|min:0',
+            'starts_on' => 'required|date',
+            'ends_on' => 'required|date|after_or_equal:starts_on',
+            'status' => 'required|in:Active,Inactive',
+        ]);
+
+        if ($data['discount_type'] === 'percent' && (float) $data['amount'] > 100) {
+            $data['amount'] = 100;
+        }
+        $data['amount_rwf'] = $data['discount_type'] === 'amount' && $request->filled('amount_rwf')
+            ? round((float) $data['amount_rwf'], 2)
+            : null;
+
+        $data['room_id'] = filled($data['room_id'] ?? null) ? (int) $data['room_id'] : null;
+
+        return $data;
+    }
+
+    /**
+     * @return array<string, array{single: ?float, double: ?float, discount_type: string, discount_value: ?float}>|null
+     */
+    private function ratePlansFromRequest(Request $request): ?array
+    {
+        $incoming = $request->input('rates', []);
+        $plans = [];
+        $any = false;
+
+        foreach (array_keys(Room::BOARD_PLANS) as $key) {
+            $row = is_array($incoming[$key] ?? null) ? $incoming[$key] : [];
+            $single = $this->rateMoney($row['single'] ?? null);
+            $double = $this->rateMoney($row['double'] ?? null);
+            $singleRwf = $this->rateMoney($row['single_rwf'] ?? null);
+            $doubleRwf = $this->rateMoney($row['double_rwf'] ?? null);
+            $type = in_array($row['discount_type'] ?? '', ['amount', 'percent'], true) ? $row['discount_type'] : '';
+            $value = $this->rateMoney($row['discount_value'] ?? null);
+            $valueRwf = $this->rateMoney($row['discount_value_rwf'] ?? null);
+            if ($type === 'percent' && $value !== null) {
+                $value = min(100, $value);
+            }
+            $priced = $single !== null || $double !== null || $singleRwf !== null || $doubleRwf !== null;
+            if (! $priced || $type === '' || ($type === 'percent' && ($value === null || $value <= 0)) || ($type === 'amount' && ($value === null || $value <= 0) && ($valueRwf === null || $valueRwf <= 0))) {
+                $type = '';
+                $value = null;
+                $valueRwf = null;
+            }
+            if ($type === 'percent') {
+                $valueRwf = null;
+            }
+            if ($priced) {
+                $any = true;
+            }
+            $plans[$key] = [
+                'single' => $single,
+                'double' => $double,
+                'single_rwf' => $singleRwf,
+                'double_rwf' => $doubleRwf,
+                'discount_type' => $type,
+                'discount_value' => $value,
+                'discount_value_rwf' => $type === 'amount' ? $valueRwf : null,
+            ];
+        }
+
+        return $any ? $plans : null;
+    }
+
+    private function rateMoney(mixed $value): ?float
+    {
+        if ($value === null || $value === '' || ! is_numeric($value)) {
+            return null;
+        }
+
+        $number = round((float) $value, 2);
+
+        return $number < 0 ? null : $number;
     }
 
     private function assertRoomBooking(Booking $booking): void
@@ -392,9 +999,89 @@ class FrontDeskController extends Controller
             'occupancy' => 'nullable|in:single,double',
             'adults' => 'required|integer|min:1|max:6',
             'children' => 'nullable|integer|min:0|max:4',
-            'rooms' => 'nullable|integer|min:1|max:4',
+            'reservation_channel' => ['required', Rule::in(array_keys(Booking::CHANNELS))],
+            'guest_source' => ['required', Rule::in(array_keys(Booking::SOURCES))],
+            'currency' => 'required|in:usd,rwf',
             'message' => 'nullable|string|max:1000',
         ]);
+    }
+
+    private function redirectAfterStay(Request $request, Booking $booking, bool $created)
+    {
+        $after = (string) $request->input('after');
+        if ($after === 'checkin' && ! $booking->checked_out_at) {
+            return redirect()
+                ->route('content-management.front-office.check-in.form', $booking)
+                ->with('success', 'Reservation saved. Review the arrival before checking the guest in.');
+        }
+
+        if ($after === 'invoice') {
+            return redirect()
+                ->route('content-management.front-office.receipt', ['booking' => $booking, 'print' => 1])
+                ->with('success', 'Reservation saved.');
+        }
+
+        if ($after === 'payment') {
+            return redirect()
+                ->to(route('content-management.front-office.show', $booking).'#payment')
+                ->with('success', $booking->names.' was saved. Record the payment below.');
+        }
+
+        if ($created) {
+            return redirect()
+                ->route('content-management.front-office.show', $booking)
+                ->with('success', 'Reservation saved.');
+        }
+
+        return redirect()
+            ->route('content-management.front-office.reservations')
+            ->with('success', $booking->names.' was saved.');
+    }
+
+    private function presentStay(array $data, float $paid, float $charges = 0): array
+    {
+        $room = Room::query()->findOrFail($data['room_id']);
+        $currency = ($data['currency'] ?? hotel_currency()) === 'rwf' ? 'rwf' : 'usd';
+        $quote = app(RoomDiscountService::class)->quote(
+            $room,
+            $data['checkin_date'],
+            $data['checkout_date'],
+            (int) $data['adults'],
+            (int) ($data['children'] ?? 0),
+            1,
+            0,
+            $data['board'] ?? null,
+            $data['occupancy'] ?? null,
+            $currency
+        );
+        $setting = Setting::query()->first();
+        $total = round((float) $quote['total'], 2);
+        $discount = round((float) $quote['discount_total'], 2);
+        $paid = round($paid, 2);
+        $charges = round($charges, 2);
+        $grand = round($total + $charges, 2);
+        $nightly = (float) $quote['nightly'];
+        $rack = (float) ($quote['rack_nightly'] ?? $nightly);
+        $guest = trim(($data['first_name'] ?? '').' '.($data['last_name'] ?? ''));
+        $nights = (int) $quote['nights'];
+
+        return [
+            'guest' => $guest !== '' ? $guest : 'Guest',
+            'room' => $room->title,
+            'stay' => Carbon::parse($data['checkin_date'])->format('d M Y').' – '.Carbon::parse($data['checkout_date'])->format('d M Y'),
+            'nights' => $nights.' '.($nights === 1 ? 'night' : 'nights'),
+            'board' => (Room::BOARD_PLANS[$data['board'] ?? ''] ?? 'Standard rate').' · '.(($data['occupancy'] ?? 'double') === 'single' ? 'Single' : 'Double'),
+            'nightly' => hotel_price($nightly, $setting, $currency),
+            'rack' => $rack > $nightly + 0.5 ? hotel_price($rack, $setting, $currency) : '',
+            'discount' => hotel_price($discount, $setting, $currency),
+            'discount_label' => $quote['label'] !== '' ? $quote['label'] : 'Discount',
+            'has_discount' => $discount >= 0.5,
+            'extras' => hotel_price($charges, $setting, $currency),
+            'has_extras' => $charges >= 0.5,
+            'total' => hotel_price($grand, $setting, $currency),
+            'paid' => hotel_price($paid, $setting, $currency),
+            'balance' => hotel_price(max(0, round($grand - $paid, 2)), $setting, $currency),
+        ];
     }
 
     private function fillStay(Booking $booking, array $data, bool $reprice): void
@@ -409,16 +1096,24 @@ class FrontDeskController extends Controller
         $booking->checkout_date = $data['checkout_date'];
         $booking->checkin = $data['checkin_date'];
         $booking->checkout = $data['checkout_date'];
+        if (! $booking->booked_checkin_date) {
+            $booking->booked_checkin_date = $data['checkin_date'];
+            $booking->booked_checkout_date = $data['checkout_date'];
+        }
         $booking->room_id = $data['room_id'];
         $booking->adults = $data['adults'];
         $booking->children = $data['children'] ?? 0;
-        $booking->rooms = $data['rooms'] ?? 1;
+        $booking->rooms = 1;
+        $booking->reservation_channel = $data['reservation_channel'];
+        $booking->guest_source = $data['guest_source'];
+        $booking->booking_type = $data['reservation_channel'] === 'website' ? 'online' : 'walkin';
         $booking->board = $data['board'] ?: null;
         $booking->occupancy = $data['occupancy'] ?: null;
+        $booking->currency = ($data['currency'] ?? 'usd') === 'rwf' ? 'rwf' : 'usd';
         $booking->message = $data['message'] ?? $booking->message;
 
         if (! $reprice) {
-            $booking->balance_amount = max(0, (float) $booking->total_amount - (float) $booking->paid_amount);
+            $this->refreshBalance($booking);
 
             return;
         }
@@ -430,10 +1125,11 @@ class FrontDeskController extends Controller
             $data['checkout_date'],
             (int) $data['adults'],
             (int) ($data['children'] ?? 0),
-            max(1, (int) ($data['rooms'] ?? 1)),
+            1,
             0,
             $data['board'] ?? null,
-            $data['occupancy'] ?? null
+            $data['occupancy'] ?? null,
+            $booking->currency
         );
         $booking->board = $quote['board'] ?: $booking->board;
         $booking->occupancy = $quote['occupancy'] ?: $booking->occupancy;
@@ -441,10 +1137,24 @@ class FrontDeskController extends Controller
         $booking->list_amount = round($quote['list_total'], 2);
         $booking->discount_amount = round($quote['discount_total'], 2);
         $booking->discount_label = $quote['label'] !== '' ? $quote['label'] : null;
-        $booking->balance_amount = max(0, (float) $booking->total_amount - (float) $booking->paid_amount);
-        $booking->payment_status = $booking->balance_amount <= 0 && (float) $booking->paid_amount > 0
-            ? 'paid'
-            : ((float) $booking->paid_amount > 0 ? 'partial' : 'pending');
+        $this->refreshBalance($booking);
+    }
+
+    private function guardCurrency(Booking $booking, array $data): void
+    {
+        $next = ($data['currency'] ?? 'usd') === 'rwf' ? 'rwf' : 'usd';
+        if ($next === $booking->currencyKey()) {
+            return;
+        }
+        $locked = (float) $booking->paid_amount > 0
+            || (float) ($booking->charges_amount ?? 0) > 0
+            || (float) ($booking->waived_amount ?? 0) > 0
+            || $booking->charges()->exists();
+        if ($locked) {
+            throw ValidationException::withMessages([
+                'currency' => 'This stay already has a payment or an extra charge, so the invoice currency stays as it is.',
+            ]);
+        }
     }
 
     private function rateChanged(Booking $booking, array $data): bool
@@ -456,7 +1166,8 @@ class FrontDeskController extends Controller
             || optional($booking->checkout_date)->toDateString() !== $data['checkout_date']
             || (int) $booking->adults !== (int) $data['adults']
             || (int) $booking->children !== (int) ($data['children'] ?? 0)
-            || (int) ($booking->rooms ?? 1) !== (int) ($data['rooms'] ?? 1);
+            || (int) ($booking->rooms ?? 1) !== 1
+            || $booking->currencyKey() !== (($data['currency'] ?? 'usd') === 'rwf' ? 'rwf' : 'usd');
     }
 
     private function roomRateMap($rooms): array
@@ -464,14 +1175,30 @@ class FrontDeskController extends Controller
         return $rooms->mapWithKeys(function (Room $room) {
             return [$room->id => [
                 'price' => (float) $room->price,
-                'plans' => collect($room->publicRatePlans())->map(fn ($plan) => [
-                    'key' => $plan['key'],
-                    'label' => Room::BOARD_PLANS[$plan['key']] ?? $plan['key'],
+                'price_rwf' => $room->price_rwf,
+                'plans' => collect($room->ratePlans())->map(fn ($plan, $key) => [
+                    'key' => $key,
+                    'label' => Room::BOARD_PLANS[$key] ?? $key,
                     'single' => $plan['single_sale'],
                     'double' => $plan['double_sale'],
-                ])->values(),
+                    'single_rwf' => $plan['single_sale_rwf'],
+                    'double_rwf' => $plan['double_sale_rwf'],
+                ])->filter(fn ($plan) => $plan['single'] !== null || $plan['double'] !== null || $plan['single_rwf'] !== null || $plan['double_rwf'] !== null)->values(),
             ]];
         })->all();
+    }
+
+    private function calendarDate(mixed $value): ?Carbon
+    {
+        if (! is_string($value) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->startOfDay();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function bars($stays, $closures, Carbon $start, int $days): array

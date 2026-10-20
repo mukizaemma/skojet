@@ -58,6 +58,11 @@
                 <a class="nav-link" data-bs-toggle="tab" href="#users">Users</a>
             </li>
             @endif
+            @if(!empty($canManageReservations))
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#reservations-manager">Reservations Manager</a>
+            </li>
+            @endif
             @if(!empty($canEditDelivery))
             <li class="nav-item">
                 <a class="nav-link" data-bs-toggle="tab" href="#footer-delivered-by">Delivered by (footer)</a>
@@ -583,6 +588,28 @@
             </div>
             @endif
 
+            @if(!empty($canManageReservations))
+            <div id="reservations-manager" class="tab-pane fade">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="mb-1">Reservations Manager</h5>
+                        <p class="text-muted small mb-0">Turn Front Office on when this hotel’s access is current. Website management and the guest reservations list stay available either way.</p>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ route('content-management.reservations-manager.update') }}">
+                            @csrf
+                            <input type="hidden" name="reservations_manager_enabled" value="0">
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" role="switch" id="reservations_manager_enabled" name="reservations_manager_enabled" value="1" @checked($reservationsManagerEnabled)>
+                                <label class="form-check-label" for="reservations_manager_enabled">Reservations Manager is active</label>
+                            </div>
+                            <button type="submit" class="btn btn-dark">Save</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            @endif
+
             {{-- SEO & discovery --}}
             <div id="seo" class="tab-pane fade">
                 <div class="card shadow-sm border-0 mb-4">
@@ -742,7 +769,10 @@ jQuery(function ($) {
         }
         var trigger = document.querySelector('a[data-bs-toggle="tab"][href="' + hash + '"]');
         if (trigger && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
-            bootstrap.Tab.getOrCreateInstance(trigger).show();
+            var tab = typeof bootstrap.Tab.getOrCreateInstance === 'function'
+                ? bootstrap.Tab.getOrCreateInstance(trigger)
+                : new bootstrap.Tab(trigger);
+            tab.show();
         }
     })();
 

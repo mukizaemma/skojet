@@ -1,12 +1,14 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<div class="admin-livewire-page d-flex w-100 align-items-stretch">
-@include('content-management.includes.sidebar')
-<div class="content">
-    @include('admin.includes.navbar')
-    <div class="container-fluid pt-4 px-4">
-        <h4 class="mb-3">Payments</h4>
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-menu">
+<div class="desk-app">
+@include('content-management.front-office.partials.header')
+<div class="desk-app__body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+            <h4 class="mb-0">Payments</h4>
+            <a href="{{ route('content-management.front-office.create') }}" class="btn btn-dark">New reservation</a>
+        </div>
         <div class="bg-white border rounded">
             <div class="table-responsive">
                 <table class="table align-middle mb-0">
@@ -32,7 +34,7 @@
                                 <td>{{ $payment->methodLabel() }}</td>
                                 <td>{{ $payment->note }}</td>
                                 <td>{{ $payment->receiver?->name }}</td>
-                                <td class="text-end">{{ hotel_price($payment->amount, $setting ?? null) }}</td>
+                                <td class="text-end">{{ hotel_price($payment->amount, $setting ?? null, $payment->booking?->currencyKey() ?? 'usd') }}</td>
                             </tr>
                         @empty
                             <tr><td colspan="6" class="text-muted p-3">No payments recorded yet.</td></tr>
@@ -43,6 +45,5 @@
         </div>
         <div class="mt-3">{{ $payments->links() }}</div>
     </div>
-</div>
 </div>
 @endsection

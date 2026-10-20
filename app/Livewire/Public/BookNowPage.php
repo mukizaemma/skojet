@@ -481,7 +481,8 @@ class BookNowPage extends Component
     protected function alignRate(): void
     {
         $room = $this->selectedRoom();
-        if (! $room || $room->publicRatePlans() === []) {
+        $currency = hotel_currency();
+        if (! $room || $room->publicRatePlans($currency) === []) {
             $this->board = '';
             $this->occupancy = '';
 
@@ -489,7 +490,7 @@ class BookNowPage extends Component
         }
 
         $prefer = (int) $this->adults <= 1 ? 'single' : 'double';
-        $resolved = $room->resolveRate($this->board, $this->occupancy, $prefer);
+        $resolved = $room->resolveRate($this->board, $this->occupancy, $prefer, $currency);
         $this->board = $resolved['board'];
         $this->occupancy = $resolved['occupancy'];
     }

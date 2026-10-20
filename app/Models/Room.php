@@ -26,6 +26,7 @@ class Room extends Model
         'room_type',
         'number_of_rooms',
         'price',
+        'price_rwf',
         'couplePrice',
         'guests_included_in_price',
         'extra_adult_price',
@@ -40,6 +41,7 @@ class Room extends Model
 
     protected $casts = [
         'rate_plans' => 'array',
+        'price_rwf' => 'float',
     ];
 
     public const BED_TYPES = [
@@ -118,13 +120,21 @@ class Room extends Model
             }
             $single = self::moneyOrNull($row['single'] ?? null);
             $double = self::moneyOrNull($row['double'] ?? null);
+            $singleRwf = self::moneyOrNull($row['single_rwf'] ?? null);
+            $doubleRwf = self::moneyOrNull($row['double_rwf'] ?? null);
+            $valueRwf = $type === 'amount' ? self::moneyOrNull($row['discount_value_rwf'] ?? null) : null;
             $plans[$key] = [
                 'single' => $single,
                 'double' => $double,
+                'single_rwf' => $singleRwf,
+                'double_rwf' => $doubleRwf,
                 'discount_type' => $type,
                 'discount_value' => $value,
+                'discount_value_rwf' => $valueRwf,
                 'single_sale' => self::discounted($single, $type, $value),
                 'double_sale' => self::discounted($double, $type, $value),
+                'single_sale_rwf' => self::discounted($singleRwf, $type, $type === 'percent' ? $value : $valueRwf),
+                'double_sale_rwf' => self::discounted($doubleRwf, $type, $type === 'percent' ? $value : $valueRwf),
             ];
         }
 
@@ -134,23 +144,48 @@ class Room extends Model
     /**
      * @return list<array{key: string, single: ?float, double: ?float, discount_type: string, discount_value: ?float, single_sale: ?float, double_sale: ?float}>
      */
-    public function publicRatePlans(): array
+    public function publicRatePlans(?string $currency = null): array
     {
+        $currency = $currency === 'rwf' ? 'rwf' : 'usd';
         $plans = [];
         foreach ($this->ratePlans() as $key => $plan) {
-            if ($plan['single'] === null && $plan['double'] === null) {
+            $projected = $currency === 'rwf'
+                ? [
+                    'single' => $plan['single_rwf'],
+                    'double' => $plan['double_rwf'],
+                    'single_sale' => $plan['single_sale_rwf'],
+                    'double_sale' => $plan['double_sale_rwf'],
+                    'discount_value' => $plan['discount_type'] === 'amount' ? $plan['discount_value_rwf'] : $plan['discount_value'],
+                ]
+                : [
+                    'single' => $plan['single'],
+                    'double' => $plan['double'],
+                    'single_sale' => $plan['single_sale'],
+                    'double_sale' => $plan['double_sale'],
+                    'discount_value' => $plan['discount_value'],
+                ];
+            if ($projected['single'] === null && $projected['double'] === null) {
                 continue;
             }
-            $plans[] = ['key' => $key] + $plan;
+            $plans[] = [
+                'key' => $key,
+                'discount_type' => $plan['discount_type'],
+                'discount_value_rwf' => $plan['discount_value_rwf'],
+                'single_rwf' => $plan['single_rwf'],
+                'double_rwf' => $plan['double_rwf'],
+                'single_sale_rwf' => $plan['single_sale_rwf'],
+                'double_sale_rwf' => $plan['double_sale_rwf'],
+            ] + $projected;
         }
 
         return $plans;
     }
 
-    public function headlineNightly(): float
+    public function headlineNightly(?string $currency = null): float
     {
+        $currency = $currency === 'rwf' ? 'rwf' : 'usd';
         $prices = [];
-        foreach ($this->publicRatePlans() as $plan) {
+        foreach ($this->publicRatePlans($currency) as $plan) {
             foreach (['single_sale', 'double_sale'] as $field) {
                 if ($plan[$field] !== null) {
                     $prices[] = $plan[$field];
@@ -162,39 +197,45 @@ class Room extends Model
             return (float) min($prices);
         }
 
-        return (float) ($this->price ?? 0);
+        return (float) ($currency === 'rwf' ? ($this->price_rwf ?? 0) : ($this->price ?? 0));
     }
 
     /**
      * @return array{board: string, occupancy: string, rack: float, sale: float, discount_type: string, discount_value: ?float}|null
      */
-    public function rateCell(?string $board, ?string $occupancy): ?array
+    public function rateCell(?string $board, ?string $occupancy, ?string $currency = null): ?array
     {
         if (! isset(self::BOARD_PLANS[$board]) || ! in_array($occupancy, ['single', 'double'], true)) {
             return null;
         }
 
+        $currency = $currency === 'rwf' ? 'rwf' : 'usd';
         $plan = $this->ratePlans()[$board];
-        if ($plan[$occupancy] === null) {
+        $rack = $currency === 'rwf' ? $plan[$occupancy.'_rwf'] : $plan[$occupancy];
+        $sale = $currency === 'rwf' ? $plan[$occupancy.'_sale_rwf'] : $plan[$occupancy.'_sale'];
+        if ($rack === null || $sale === null) {
             return null;
         }
 
         return [
             'board' => $board,
             'occupancy' => $occupancy,
-            'rack' => (float) $plan[$occupancy],
-            'sale' => (float) $plan[$occupancy.'_sale'],
+            'rack' => (float) $rack,
+            'sale' => (float) $sale,
             'discount_type' => $plan['discount_type'],
-            'discount_value' => $plan['discount_value'],
+            'discount_value' => $currency === 'rwf' && $plan['discount_type'] === 'amount'
+                ? $plan['discount_value_rwf']
+                : $plan['discount_value'],
         ];
     }
 
     /**
      * @return array{board: string, occupancy: string, rack: float, sale: float, discount_type: string, discount_value: ?float}
      */
-    public function resolveRate(?string $board, ?string $occupancy, string $prefer = 'double'): array
+    public function resolveRate(?string $board, ?string $occupancy, string $prefer = 'double', ?string $currency = null): array
     {
-        $chosen = $this->rateCell($board, $occupancy);
+        $currency = $currency === 'rwf' ? 'rwf' : 'usd';
+        $chosen = $this->rateCell($board, $occupancy, $currency);
         if ($chosen) {
             return $chosen;
         }
@@ -203,7 +244,7 @@ class Room extends Model
         $prefer = $prefer === 'single' ? 'single' : 'double';
         $best = null;
         $preferred = null;
-        foreach ($this->publicRatePlans() as $plan) {
+        foreach ($this->publicRatePlans($currency) as $plan) {
             foreach (['single', 'double'] as $occupancyKey) {
                 if ($plan[$occupancyKey.'_sale'] === null) {
                     continue;
@@ -232,7 +273,7 @@ class Room extends Model
             return $best;
         }
 
-        $price = (float) ($this->price ?? 0);
+        $price = (float) ($currency === 'rwf' ? ($this->price_rwf ?? 0) : ($this->price ?? 0));
 
         return [
             'board' => '',

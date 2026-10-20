@@ -13,6 +13,12 @@ class Setting extends Model
 
     protected $fillable =[
         'company',
+        'invoice_legal_name',
+        'invoice_address',
+        'invoice_phone',
+        'invoice_email',
+        'invoice_tax_id',
+        'invoice_footer',
         'address',
         'email',
         'phone',

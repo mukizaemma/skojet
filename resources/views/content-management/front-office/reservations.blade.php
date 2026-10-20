@@ -1,12 +1,10 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}">
-<div class="admin-livewire-page d-flex w-100 align-items-stretch">
-@include('content-management.includes.sidebar')
-<div class="content">
-    @include('admin.includes.navbar')
-    <div class="container-fluid pt-4 px-4">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-menu">
+<div class="desk-app">
+@include('content-management.front-office.partials.header')
+<div class="desk-app__body">
         @include('content-management.front-office.partials.alerts')
         <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
             <h4 class="mb-0">Reservations</h4>
@@ -33,10 +31,14 @@
                             <th>Guest</th>
                             <th>Suite</th>
                             <th>Stay</th>
+                            <th>Submitted</th>
+                            <th>Created by</th>
                             <th>Rate</th>
+                            <th>Came from</th>
                             <th>Status</th>
                             <th class="text-end">Total</th>
                             <th class="text-end">Balance</th>
+                            <th class="text-nowrap">Check-in / Check-out</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -45,13 +47,17 @@
                                 <td><a href="{{ route('content-management.front-office.show', $booking) }}">{{ $booking->names }}</a></td>
                                 <td>{{ $booking->stayRoom()?->title ?? 'Unallocated' }}</td>
                                 <td>{{ optional($booking->checkin_date)->format('d M Y') }} – {{ optional($booking->checkout_date)->format('d M Y') }}</td>
+                                <td>{{ optional($booking->created_at)->format('d M Y H:i') }}</td>
+                                <td>{{ $booking->submittedByName() }}</td>
                                 <td>{{ \App\Models\Room::BOARD_PLANS[$booking->board] ?? 'Standard' }}{{ $booking->occupancy ? ' · '.ucfirst($booking->occupancy) : '' }}</td>
+                                <td>{{ $booking->channelLabel() }} · {{ $booking->sourceLabel() }}</td>
                                 <td class="text-capitalize">{{ str_replace('_', ' ', $booking->deskState()) }}</td>
-                                <td class="text-end">{{ hotel_price($booking->total_amount, $setting ?? null) }}</td>
-                                <td class="text-end">{{ hotel_price($booking->balance_amount, $setting ?? null) }}</td>
+                                <td class="text-end">{{ hotel_price($booking->total_amount, $setting ?? null, $booking->currencyKey()) }}</td>
+                                <td class="text-end">{{ hotel_price($booking->balance_amount, $setting ?? null, $booking->currencyKey()) }}</td>
+                                <td>@include('content-management.front-office.partials.stay-actions')</td>
                             </tr>
                         @empty
-                            <tr><td colspan="7" class="text-muted p-3">No reservations in this range.</td></tr>
+                            <tr><td colspan="11" class="text-muted p-3">No reservations in this range.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -59,6 +65,5 @@
         </div>
         <div class="mt-3">{{ $reservations->links() }}</div>
     </div>
-</div>
 </div>
 @endsection

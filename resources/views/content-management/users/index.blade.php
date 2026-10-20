@@ -1,3 +1,6 @@
+@extends('layouts.adminBase')
+
+@section('content')
 <div class="admin-livewire-page d-flex w-100 align-items-stretch">
 @include('content-management.includes.sidebar')
 <div class="content">
@@ -14,3 +17,4 @@
     </div>
 </div>
 </div>
+@endsection

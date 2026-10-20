@@ -25,19 +25,22 @@ class RoomDiscountService
      *     has_discount: bool
      * }
      */
-    public function quote(Room $room, string $checkin, string $checkout, int $adults, int $children, int $roomCount = 1, int $extraBeds = 0, ?string $board = null, ?string $occupancy = null): array
+    public function quote(Room $room, string $checkin, string $checkout, int $adults, int $children, int $roomCount = 1, int $extraBeds = 0, ?string $board = null, ?string $occupancy = null, ?string $currency = null): array
     {
+        $currency = $currency === 'rwf' ? 'rwf' : ($currency === 'usd' ? 'usd' : hotel_currency());
         $nights = $this->nights($checkin, $checkout);
         $rooms = max(1, $roomCount);
         $adultsPerRoom = (int) max(1, ceil(max(1, $adults) / $rooms));
         $childrenPerRoom = (int) max(0, ceil(max(0, $children) / $rooms));
         $prefer = $adultsPerRoom <= 1 ? 'single' : 'double';
-        $resolved = $room->publicRatePlans() !== []
-            ? $room->resolveRate($board, $occupancy, $prefer)
+        $resolved = $room->publicRatePlans($currency) !== []
+            ? $room->resolveRate($board, $occupancy, $prefer, $currency)
             : null;
         $nightly = $resolved
             ? (float) $resolved['sale']
-            : $room->nightlyRateForGuests($adultsPerRoom, $childrenPerRoom, max(0, $extraBeds));
+            : ($currency === 'rwf'
+                ? (float) ($room->price_rwf ?? 0)
+                : $room->nightlyRateForGuests($adultsPerRoom, $childrenPerRoom, max(0, $extraBeds)));
         $list = $nightly * $nights * $rooms;
 
         $empty = [
@@ -78,7 +81,7 @@ class RoomDiscountService
                 if ($night < $offerStart || $night > $offerEnd) {
                     continue;
                 }
-                $cut = $this->nightSaving($offer, $nightly);
+                $cut = $this->nightSaving($offer, $nightly, $currency);
                 if ($cut > $best) {
                     $best = $cut;
                     $bestLabel = $offer->title;
@@ -123,7 +126,7 @@ class RoomDiscountService
             ->get();
     }
 
-    protected function nightSaving(RoomDiscount $offer, float $nightly): float
+    protected function nightSaving(RoomDiscount $offer, float $nightly, string $currency = 'usd'): float
     {
         if ($offer->discount_type === 'percent') {
             $percent = min(100, max(0, (float) $offer->amount));
@@ -131,7 +134,12 @@ class RoomDiscountService
             return $nightly * ($percent / 100);
         }
 
-        return min($nightly, max(0, (float) $offer->amount));
+        $amount = $currency === 'rwf' ? $offer->amount_rwf : $offer->amount;
+        if ($amount === null) {
+            return 0.0;
+        }
+
+        return min($nightly, max(0, (float) $amount));
     }
 
     protected function nights(string $checkin, string $checkout): int

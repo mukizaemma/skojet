@@ -73,7 +73,7 @@
                         @endif
                         <span class="room-detail-price-card__label">{{ site_trans('room.from') }}</span>
                         <div class="room-detail-price-card__amount">
-                            <span class="room-detail-price-card__value">{{ hotel_price($room->headlineNightly(), $setting) }}</span>
+                            <span class="room-detail-price-card__value">{{ hotel_price($room->headlineNightly(hotel_currency($setting)), $setting) }}</span>
                             <span class="room-detail-price-card__unit">{{ site_trans('room.per_night') }}</span>
                         </div>
                         <p class="room-detail-price-card__note">{{ site_trans('room.price_note') }}</p>
@@ -102,7 +102,7 @@
     </div>
 </section>
 
-@if($room->publicRatePlans() !== [])
+@if($room->publicRatePlans(hotel_currency($setting ?? null)) !== [])
 <section class="room-rate-board rts__section section__padding pt-0">
     <div class="container">
         <header class="room-rate-board__header">
@@ -110,7 +110,7 @@
             <p>{{ site_trans('room.rates_lead') }}</p>
         </header>
         <div class="room-rate-board__grid">
-            @foreach($room->publicRatePlans() as $plan)
+            @foreach($room->publicRatePlans(hotel_currency($setting ?? null)) as $plan)
                 <article class="room-rate-board__card">
                     <header class="room-rate-board__head">
                         <h3>{{ site_trans('room.board_'.$plan['key']) }}</h3>

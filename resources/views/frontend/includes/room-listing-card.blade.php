@@ -14,7 +14,7 @@
                 <div class="home-room-card__price">
                     <span class="home-room-card__price-from">{{ site_trans('room.from') }}</span>
                     <div class="home-room-card__price-line">
-                        <span class="home-room-card__price-amount">{{ hotel_price($room->headlineNightly(), $setting) }}</span>
+                        <span class="home-room-card__price-amount">{{ hotel_price($room->headlineNightly(hotel_currency($setting)), $setting) }}</span>
                         <span class="home-room-card__price-unit">/ night</span>
                     </div>
                 </div>
@@ -22,9 +22,9 @@
             @if($room->bed_type && isset(\App\Models\Room::BED_TYPES[$room->bed_type]))
                 <p class="home-room-card__bed">{{ site_trans('room.bed_'.$room->bed_type) }}</p>
             @endif
-            @if($room->publicRatePlans() !== [])
+            @if($room->publicRatePlans(hotel_currency($setting)) !== [])
                 <p class="home-room-card__plans">
-                    @foreach($room->publicRatePlans() as $plan)
+                    @foreach($room->publicRatePlans(hotel_currency($setting)) as $plan)
                         <span>{{ site_trans('room.board_'.$plan['key']) }}</span>
                     @endforeach
                 </p>

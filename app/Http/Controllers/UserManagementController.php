@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Role;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\EmailVerificationMail;
@@ -41,49 +42,98 @@ class UserManagementController extends Controller
         return view('content-management.users.index', compact('users', 'roles', 'superAdminRole', 'isManager'));
     }
 
+    private function usersListUrl(Request $request): string
+    {
+        $referer = (string) $request->headers->get('referer');
+        if (str_contains($referer, '/content-management/users')) {
+            return url('/content-management/users');
+        }
+
+        return url('/setting').'#users';
+    }
+
+    private function assignableRoleIds(): array
+    {
+        return Role::whereIn('slug', ['admin', 'guest'])->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
+
     public function store(Request $request)
     {
         $this->ensureManageAllUsersOrAbort();
 
-        $allowedRoleIds = Role::whereIn('slug', ['admin', 'guest'])->pluck('id')->all();
-
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
+            'email' => 'required|string|email|max:255|unique:users,email',
             'password' => 'required|string|min:8',
-            'role_id' => ['required', Rule::in($allowedRoleIds)],
+            'role_id' => ['required', 'integer', Rule::in($this->assignableRoleIds())],
             'verify_immediately' => 'nullable|boolean',
         ]);
 
-        $userData = [
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role_id' => $request->role_id,
-            'user_id' => \Ramsey\Uuid\Uuid::uuid4(),
-        ];
+        if ($validator->fails()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please fix the form and try again.',
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
 
-        // If Super Admin wants to verify immediately
-        if ($request->has('verify_immediately') && $request->verify_immediately) {
-            $userData['email_verified_at'] = now();
-            $userData['email_verified_by'] = auth()->id();
-        } else {
-            $userData['verification_token'] = Str::random(60);
+            return redirect()->to($this->usersListUrl($request))
+                ->withErrors($validator, 'user')
+                ->withInput($request->except('password'));
         }
 
-        $user = User::create($userData);
+        $user = new User();
+        $user->name = $request->input('name');
+        $user->email = $request->input('email');
+        $user->password = Hash::make($request->input('password'));
+        $user->role_id = (int) $request->input('role_id');
+        $user->user_id = (string) \Ramsey\Uuid\Uuid::uuid4();
+        $user->status = 'Active';
 
-        $message = 'User created and verified successfully.';
+        if ($request->boolean('verify_immediately')) {
+            $user->email_verified_at = now();
+            $user->email_verified_by = auth()->id();
+        } else {
+            $user->verification_token = Str::random(60);
+        }
+
+        $user->save();
+
+        $user = User::with('role')->find($user->id);
+        if (! $user) {
+            $message = 'The account could not be saved. Please try again.';
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 500);
+            }
+
+            return redirect()->to($this->usersListUrl($request))->with('error', $message);
+        }
+
+        $roleName = $user->role->name ?? 'user';
+        $message = $user->name.' was added as '.$roleName.'.';
         if (! $user->email_verified_at) {
             try {
                 Mail::to($user->email)->send(new EmailVerificationMail($user));
-                $message = 'User created successfully. Verification email sent.';
+                $message .= ' A verification email was sent.';
             } catch (\Throwable) {
-                $message = 'User created. The verification email could not be sent, so verify the address from this page.';
+                $message .= ' The verification email could not be sent, so verify the address from this page.';
             }
         }
 
-        return response()->json(['success' => true, 'message' => $message]);
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                ],
+            ]);
+        }
+
+        return redirect()->to($this->usersListUrl($request))->with('success', $message);
     }
 
     public function update(Request $request, $id)
@@ -114,7 +164,14 @@ class UserManagementController extends Controller
 
         $user->save();
 
-        return response()->json(['success' => true, 'message' => 'User updated successfully']);
+        $saved = User::with('role')->find($user->id);
+        $message = ($saved->name ?? 'User').' was updated.';
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => $message, 'user' => ['id' => $user->id]]);
+        }
+
+        return redirect()->to($this->usersListUrl($request))->with('success', $message);
     }
 
     public function promoteToAdmin($id)

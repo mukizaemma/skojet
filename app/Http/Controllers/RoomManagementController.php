@@ -115,7 +115,7 @@ class RoomManagementController extends Controller
         $room->room_type = 'room';
         $room->price = $request->price;
         $room->bed_type = $request->filled('bed_type') ? $request->bed_type : null;
-        $room->rate_plans = $this->ratePlansFromRequest($request);
+        $room->rate_plans = $this->ratePlansFromRequest($request, $room);
         $room->number_of_rooms = (int) $request->number_of_rooms;
         $room->max_occupancy = (int) $request->max_occupancy;
         $room->guests_included_in_price = min((int) $room->guests_included_in_price ?: 2, (int) $request->max_occupancy);
@@ -232,33 +232,48 @@ class RoomManagementController extends Controller
     /**
      * @return array<string, array{single: ?float, double: ?float, discount_type: string, discount_value: ?float}>|null
      */
-    protected function ratePlansFromRequest(Request $request): ?array
+    protected function ratePlansFromRequest(Request $request, ?Room $room = null): ?array
     {
         $incoming = $request->input('rates', []);
+        $existing = is_array($room?->rate_plans) ? $room->rate_plans : [];
         $plans = [];
         $any = false;
 
         foreach (array_keys(Room::BOARD_PLANS) as $key) {
             $row = is_array($incoming[$key] ?? null) ? $incoming[$key] : [];
+            $stored = is_array($existing[$key] ?? null) ? $existing[$key] : [];
             $single = $this->rateMoney($row['single'] ?? null);
             $double = $this->rateMoney($row['double'] ?? null);
+            $singleRwf = array_key_exists('single_rwf', $row) ? $this->rateMoney($row['single_rwf']) : $this->rateMoney($stored['single_rwf'] ?? null);
+            $doubleRwf = array_key_exists('double_rwf', $row) ? $this->rateMoney($row['double_rwf']) : $this->rateMoney($stored['double_rwf'] ?? null);
             $type = in_array($row['discount_type'] ?? '', ['amount', 'percent'], true) ? $row['discount_type'] : '';
             $value = $this->rateMoney($row['discount_value'] ?? null);
+            $valueRwf = array_key_exists('discount_value_rwf', $row)
+                ? $this->rateMoney($row['discount_value_rwf'])
+                : $this->rateMoney($stored['discount_value_rwf'] ?? null);
             if ($type === 'percent' && $value !== null) {
                 $value = min(100, $value);
             }
-            if ($type === '' || $value === null || $value <= 0 || ($single === null && $double === null)) {
+            $priced = $single !== null || $double !== null || $singleRwf !== null || $doubleRwf !== null;
+            if (! $priced || $type === '' || ($type === 'percent' && ($value === null || $value <= 0)) || ($type === 'amount' && ($value === null || $value <= 0) && ($valueRwf === null || $valueRwf <= 0))) {
                 $type = '';
                 $value = null;
+                $valueRwf = null;
             }
-            if ($single !== null || $double !== null) {
+            if ($type !== 'amount') {
+                $valueRwf = null;
+            }
+            if ($priced) {
                 $any = true;
             }
             $plans[$key] = [
                 'single' => $single,
                 'double' => $double,
+                'single_rwf' => $singleRwf,
+                'double_rwf' => $doubleRwf,
                 'discount_type' => $type,
                 'discount_value' => $value,
+                'discount_value_rwf' => $valueRwf,
             ];
         }
 

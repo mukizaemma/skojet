@@ -6,15 +6,26 @@ if (! function_exists('hotel_price')) {
     /**
      * Format a room or site price using the hotel's currency setting (USD or RWF).
      */
-    function hotel_price(mixed $value, ?object $setting): string
+    function hotel_price(mixed $value, ?object $setting, ?string $currency = null): string
     {
         $amount = (float) ($value ?? 0);
-        $currency = strtolower((string) ($setting?->price_currency ?? 'usd'));
+        $currency = strtolower((string) ($currency ?: ($setting?->price_currency ?? 'usd')));
         if ($currency === 'rwf') {
             return 'RWF ' . number_format($amount, 0);
         }
 
         return '$' . number_format($amount, 0);
+    }
+}
+
+if (! function_exists('hotel_currency')) {
+    function hotel_currency(?object $setting = null): string
+    {
+        if ($setting === null) {
+            $setting = \App\Models\Setting::query()->first();
+        }
+
+        return strtolower((string) ($setting?->price_currency ?? 'usd')) === 'rwf' ? 'rwf' : 'usd';
     }
 }
 
@@ -180,6 +191,34 @@ if (! function_exists('hotel_book_now_is_external')) {
     function hotel_book_now_is_external(?object $setting = null): bool
     {
         return booking_channel_enabled() && filled(hotel_reservation_url_configured($setting));
+    }
+}
+
+if (! function_exists('hotel_invoice')) {
+    /**
+     * Details printed on a front-office invoice. Blank invoice fields fall back to the hotel contact.
+     *
+     * @return array{name: string, address: string, phone: string, email: string, tax_id: string, footer: string}
+     */
+    function hotel_invoice(?object $setting = null): array
+    {
+        $setting = $setting ?? \App\Models\Setting::first();
+        $pick = function (string $invoiceField, string $fallback = '') use ($setting): string {
+            $value = trim((string) ($setting->{$invoiceField} ?? ''));
+
+            return $value !== '' ? $value : $fallback;
+        };
+
+        $name = $pick('invoice_legal_name', trim((string) ($setting->company ?? '')));
+
+        return [
+            'name' => $name !== '' ? $name : 'Skojet Boutique Hotel',
+            'address' => $pick('invoice_address', trim((string) ($setting->address ?? ''))),
+            'phone' => $pick('invoice_phone', (string) (hotel_public_phone($setting) ?? '')),
+            'email' => $pick('invoice_email', trim((string) ($setting->email ?? ''))),
+            'tax_id' => $pick('invoice_tax_id'),
+            'footer' => $pick('invoice_footer'),
+        ];
     }
 }
 

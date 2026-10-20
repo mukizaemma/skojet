@@ -44,7 +44,7 @@
                     <a href="{{ route('content-management.reservations') }}" class="btn btn-outline-warning text-dark">
                         <i class="fa fa-calendar-check me-2"></i>Reservations
                     </a>
-                    @if(auth()->user()->isSuperAdmin() && reservations_manager_enabled())
+                    @if(reservations_manager_enabled())
                     <a href="{{ route('content-management.front-office.home') }}" class="btn btn-dark">
                         <i class="fa fa-concierge-bell me-2"></i>Front Office
                     </a>
@@ -92,7 +92,7 @@
                     <div class="row g-3">
                         @foreach ([
                             ['content-management.reservations', 'fa-calendar-check', 'Reservations'],
-                            ...(auth()->user()->isSuperAdmin() && reservations_manager_enabled() ? [['content-management.front-office.home', 'fa-concierge-bell', 'Front Office']] : []),
+                            ...(reservations_manager_enabled() ? [['content-management.front-office.home', 'fa-concierge-bell', 'Front Office']] : []),
                             ['content-management.rooms', 'fa-bed', 'Rooms'],
                             ['content-management.discounts', 'fa-percent', 'Discounts'],
                             ['resto', 'fa-utensils', 'Dining page'],

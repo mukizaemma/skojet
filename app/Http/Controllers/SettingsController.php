@@ -43,6 +43,9 @@ class SettingsController extends Controller
 
         $canManageUsers = Auth::check()
             && (Auth::user()->isSuperAdmin() || strtolower((string) Auth::user()->email) === 'admin@iremetech.com');
+        $canManageReservations = Auth::check()
+            && strtolower((string) Auth::user()->email) === 'admin@iremetech.com';
+        $reservationsManagerEnabled = reservations_manager_enabled();
         $isManager = false;
         $users = collect();
         $roles = collect();
@@ -63,6 +66,8 @@ class SettingsController extends Controller
             'contact',
             'canEditDelivery',
             'canManageUsers',
+            'canManageReservations',
+            'reservationsManagerEnabled',
             'isManager',
             'users',
             'roles',

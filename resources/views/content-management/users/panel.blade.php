@@ -2,8 +2,8 @@
 <div id="user-mgmt-config" class="d-none"
     data-can-manage="{{ !empty($isManager) ? '1' : '0' }}"
     data-url-show="{{ route('content-management.users.show', ['id' => '__ID__'], false) }}"
-    data-url-store="{{ route('content-management.users.store', [], false) }}"
-    data-url-update="{{ route('content-management.users.update', ['id' => '__ID__'], false) }}"
+    data-url-store="{{ url('/content-management/users/store') }}"
+    data-url-update="{{ url('/content-management/users/__ID__/update') }}"
     data-url-destroy="{{ route('content-management.users.destroy', ['id' => '__ID__'], false) }}"
     data-url-verify="{{ route('content-management.users.verify-email', ['id' => '__ID__'], false) }}"
     data-url-resend="{{ route('content-management.users.resend-verification', ['id' => '__ID__'], false) }}"
@@ -23,6 +23,16 @@
         @endif
     </div>
     <div class="card-body p-0">
+        @if ($errors->user->any())
+            <div class="alert alert-danger m-3" role="alert">
+                <strong>The account was not added.</strong>
+                <ul class="mb-0 mt-2">
+                    @foreach ($errors->user->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
         <div class="table-responsive">
             <table class="table table-bordered mb-0">
                 <thead>
@@ -104,17 +114,18 @@
                 <h5 class="modal-title" id="userModalTitle">Add New User</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" data-dismiss="modal"></button>
             </div>
-            <form id="userForm">
+            <form id="userForm" method="POST" action="{{ url('/content-management/users/store') }}">
+                @csrf
                 <div class="modal-body">
                     <div id="userFormErrors" class="alert alert-danger d-none" role="alert"></div>
                     <input type="hidden" id="user_id" name="id">
                     <div class="mb-3">
                         <label class="form-label">Name *</label>
-                        <input type="text" class="form-control" id="user_name" name="name" required>
+                        <input type="text" class="form-control" id="user_name" name="name" value="{{ old('name') }}" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Email *</label>
-                        <input type="email" class="form-control" id="user_email" name="email" required>
+                        <input type="email" class="form-control" id="user_email" name="email" value="{{ old('email') }}" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Password <span id="passwordLabel">*</span></label>
@@ -126,7 +137,7 @@
                         <select class="form-control form-select" id="user_role_id" name="role_id" required>
                             <option value="">-- Select Role --</option>
                             @foreach($roles as $role)
-                            <option value="{{ $role->id }}" data-role-name="{{ $role->name }}">
+                            <option value="{{ $role->id }}" data-role-name="{{ $role->name }}" @selected((string) old('role_id') === (string) $role->id)>
                                 {{ $role->name }}
                                 @if($role->description)
                                     — {{ $role->description }}
@@ -191,4 +202,15 @@
         </div>
     </div>
 </div>
+@if ($errors->user->any())
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (window.CmsAdmin) {
+        window.CmsAdmin.showModal('userModal');
+    }
+});
+</script>
+@endpush
+@endif
 @endif

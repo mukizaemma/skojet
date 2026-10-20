@@ -41,6 +41,9 @@
 
         window.__userMgmtCurrentUserId = null;
         form.reset();
+        if (cfg() && cfg().dataset.urlStore) {
+            form.action = cfg().dataset.urlStore;
+        }
         document.getElementById('user_id').value = '';
         document.getElementById('user_password').required = true;
         document.getElementById('passwordLabel').textContent = '*';
@@ -106,6 +109,10 @@
                     }
                 }
                 document.getElementById('user_id').value = data.id;
+                var editForm = document.getElementById('userForm');
+                if (editForm && c.dataset.urlUpdate) {
+                    editForm.action = String(c.dataset.urlUpdate).replace('__ID__', String(id));
+                }
                 document.getElementById('user_name').value = data.name;
                 document.getElementById('user_email').value = data.email;
                 document.getElementById('user_role_id').value = data.role_id || '';
@@ -212,17 +219,13 @@
         }
 
         if (e.target.id === 'userForm') {
-            e.preventDefault();
             var currentId = window.__userMgmtCurrentUserId;
-            var url = currentId
-                ? Cms.templateUrl(cfg().dataset.urlUpdate, currentId)
-                : Cms.appUrl(cfg().dataset.urlStore);
-
-            Cms.submitFormData(url, new FormData(e.target), {
-                modalId: 'userModal',
-                errorsEl: 'userFormErrors',
-                reloadDelay: 300,
-            });
+            var c = cfg();
+            if (currentId && c && c.dataset.urlUpdate) {
+                e.target.action = String(c.dataset.urlUpdate).replace('__ID__', String(currentId));
+            } else if (c && c.dataset.urlStore) {
+                e.target.action = c.dataset.urlStore;
+            }
         }
     });
 

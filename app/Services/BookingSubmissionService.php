@@ -94,6 +94,11 @@ class BookingSubmissionService
 
         $booking->status = 'pending';
         $booking->booking_type = 'online';
+        $booking->reservation_channel = 'website';
+        $booking->guest_source = 'unspecified';
+        if (\Illuminate\Support\Facades\Schema::hasColumn('bookings', 'currency')) {
+            $booking->currency = hotel_currency();
+        }
         $booking->payment_status = 'pending';
         $booking->paid_amount = 0;
 
@@ -145,7 +150,8 @@ class BookingSubmissionService
                 $roomCount,
                 $extraBeds,
                 $request->input('board'),
-                $request->input('occupancy')
+                $request->input('occupancy'),
+                $booking->currency ?? null
             );
             $booking->total_amount = (int) round($quote['total']);
             $booking->list_amount = (int) round($quote['list_total']);

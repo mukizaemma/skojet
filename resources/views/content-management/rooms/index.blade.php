@@ -66,7 +66,7 @@
                                     </td>
                                     <td>{{ (int) ($room->number_of_rooms ?? 1) }} · max {{ (int) ($room->max_occupancy ?? 2) }}/room</td>
                                     <td><span class="badge bg-{{ $room->status == 'Active' ? 'success' : 'danger' }}">{{ $room->status }}</span></td>
-                                    <td>{{ hotel_price($room->headlineNightly(), $setting) }}<span class="text-muted">/night</span></td>
+                                    <td>{{ hotel_price($room->headlineNightly(hotel_currency($setting)), $setting) }}<span class="text-muted">/night</span></td>
                                     <td>{{ $room->images->count() }} {{ Str::plural('image', $room->images->count()) }}</td>
                                     <td>{{ $room->amenities->count() }} amenities</td>
                                     <td>

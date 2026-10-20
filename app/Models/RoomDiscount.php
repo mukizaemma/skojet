@@ -12,6 +12,7 @@ class RoomDiscount extends Model
         'title',
         'discount_type',
         'amount',
+        'amount_rwf',
         'starts_on',
         'ends_on',
         'status',
@@ -19,6 +20,7 @@ class RoomDiscount extends Model
 
     protected $casts = [
         'amount' => 'float',
+        'amount_rwf' => 'float',
         'starts_on' => 'date',
         'ends_on' => 'date',
     ];
