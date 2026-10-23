@@ -3,6 +3,13 @@
 <base href='/public'>
 <head>
     <meta charset="UTF-8">
+    <script>
+        try {
+            if (sessionStorage.getItem('kibeho_site_visited')) {
+                document.documentElement.classList.add('site-seen');
+            }
+        } catch (e) {}
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="description" content="@yield('meta_description', site_meta_description($setting))">
@@ -74,20 +81,20 @@
         </script>
     @endif
 
-    <!-- google fonts — Playfair Display + Inter (Skojet boutique) -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+    <!-- google fonts — Playfair Display + Inter. Non-blocking so they do not hold up first paint. -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap"></noscript>
     <!-- icon font from flaticon -->
     <link rel="stylesheet" href="assets/fonts/flaticon_bokinn.css">
-    <!-- all plugin css -->
+    <!-- all plugin css (includes Swiper) -->
     <link rel="stylesheet" href="assets/css/plugins.min.css">
     <!-- main style custom css -->
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="assets/css/kibeho-theme.css">
     <link rel="stylesheet" href="assets/css/skojet-theme.css">
-    <!-- Swiper CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
-    <!-- Font Awesome -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Font Awesome — icons, not required for first paint -->
+    <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
 
     @livewireStyles
     
@@ -334,11 +341,20 @@
             0%, 100% { transform: scale(0.95); opacity: 0.4; }
             50% { transform: scale(1.08); opacity: 0.15; }
         }
+        html.site-seen .loader-wrapper {
+            display: none !important;
+        }
         .loaded .loader-wrapper {
             opacity: 0;
             visibility: hidden;
             transform: none;
-            transition: opacity 0.5s ease-out 0.15s, visibility 0.5s 0.15s;
+            transition: opacity 0.2s ease-out, visibility 0.2s;
+        }
+        .skojet-home-gallery,
+        .skojet-location,
+        .skojet-signature {
+            content-visibility: auto;
+            contain-intrinsic-size: auto 640px;
         }
     </style>
 
@@ -388,7 +404,7 @@
 
     <!-- header area -->
     @php
-        $hotelContactHeader = \App\Models\HotelContact::first();
+        $hotelContactHeader = $hotelContact ?? null;
         $headerPhone = hotel_public_phone($setting) ?? '';
         $headerEmail = trim((string) (\App\Support\HotelChannels::all()['public_email'] ?? ''))
             ?: ($hotelContactHeader?->email ?? $setting?->email ?? '');
@@ -813,23 +829,38 @@
         <div class="loader-section section-right"></div>
     </div>
     <!-- Preloader end -->
+    <script>
+        (function () {
+            var seen = false;
+            try { seen = sessionStorage.getItem('kibeho_site_visited') === '1'; } catch (e) {}
+            function reveal() {
+                document.body.classList.add('loaded');
+                try { sessionStorage.setItem('kibeho_site_visited', '1'); } catch (e) {}
+                setTimeout(function () {
+                    var el = document.getElementById('site-preloader');
+                    if (el) el.style.display = 'none';
+                }, 220);
+            }
+            if (seen) {
+                reveal();
+                return;
+            }
+            setTimeout(reveal, 280);
+        })();
+    </script>
 
 
-    <!-- plugin js -->
-    <script src="assets/js/plugins.min.js"></script>
-    <script src="assets/js/gdpr.js"></script>
+    <!-- plugin js (jQuery, Bootstrap, Swiper). Deferred so parsing the page is not blocked. -->
+    <script src="assets/js/plugins.min.js" defer></script>
+    <script src="assets/js/gdpr.js" defer></script>
     <!-- custom js -->
-    <script src="assets/js/main.js"></script>
-    <!-- Swiper JS -->
-    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+    <script src="assets/js/main.js" defer></script>
 
     <script>
         window.showCookiePopup = {{ $showCookiePopup ?? true ? 'true' : 'false' }};
     </script>
 
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
 
     <script>
 (function() {
@@ -866,7 +897,7 @@
             flatpickr('#check__out', { minDate: 'today', dateFormat: 'd M Y' });
         }
     }
-    initBookingDatePickers();
+    document.addEventListener('DOMContentLoaded', initBookingDatePickers);
     document.addEventListener('livewire:navigated', initBookingDatePickers);
 
     function initWhyChooseJarallax() {
@@ -951,6 +982,7 @@
 
     // Home page Swiper carousels — run on first load and after Livewire navigations
     document.addEventListener('DOMContentLoaded', function () {
+        initWhyChooseJarallax();
         initHomeHeroSwiper();
         initHomeRoomAndFacilitySwipers();
         initPageGalleries();
@@ -1250,15 +1282,6 @@
             preloader.style.display = 'none';
         }
 
-        if (sessionStorage.getItem('kibeho_site_visited')) {
-            hidePreloader();
-        }
-
-        window.addEventListener('load', function () {
-            sessionStorage.setItem('kibeho_site_visited', '1');
-            setTimeout(hidePreloader, 350);
-        });
-
         document.addEventListener('livewire:navigate', function () {
             hidePreloader();
             if (!progress) {
@@ -1290,7 +1313,7 @@
     {{-- Do not emit @livewireScriptConfig here: defining window.livewireScriptConfig
          disables Livewire's auto-start in livewire.js, so components never hydrate. --}}
     @livewireScripts
-    <script src="assets/js/spa-navigation.js"></script>
+    <script src="assets/js/spa-navigation.js" defer></script>
     <script>
     (function () {
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;

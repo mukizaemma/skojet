@@ -32,85 +32,60 @@ use App\Models\TourActivity;
 use App\Models\Trip;
 use App\Models\WhyChooseUsItem;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class PublicWebsiteData
 {
+    public const HOME_CACHE_KEY = 'public.home.payload.v2';
+
+    public const LAYOUT_CACHE_KEY = 'public.layout.shared.v2';
+
+    public static function flushCaches(): void
+    {
+        Cache::forget(self::HOME_CACHE_KEY);
+        Cache::forget(self::LAYOUT_CACHE_KEY);
+    }
+
+    /**
+     * Header, footer, and navigation data. Cached so every public page
+     * does not repeat the same queries.
+     *
+     * @return array{rooms: \Illuminate\Support\Collection, setting: ?Setting, about: ?About, whyChooseUsItems: \Illuminate\Support\Collection, hotelContact: ?HotelContact}
+     */
+    public static function layoutShared(): array
+    {
+        return Cache::remember(self::LAYOUT_CACHE_KEY, 600, function () {
+            return [
+                'rooms' => Room::query()->where('status', 'Active')->oldest()->get(),
+                'setting' => Setting::query()->first(),
+                'about' => About::query()->first(),
+                'whyChooseUsItems' => WhyChooseUsItem::query()->orderBy('sort_order')->orderBy('id')->get(),
+                'hotelContact' => HotelContact::query()->first(),
+            ];
+        });
+    }
+
     public static function home(): array
     {
-        $setting = Setting::first();
-        $slides = Slide::orderBy('sort_order')->orderBy('created_at')->orderBy('id')->get();
-        $about = About::first();
-        $rooms = Room::with('amenities')
-            ->where('status', 'Active')
-            ->oldest()
-            ->get();
-        $homeGallery = Gallery::query()
-            ->where('media_type', 'image')
-            ->where('show_on_home', true)
-            ->whereNotNull('image')
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->limit(6)
-            ->get();
-        $galleryImageCount = Gallery::query()
-            ->where('media_type', 'image')
-            ->whereNotNull('image')
-            ->count();
-        $homeFacilities = Facility::where('status', 'Active')->oldest()->take(3)->get();
-        $services = Service::where('status', 'Active')->with('images')->latest()->take(4)->get();
-        $blogs = Blog::where('status', 'Published')->latest()->take(3)->get() ?? collect();
-        $reviews = Review::approved()->latest()->take(4)->get();
-        $reviewCount = Review::approved()->count();
-        $whyChooseUsItems = WhyChooseUsItem::query()->orderBy('sort_order')->orderBy('id')->get();
+        return Cache::remember(self::HOME_CACHE_KEY, 600, function () {
+            $homeGallery = Gallery::query()
+                ->where('media_type', 'image')
+                ->where('show_on_home', true)
+                ->whereNotNull('image')
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->limit(6)
+                ->get();
 
-        $kibehoPage = KibehoPage::current()->load('images');
-        $kibehoImageUrl = null;
-        if (filled($kibehoPage->cover_image)) {
-            $kibehoImageUrl = asset('storage/' . $kibehoPage->cover_image);
-        } elseif ($kibehoPage->images->isNotEmpty()) {
-            $kibehoImageUrl = asset('storage/' . $kibehoPage->images->first()->image);
-        }
-
-        $nyaruguruPage = NyaruguruPage::current()->load('images');
-        $nyaruguruImageUrl = null;
-        if (filled($nyaruguruPage->cover_image)) {
-            $nyaruguruImageUrl = asset('storage/' . $nyaruguruPage->cover_image);
-        } elseif ($nyaruguruPage->images->isNotEmpty()) {
-            $nyaruguruImageUrl = asset('storage/' . $nyaruguruPage->images->first()->image);
-        }
-
-        $meetingRooms = collect();
-        $event = Eventpage::with(['meetingRooms.images'])->first();
-        if ($event) {
-            MeetingRoom::ensureDefaultsForEventpage($event);
-            $meetingRooms = $event->fresh()->load(['meetingRooms' => fn ($q) => $q->orderBy('sort_order')->orderBy('id')])->meetingRooms;
-        }
-
-        $restaurant = Restaurant::with(['images'])->first();
-        $journeySteps = HomeJourneyStep::query()->active()->ordered()->get();
-
-        return [
-            'setting' => $setting,
-            'slides' => $slides,
-            'about' => $about,
-            'rooms' => $rooms,
-            'gallery' => $homeGallery,
-            'homeGallery' => $homeGallery,
-            'galleryImageCount' => $galleryImageCount,
-            'homeFacilities' => $homeFacilities,
-            'services' => $services,
-            'blogs' => $blogs,
-            'reviews' => $reviews,
-            'reviewCount' => $reviewCount,
-            'whyChooseUsItems' => $whyChooseUsItems,
-            'kibehoPage' => $kibehoPage,
-            'kibehoImageUrl' => $kibehoImageUrl,
-            'nyaruguruPage' => $nyaruguruPage,
-            'nyaruguruImageUrl' => $nyaruguruImageUrl,
-            'meetingRooms' => $meetingRooms ?? collect(),
-            'restaurant' => $restaurant,
-            'journeySteps' => $journeySteps,
-        ];
+            return [
+                'setting' => Setting::query()->first(),
+                'slides' => Slide::query()->orderBy('sort_order')->orderBy('created_at')->orderBy('id')->get(),
+                'rooms' => Room::query()->where('status', 'Active')->oldest()->limit(2)->get(),
+                'gallery' => $homeGallery,
+                'homeGallery' => $homeGallery,
+                'restaurant' => Restaurant::query()->with(['images'])->first(),
+            ];
+        });
     }
 
     public static function about(): array

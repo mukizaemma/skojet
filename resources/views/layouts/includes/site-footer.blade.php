@@ -6,7 +6,7 @@
             ? asset('storage/images') . $setting->logo
             : $brandLogoFallback);
 
-    $ftHotel = \App\Models\HotelContact::first();
+    $ftHotel = $hotelContact ?? null;
     $mainPhone = hotel_public_phone($setting) ?? '';
     $mainEmail = $ftHotel?->email ?? $setting?->email ?? '';
 

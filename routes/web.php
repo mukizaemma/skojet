@@ -44,6 +44,13 @@ use Illuminate\Support\Facades\Route;
 Route::get('/robots.txt', [App\Http\Controllers\SeoController::class, 'robots']);
 Route::get('/sitemap.xml', [App\Http\Controllers\SeoController::class, 'sitemap']);
 
+Route::get('/storage/cache/img/w{width}/v{version}/{path}', [App\Http\Controllers\OptimizedImageController::class, 'show'])
+    ->where('width', '[0-9]+')
+    ->where('version', '[0-9]+')
+    ->where('path', '.*')
+    ->withoutMiddleware('web')
+    ->name('optimized-image');
+
 // ============================================
 // CONTENT MANAGEMENT DASHBOARD ROUTES
 // Access: Super Admin (role_id=1) & Content Manager (role_id=2)

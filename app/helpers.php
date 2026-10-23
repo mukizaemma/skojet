@@ -2,6 +2,13 @@
 
 declare(strict_types=1);
 
+if (! function_exists('optimized_image')) {
+    function optimized_image(?string $path, ?int $width = null): string
+    {
+        return \App\Support\OptimizedImage::url($path, $width);
+    }
+}
+
 if (! function_exists('hotel_price')) {
     /**
      * Format a room or site price using the hotel's currency setting (USD or RWF).

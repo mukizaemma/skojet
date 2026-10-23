@@ -491,9 +491,7 @@
         }
       },
       preloader: function (e){
-        window.addEventListener('load',function(){
-          document.querySelector('body').classList.add("loaded")  
-        });     
+        document.body.classList.add("loaded");
       },
 
       date: function (e) {

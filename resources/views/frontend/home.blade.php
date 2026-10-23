@@ -51,9 +51,10 @@
 <section class="skojet-signature {{ $suiteIndex === 1 ? 'skojet-signature--flip' : '' }}" @if($suiteIndex === 0) id="signature-suite" @endif aria-labelledby="signature-suite-heading-{{ $featuredSuite->id }}">
     <div class="skojet-signature__grid">
         <div class="skojet-signature__media">
-            <img src="{{ asset('storage/' . ($featuredSuite->cover_image ?? 'rooms/default.jpg')) }}"
+            <img src="{{ optimized_image($featuredSuite->cover_image ?? 'rooms/default.jpg', 1280) }}"
                  alt="{{ $featuredSuite->title }}"
                  loading="lazy"
+                 decoding="async"
                  width="1200"
                  height="900">
         </div>
@@ -96,7 +97,7 @@
             @foreach($homeGallery as $image)
                 @continue($image->publicImageUrl() === '')
                 <a wire:navigate href="{{ localized_route('gallery') }}" class="skojet-home-gallery__item">
-                    <img src="{{ $image->publicImageUrl() }}" alt="{{ $image->caption ?: site_trans('home.gallery_eyebrow') }}" decoding="async">
+                    <img src="{{ $image->publicImageUrl() }}" alt="{{ $image->caption ?: site_trans('home.gallery_eyebrow') }}" loading="lazy" decoding="async" fetchpriority="low" width="960" height="640">
                 </a>
             @endforeach
         </div>

@@ -11,12 +11,20 @@
         ? $setting->home_hero_lead
         : site_trans('home.hero_lead');
     $firstSlide = ($slides ?? collect())->first();
+    $firstHeroSrc = ($firstSlide && ($firstSlide->media_type ?? 'image') !== 'video' && filled($firstSlide->image))
+        ? \App\Support\OptimizedImage::ensure((string) $firstSlide->image, 1600)
+        : '';
     $firstCaption = trim((string) ($firstSlide?->heading ?: ''));
     $firstLead = trim((string) ($firstSlide?->subheading ?: ''));
     $initialPrimaryLabel = filled($firstSlide?->button) ? $firstSlide->button : $bookLabel;
     $initialPrimaryUrl = filled($firstSlide?->link) ? $firstSlide->link : $bookUrl;
     $initialPrimaryExternal = filled($firstSlide?->link) ? true : $bookExternal;
 @endphp
+@if($firstHeroSrc !== '')
+@push('head')
+<link rel="preload" as="image" href="{{ $firstHeroSrc }}" fetchpriority="high">
+@endpush
+@endif
     <div class="rts__section banner__area is__home__one banner__height banner__center home-hero"
          data-hero-text-mode="{{ $heroTextMode }}"
          data-hero-default-label="{{ $bookLabel }}"
@@ -54,6 +62,7 @@
                                         frameborder="0"
                                         allow="autoplay; encrypted-media"
                                         allowfullscreen
+                                        @if($index > 0) loading="lazy" @endif
                                         title="{{ $caption !== '' ? $caption : 'Hotel video' }}"
                                         style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; object-fit: cover;">
                                     </iframe>
@@ -63,6 +72,7 @@
                                         frameborder="0"
                                         allow="autoplay; fullscreen; picture-in-picture"
                                         allowfullscreen
+                                        @if($index > 0) loading="lazy" @endif
                                         title="{{ $caption !== '' ? $caption : 'Hotel video' }}"
                                         style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; object-fit: cover;">
                                     </iframe>
@@ -77,7 +87,7 @@
                                 </video>
                             @endif
                         @else
-                            <img src="{{ asset('storage/' . ($slide->image ?? 'slides/default.jpg')) }}"
+                            <img src="{{ $index === 0 && $firstHeroSrc !== '' ? $firstHeroSrc : \App\Support\OptimizedImage::url($slide->image ?? 'slides/default.jpg', $index === 0 ? 1600 : 1280) }}"
                                  alt="{{ $caption !== '' ? $caption : 'Hotel' }}"
                                  loading="{{ $index === 0 ? 'eager' : 'lazy' }}"
                                  decoding="async"
