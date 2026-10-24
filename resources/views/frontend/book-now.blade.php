@@ -124,6 +124,11 @@
                                     $mealPlans = $selectedRoom->publicRatePlans(hotel_currency($setting));
                                 @endphp
                                 @if($mealPlans !== [])
+                                    <div class="book-channel__room is-wide">
+                                        <p class="book-channel__meal-heading">{{ site_trans('booking.channel_your_room') }}</p>
+                                        <p class="book-channel__room-name">{{ $selectedRoom->title }}</p>
+                                        <p class="book-channel__room-lead">{{ site_trans('booking.channel_package_lead') }}</p>
+                                    </div>
                                     <div class="book-channel__meals is-wide" role="radiogroup" aria-label="{{ site_trans('booking.channel_meal_plan') }}">
                                         <p class="book-channel__meal-heading">{{ site_trans('booking.channel_meal_plan') }}</p>
                                         @foreach($mealPlans as $plan)
@@ -132,6 +137,7 @@
                                                 if ($plan[$planOccupancy.'_sale'] === null) {
                                                     $planOccupancy = $planOccupancy === 'single' ? 'double' : 'single';
                                                 }
+                                                $otherOccupancy = $planOccupancy === 'single' ? 'double' : 'single';
                                                 $planQuote = app(\App\Services\RoomDiscountService::class)->quote(
                                                     $selectedRoom,
                                                     (string) $checkin,
@@ -145,6 +151,7 @@
                                                 );
                                                 $planList = (float) $planQuote['nightly'];
                                                 $planSale = (float) (($planQuote['has_discount'] ?? false) ? $planQuote['sale_nightly'] : $planList);
+                                                $otherSale = $plan[$otherOccupancy.'_sale'] ?? null;
                                             @endphp
                                             <button
                                                 type="button"
@@ -154,13 +161,16 @@
                                                 wire:click="selectMealPlan('{{ $plan['key'] }}')"
                                             >
                                                 <strong>{{ site_trans('room.board_'.$plan['key']) }}</strong>
-                                                <span>{{ site_trans('room.board_note_'.$plan['key']) }}</span>
+                                                <span class="book-channel__meal-occ">{{ site_trans('room.occ_'.$planOccupancy.'_long') }}</span>
                                                 <em>
                                                     @if(($planQuote['has_discount'] ?? false) && $planSale + 0.5 < $planList)
                                                         <s>{{ hotel_price($planList, $setting) }}</s>
                                                     @endif
                                                     {{ hotel_price($planSale, $setting) }} {{ site_trans('booking.channel_per_night') }}
                                                 </em>
+                                                @if($otherSale !== null)
+                                                    <small class="book-channel__meal-alt">{{ site_trans('room.occ_'.$otherOccupancy.'_long') }} {{ hotel_price($otherSale, $setting) }}</small>
+                                                @endif
                                                 @if(($planQuote['has_discount'] ?? false) && ($planQuote['badge'] ?? '') !== '')
                                                     <small class="book-channel__meal-offer">{{ $planQuote['badge'] }}</small>
                                                 @endif
@@ -199,6 +209,7 @@
 
                         <aside class="book-channel__panel book-channel__price">
                             <h2>{{ site_trans('booking.channel_price') }}</h2>
+                            <p class="book-channel__meal-heading">{{ site_trans('booking.channel_your_room') }}</p>
                             <p class="book-channel__suite">{{ $selectedRoom->title }}</p>
                             @if(isset(\App\Models\Room::BOARD_PLANS[$board]) && in_array($occupancy, ['single', 'double'], true))
                                 <p class="book-channel__meta">{{ site_trans('room.board_'.$board) }} · {{ site_trans('room.occ_'.$occupancy.'_long') }}</p>
