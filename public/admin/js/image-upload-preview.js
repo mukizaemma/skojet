@@ -221,6 +221,12 @@
             setInputFiles(input, []);
             preview.innerHTML = '';
             meta.innerHTML = '';
+            var form = input.closest('form');
+            if (form) {
+                form.querySelectorAll('input[name="existing_images[]"]').forEach(function (el) {
+                    el.remove();
+                });
+            }
             toolbar.querySelector('.admin-image-field__clear').classList.add('d-none');
             input.dispatchEvent(new Event('change', { bubbles: true }));
         });

@@ -517,14 +517,17 @@ class ContentManagementController extends Controller
             $files = [$request->file('image')];
         }
         $request->files->set('images', $files);
+        $existingInput = array_values(array_filter(array_map('strval', (array) $request->input('existing_images', []))));
 
         $validated = $request->validate([
-            'images' => 'required|array|min:1|max:30',
+            'images' => ($existingInput === [] ? 'required|array|min:1|max:30' : 'nullable|array|max:30'),
             'images.*' => admin_image_validation_rule(true),
             'caption' => 'nullable|string|max:255',
             'sort_order' => 'nullable|integer|min:0|max:9999',
             'show_on_home' => 'nullable|boolean',
             'return_tab' => 'nullable|in:home,gallery',
+            'existing_images' => 'nullable|array|max:30',
+            'existing_images.*' => 'nullable|string|max:255',
         ], [
             'images.required' => 'Choose at least one image to upload.',
             'images.*.image' => 'Each file must be a JPG, PNG, GIF, or WEBP photo.',
@@ -547,49 +550,94 @@ class ContentManagementController extends Controller
             ? (int) $validated['sort_order']
             : ((int) Gallery::query()->max('sort_order') + 1);
         $placedHome = 0;
-        $saved = 0;
+        $created = 0;
+        $existingPlaced = 0;
+        $alreadyHome = 0;
+        $alreadyGallery = 0;
         $failed = [];
-        $alreadyThere = 0;
-        $knownHashes = $this->galleryPhotoHashes();
+        $touchedIds = [];
+        $handledStems = [];
+        $index = $this->galleryPhotoIndex();
 
-        foreach ((array) $request->input('existing_images', []) as $relative) {
-            $relative = $this->safePublicImagePath((string) $relative);
+        foreach ($existingInput as $relative) {
+            $relative = $this->safePublicImagePath($relative);
             if ($relative === null) {
                 continue;
             }
 
-            $hash = md5_file(storage_path('app/public/'.$relative));
-            if (isset($knownHashes[$hash])) {
-                $alreadyThere++;
-                continue;
-            }
-
-            $onHome = $wantHome && $placedHome < $homeSlots;
-            if ($onHome) {
-                $placedHome++;
-            }
-
-            $gallery = new Gallery();
-            $gallery->media_type = 'image';
-            $gallery->caption = $validated['caption'] ?? null;
-            $gallery->sort_order = $sort;
-            $gallery->show_on_home = $onHome;
-            $gallery->image = $relative;
-            $gallery->save();
-            $knownHashes[$hash] = true;
-            $saved++;
-            $sort++;
-        }
-
-        if ($files !== [] && ! $canWriteGallery && $saved === 0) {
-            return redirect()
-                ->route('content-management.gallery', ['tab' => $validated['return_tab'] ?? 'gallery'])
-                ->with('error', 'These are valid photos, but the server cannot write to storage/app/public/gallery. The folder needs to be writable by the web server.');
+            $this->linkExistingGalleryPhoto(
+                $relative,
+                $wantHome,
+                $homeSlots,
+                $validated['caption'] ?? null,
+                $sort,
+                $placedHome,
+                $created,
+                $existingPlaced,
+                $alreadyHome,
+                $alreadyGallery,
+                $touchedIds,
+                $handledStems,
+                $index
+            );
         }
 
         foreach ($files as $file) {
             if (! $file || ! $file->isValid()) {
                 $failed[] = ($file ? $file->getClientOriginalName() : 'a selected file').' (upload was rejected)';
+                continue;
+            }
+
+            $stem = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+            if ($stem !== '' && isset($handledStems[$stem])) {
+                continue;
+            }
+
+            $uploadHash = null;
+            $tmp = $file->getRealPath();
+            if (is_string($tmp) && is_file($tmp)) {
+                $uploadHash = md5_file($tmp);
+            }
+            $matched = $this->matchingGalleryRows($index, $uploadHash, $file->getClientOriginalName());
+            if ($matched !== []) {
+                $this->offerExistingGalleryRows(
+                    $matched,
+                    $wantHome,
+                    $homeSlots,
+                    $placedHome,
+                    $existingPlaced,
+                    $alreadyHome,
+                    $alreadyGallery,
+                    $touchedIds
+                );
+                if ($stem !== '') {
+                    $handledStems[$stem] = true;
+                }
+                continue;
+            }
+
+            $storedPath = $this->findPublicPathByBasename($file->getClientOriginalName());
+            if ($storedPath !== null) {
+                $this->linkExistingGalleryPhoto(
+                    $storedPath,
+                    $wantHome,
+                    $homeSlots,
+                    $validated['caption'] ?? null,
+                    $sort,
+                    $placedHome,
+                    $created,
+                    $existingPlaced,
+                    $alreadyHome,
+                    $alreadyGallery,
+                    $touchedIds,
+                    $handledStems,
+                    $index
+                );
+                continue;
+            }
+
+            if (! $canWriteGallery) {
+                $failed[] = $file->getClientOriginalName().' (the server cannot write a new file into the gallery folder)';
                 continue;
             }
 
@@ -607,11 +655,21 @@ class ContentManagementController extends Controller
 
             $storedAbsolute = storage_path('app/public/'.$path);
             $hash = is_file($storedAbsolute) ? md5_file($storedAbsolute) : null;
-            if ($hash !== null && isset($knownHashes[$hash])) {
+            $matched = $this->matchingGalleryRows($index, $hash, null);
+            if ($matched !== []) {
                 if (str_starts_with((string) $path, 'gallery/')) {
                     Storage::disk('public')->delete($path);
                 }
-                $alreadyThere++;
+                $this->offerExistingGalleryRows(
+                    $matched,
+                    $wantHome,
+                    $homeSlots,
+                    $placedHome,
+                    $existingPlaced,
+                    $alreadyHome,
+                    $alreadyGallery,
+                    $touchedIds
+                );
                 continue;
             }
 
@@ -627,45 +685,62 @@ class ContentManagementController extends Controller
             $gallery->show_on_home = $onHome;
             $gallery->image = $path;
             $gallery->save();
-            if ($hash !== null) {
-                $knownHashes[$hash] = true;
-            }
-            $saved++;
+            $this->rememberGalleryRow($index, $gallery, $hash);
+            $touchedIds[$gallery->id] = true;
+            $created++;
             $sort++;
         }
 
-        if ($saved === 0 && $alreadyThere > 0 && $failed === []) {
-            return redirect()
-                ->route('content-management.gallery', ['tab' => $validated['return_tab'] ?? 'gallery'])
-                ->with('success', 'Those photos are already in the gallery.');
-        }
+        $redirectTab = $validated['return_tab'] ?? 'gallery';
+        if ($created === 0 && $existingPlaced === 0) {
+            if ($failed !== []) {
+                return redirect()
+                    ->route('content-management.gallery', ['tab' => $redirectTab])
+                    ->with('error', 'Could not save: '.implode(', ', $failed).'.');
+            }
+            if ($wantHome && $alreadyHome > 0) {
+                return redirect()
+                    ->route('content-management.gallery', ['tab' => 'home'])
+                    ->with('success', 'Those photos are already on the home page.');
+            }
+            if ($alreadyGallery > 0) {
+                $detail = $homeFullNote !== ''
+                    ? ltrim($homeFullNote)
+                    : 'Those photos are already in the gallery.';
 
-        if ($saved === 0) {
-            $detail = $failed === []
-                ? 'No images were saved.'
-                : 'Could not save: '.implode(', ', $failed).'.';
+                return redirect()
+                    ->route('content-management.gallery', ['tab' => $redirectTab])
+                    ->with('success', $detail);
+            }
 
             return redirect()
-                ->route('content-management.gallery', ['tab' => $validated['return_tab'] ?? 'gallery'])
-                ->with('error', $detail);
+                ->route('content-management.gallery', ['tab' => $redirectTab])
+                ->with('error', 'No images were saved.');
         }
 
         PublicWebsiteData::flushCaches();
 
-        $count = $saved;
-        $message = $count === 1
-            ? 'Gallery image added.'
-            : $count.' gallery images added.';
+        $message = '';
+        if ($created === 1) {
+            $message = 'Gallery image added.';
+        } elseif ($created > 1) {
+            $message = $created.' gallery images added.';
+        }
+        if ($existingPlaced === 1) {
+            $message = trim($message.' 1 existing photo is now on the home page.');
+        } elseif ($existingPlaced > 1) {
+            $message = trim($message.' '.$existingPlaced.' existing photos are now on the home page.');
+        }
         if ($homeFullNote !== '') {
             $message .= $homeFullNote;
-        } elseif ($wantHome && $placedHome < $count) {
+        } elseif ($wantHome && $alreadyGallery > 0 && $placedHome < ($created + $existingPlaced + $alreadyGallery)) {
             $message .= ' '.$placedHome.' '.($placedHome === 1 ? 'is' : 'are').' on the home page. The home page holds 6 images, so the rest stay on the gallery page.';
         }
         if ($failed !== []) {
             $message .= ' Could not save: '.implode(', ', $failed).'.';
         }
 
-        $tab = $wantHome && $placedHome > 0 ? 'home' : ($validated['return_tab'] ?? 'gallery');
+        $tab = $wantHome && $placedHome > 0 ? 'home' : $redirectTab;
 
         return redirect()
             ->route('content-management.gallery', ['tab' => $tab])
@@ -816,19 +891,202 @@ class ContentManagementController extends Controller
     }
 
     /**
-     * @return array<string, true>
+     * @return array{byHash: array<string, list<Gallery>>, byName: array<string, list<Gallery>>}
      */
-    private function galleryPhotoHashes(): array
+    private function galleryPhotoIndex(): array
     {
-        $hashes = [];
+        $index = ['byHash' => [], 'byName' => []];
         foreach (Gallery::query()->photos()->get() as $row) {
             $absolute = $row->absoluteImagePath();
-            if ($absolute !== null && is_file($absolute)) {
-                $hashes[md5_file($absolute)] = true;
+            $hash = $absolute !== null && is_file($absolute) ? md5_file($absolute) : null;
+            $this->rememberGalleryRow($index, $row, $hash);
+        }
+
+        return $index;
+    }
+
+    /**
+     * @param  array{byHash: array<string, list<Gallery>>, byName: array<string, list<Gallery>>}  $index
+     */
+    private function rememberGalleryRow(array &$index, Gallery $row, ?string $hash): void
+    {
+        if ($hash !== null && $hash !== '') {
+            $index['byHash'][$hash][] = $row;
+        }
+
+        foreach (array_unique(array_filter([
+            basename((string) $row->image),
+            basename((string) ($row->storageRelativePath() ?? '')),
+        ])) as $name) {
+            $index['byName'][$name][] = $row;
+        }
+    }
+
+    /**
+     * @param  array{byHash: array<string, list<Gallery>>, byName: array<string, list<Gallery>>}  $index
+     * @return list<Gallery>
+     */
+    private function matchingGalleryRows(array $index, ?string $hash, ?string $filename): array
+    {
+        if ($hash !== null && $hash !== '' && isset($index['byHash'][$hash])) {
+            return $index['byHash'][$hash];
+        }
+
+        $filename = $filename !== null ? basename($filename) : '';
+        if ($filename !== '' && isset($index['byName'][$filename])) {
+            return $index['byName'][$filename];
+        }
+
+        $stem = $filename !== '' ? pathinfo($filename, PATHINFO_FILENAME) : '';
+        if ($stem === '') {
+            return [];
+        }
+
+        $stemMatches = [];
+        foreach ($index['byName'] as $name => $rows) {
+            if (pathinfo($name, PATHINFO_FILENAME) !== $stem) {
+                continue;
+            }
+            foreach ($rows as $row) {
+                $stemMatches[$row->id] = $row;
             }
         }
 
-        return $hashes;
+        return count($stemMatches) === 1 ? array_values($stemMatches) : [];
+    }
+
+    /**
+     * Put an existing gallery photo on the home page when there is room.
+     * A photo that is not a gallery row yet is linked by its current path.
+     *
+     * @param  array<int, true>  $touchedIds
+     * @param  array<string, true>  $handledStems
+     * @param  array{byHash: array<string, list<Gallery>>, byName: array<string, list<Gallery>>}  $index
+     */
+    private function linkExistingGalleryPhoto(
+        string $relative,
+        bool $wantHome,
+        int $homeSlots,
+        ?string $caption,
+        int &$sort,
+        int &$placedHome,
+        int &$created,
+        int &$existingPlaced,
+        int &$alreadyHome,
+        int &$alreadyGallery,
+        array &$touchedIds,
+        array &$handledStems,
+        array &$index
+    ): void {
+        $absolute = storage_path('app/public/'.$relative);
+        $hash = is_file($absolute) ? md5_file($absolute) : null;
+        $matched = $this->matchingGalleryRows($index, $hash, basename($relative));
+        if ($matched !== []) {
+            $this->offerExistingGalleryRows(
+                $matched,
+                $wantHome,
+                $homeSlots,
+                $placedHome,
+                $existingPlaced,
+                $alreadyHome,
+                $alreadyGallery,
+                $touchedIds
+            );
+        } else {
+            $onHome = $wantHome && $placedHome < $homeSlots;
+            if ($onHome) {
+                $placedHome++;
+            }
+
+            $gallery = new Gallery();
+            $gallery->media_type = 'image';
+            $gallery->caption = $caption;
+            $gallery->sort_order = $sort;
+            $gallery->show_on_home = $onHome;
+            $gallery->image = $relative;
+            $gallery->save();
+            $this->rememberGalleryRow($index, $gallery, $hash);
+            $touchedIds[$gallery->id] = true;
+            $created++;
+            $sort++;
+        }
+
+        $stem = pathinfo($relative, PATHINFO_FILENAME);
+        if ($stem !== '') {
+            $handledStems[$stem] = true;
+        }
+    }
+
+    /**
+     * @param  list<Gallery>  $rows
+     * @param  array<int, true>  $touchedIds
+     */
+    private function offerExistingGalleryRows(
+        array $rows,
+        bool $wantHome,
+        int $homeSlots,
+        int &$placedHome,
+        int &$existingPlaced,
+        int &$alreadyHome,
+        int &$alreadyGallery,
+        array &$touchedIds
+    ): void {
+        foreach ($rows as $row) {
+            if (isset($touchedIds[$row->id])) {
+                return;
+            }
+        }
+
+        foreach ($rows as $row) {
+            if ($row->show_on_home) {
+                $touchedIds[$row->id] = true;
+                $alreadyHome++;
+
+                return;
+            }
+        }
+
+        $candidate = $rows[0] ?? null;
+        if (! $candidate instanceof Gallery) {
+            return;
+        }
+
+        if ($wantHome && $placedHome < $homeSlots) {
+            $candidate->show_on_home = true;
+            $candidate->save();
+            $placedHome++;
+            $existingPlaced++;
+            $touchedIds[$candidate->id] = true;
+
+            return;
+        }
+
+        $touchedIds[$candidate->id] = true;
+        $alreadyGallery++;
+    }
+
+    private function findPublicPathByBasename(string $filename): ?string
+    {
+        $filename = basename(str_replace('\\', '/', $filename));
+        if ($filename === '' || $filename === '.' || $filename === '..' || str_contains($filename, "\0")) {
+            return null;
+        }
+
+        foreach ([
+            'gallery/'.$filename,
+            'images/gallery/'.$filename,
+            'rooms/gallery/'.$filename,
+            'rooms/'.$filename,
+            'slides/'.$filename,
+            'page-heroes/'.$filename,
+            'images/restaurant/'.$filename,
+        ] as $candidate) {
+            if ($this->safePublicImagePath($candidate) !== null) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 
     private function safePublicImagePath(string $path): ?string
