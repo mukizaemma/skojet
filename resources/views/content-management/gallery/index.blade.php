@@ -8,7 +8,7 @@
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
                 <div>
                     <h4 class="mb-1">Gallery</h4>
-                    <p class="text-muted small mb-0">Home shows the first 6 images in a 3-column grid. The gallery page shows every uploaded image, 15 per page.</p>
+                    <p class="text-muted small mb-0">Home shows the first 6 images in a 3-column grid. The gallery page shows each photo already on the server, without duplicate copies, 15 per page.</p>
                 </div>
             </div>
 
@@ -68,7 +68,7 @@
 
                 <div class="tab-pane fade {{ $activeTab === 'gallery' ? 'show active' : '' }}" id="site-gallery-pane" role="tabpanel" aria-labelledby="site-gallery-tab">
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-                        <p class="text-muted small mb-0">Every uploaded image is listed here, 15 per page. Move them to change the public order, or remove copies of the same photo.</p>
+                        <p class="text-muted small mb-0">Photos already stored on the server are listed here, 15 per page, with copies of the same photo left out of the public page. Move them to change the public order, or remove the extra copies.</p>
                         <div class="d-flex flex-wrap gap-2">
                             <form action="{{ route('content-management.gallery.remove-duplicates') }}" method="POST" onsubmit="return confirm('Remove duplicate copies and keep one of each photo?');">
                                 @csrf

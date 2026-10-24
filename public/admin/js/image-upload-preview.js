@@ -520,6 +520,18 @@
                 setInputFiles(activeInput, files.slice(0, 1));
             }
 
+            var form = activeInput.closest('form');
+            if (form) {
+                selectedLibrary.forEach(function (item) {
+                    if (!item.path) return;
+                    var hidden = document.createElement('input');
+                    hidden.type = 'hidden';
+                    hidden.name = 'existing_images[]';
+                    hidden.value = item.path;
+                    form.appendChild(hidden);
+                });
+            }
+
             await processInputFiles(activeInput);
             hideModal(document.getElementById('adminMediaLibraryModal'));
         } catch (err) {

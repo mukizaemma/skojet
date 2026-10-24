@@ -485,6 +485,7 @@ class ContentManagementController extends Controller
     public function gallery()
     {
         Gallery::reconcileImagePaths();
+        Gallery::syncExistingServerPhotos();
 
         $ordered = $this->orderedGalleryImages();
         $images = Gallery::query()
@@ -539,6 +540,8 @@ class ContentManagementController extends Controller
         }
 
         Storage::disk('public')->makeDirectory('gallery');
+        $galleryDir = storage_path('app/public/gallery');
+        $canWriteGallery = is_dir($galleryDir) && is_writable($galleryDir);
 
         $sort = $request->filled('sort_order')
             ? (int) $validated['sort_order']
@@ -546,22 +549,69 @@ class ContentManagementController extends Controller
         $placedHome = 0;
         $saved = 0;
         $failed = [];
+        $alreadyThere = 0;
+        $knownHashes = $this->galleryPhotoHashes();
+
+        foreach ((array) $request->input('existing_images', []) as $relative) {
+            $relative = $this->safePublicImagePath((string) $relative);
+            if ($relative === null) {
+                continue;
+            }
+
+            $hash = md5_file(storage_path('app/public/'.$relative));
+            if (isset($knownHashes[$hash])) {
+                $alreadyThere++;
+                continue;
+            }
+
+            $onHome = $wantHome && $placedHome < $homeSlots;
+            if ($onHome) {
+                $placedHome++;
+            }
+
+            $gallery = new Gallery();
+            $gallery->media_type = 'image';
+            $gallery->caption = $validated['caption'] ?? null;
+            $gallery->sort_order = $sort;
+            $gallery->show_on_home = $onHome;
+            $gallery->image = $relative;
+            $gallery->save();
+            $knownHashes[$hash] = true;
+            $saved++;
+            $sort++;
+        }
+
+        if ($files !== [] && ! $canWriteGallery && $saved === 0) {
+            return redirect()
+                ->route('content-management.gallery', ['tab' => $validated['return_tab'] ?? 'gallery'])
+                ->with('error', 'These are valid photos, but the server cannot write to storage/app/public/gallery. The folder needs to be writable by the web server.');
+        }
 
         foreach ($files as $file) {
             if (! $file || ! $file->isValid()) {
-                $failed[] = $file ? $file->getClientOriginalName() : 'a selected file';
+                $failed[] = ($file ? $file->getClientOriginalName() : 'a selected file').' (upload was rejected)';
                 continue;
             }
 
             try {
                 $path = store_optimized_image($file, 'gallery');
             } catch (\Throwable $e) {
-                $failed[] = $file->getClientOriginalName();
+                $failed[] = $file->getClientOriginalName().' ('.$e->getMessage().')';
                 continue;
             }
 
-            if ($path === '' || ! Storage::disk('public')->exists($path)) {
-                $failed[] = $file->getClientOriginalName();
+            if ($path === '' || $path === false || ! Storage::disk('public')->exists($path)) {
+                $failed[] = $file->getClientOriginalName().' (could not write the file)';
+                continue;
+            }
+
+            $storedAbsolute = storage_path('app/public/'.$path);
+            $hash = is_file($storedAbsolute) ? md5_file($storedAbsolute) : null;
+            if ($hash !== null && isset($knownHashes[$hash])) {
+                if (str_starts_with((string) $path, 'gallery/')) {
+                    Storage::disk('public')->delete($path);
+                }
+                $alreadyThere++;
                 continue;
             }
 
@@ -577,14 +627,23 @@ class ContentManagementController extends Controller
             $gallery->show_on_home = $onHome;
             $gallery->image = $path;
             $gallery->save();
+            if ($hash !== null) {
+                $knownHashes[$hash] = true;
+            }
             $saved++;
             $sort++;
+        }
+
+        if ($saved === 0 && $alreadyThere > 0 && $failed === []) {
+            return redirect()
+                ->route('content-management.gallery', ['tab' => $validated['return_tab'] ?? 'gallery'])
+                ->with('success', 'Those photos are already in the gallery.');
         }
 
         if ($saved === 0) {
             $detail = $failed === []
                 ? 'No images were saved.'
-                : 'Could not save: '.implode(', ', $failed).'. Use JPG, PNG, GIF, or WEBP.';
+                : 'Could not save: '.implode(', ', $failed).'.';
 
             return redirect()
                 ->route('content-management.gallery', ['tab' => $validated['return_tab'] ?? 'gallery'])
@@ -754,6 +813,42 @@ class ContentManagementController extends Controller
     private function homeGalleryCount(): int
     {
         return Gallery::query()->where('show_on_home', true)->count();
+    }
+
+    /**
+     * @return array<string, true>
+     */
+    private function galleryPhotoHashes(): array
+    {
+        $hashes = [];
+        foreach (Gallery::query()->photos()->get() as $row) {
+            $absolute = $row->absoluteImagePath();
+            if ($absolute !== null && is_file($absolute)) {
+                $hashes[md5_file($absolute)] = true;
+            }
+        }
+
+        return $hashes;
+    }
+
+    private function safePublicImagePath(string $path): ?string
+    {
+        $path = str_replace('\\', '/', trim($path));
+        $path = ltrim($path, '/');
+        if ($path === '' || str_contains($path, '..') || str_contains($path, "\0")) {
+            return null;
+        }
+
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        if (! in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true)) {
+            return null;
+        }
+
+        if (! Storage::disk('public')->exists($path)) {
+            return null;
+        }
+
+        return $path;
     }
 
     private function orderedGalleryImages()

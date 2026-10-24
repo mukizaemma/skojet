@@ -14,13 +14,29 @@ class GalleryPage extends Component
     public function render()
     {
         Gallery::reconcileImagePaths();
+        Gallery::syncExistingServerPhotos();
 
+        $seen = [];
         $photos = Gallery::query()
             ->photos()
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get()
-            ->filter(fn (Gallery $image) => $image->absoluteImagePath() !== null)
+            ->filter(function (Gallery $image) use (&$seen) {
+                $absolute = $image->absoluteImagePath();
+                if ($absolute === null || $image->publicImageUrl() === '') {
+                    return false;
+                }
+
+                $hash = md5_file($absolute);
+                if (isset($seen[$hash])) {
+                    return false;
+                }
+
+                $seen[$hash] = true;
+
+                return true;
+            })
             ->values();
 
         $perPage = 15;
