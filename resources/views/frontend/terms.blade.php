@@ -8,12 +8,12 @@
 <section class="rts__section section__padding pt-50 pb-120">
     <div class="container">
         <div class="row justify-content-center">
-            <div class="col-lg-9">
+            <div class="col-lg-11">
                 @php
-                    $storedTerms = trim(strip_tags((string) ($terms->content ?? '')));
-                    $termsHtml = $storedTerms !== ''
-                        ? terms_content_html($terms->content)
-                        : \App\Support\HotelTerms::html();
+                    $storedTerms = (string) ($terms->content ?? '');
+                    $termsHtml = \App\Support\HotelTerms::isStale($storedTerms)
+                        ? \App\Support\HotelTerms::html()
+                        : terms_content_html($storedTerms);
                 @endphp
                 <div class="terms-page__body content-richtext">
                     {!! $termsHtml !!}
