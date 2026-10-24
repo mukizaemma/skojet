@@ -55,7 +55,22 @@
             <div class="row g-4 g-xl-4 justify-content-center align-items-stretch site-why-choose__grid {{ $wcuLayout === 'meetings' ? 'justify-content-start' : '' }}">
                 @foreach($whyChooseUsItems as $item)
                 @php
+                    $wcuTitle = $item->title;
+                    $wcuDescription = $item->description;
                     $wcuIcon = filled($item->icon) ? $item->icon : 'fa-solid fa-circle-dot';
+                    $legacyTransfer = in_array(mb_strtolower(trim((string) $item->title)), [
+                        'private transfers',
+                        'private transfer',
+                        'transferts privés',
+                        'transfert privé',
+                    ], true);
+                    if ($legacyTransfer) {
+                        $wcuTitle = site_trans('home.stat_rates');
+                        $wcuDescription = app()->getLocale() === 'fr'
+                            ? 'Des tarifs clairs pour chaque suite et chaque formule repas, avec les offres lorsqu’elles sont actives.'
+                            : 'Clear nightly rates for each suite and meal plan, with offers shown when they are active.';
+                        $wcuIcon = 'fa-solid fa-tag';
+                    }
                     if (! str_contains($wcuIcon, ' ')) {
                         $wcuIcon = 'fa-solid '.$wcuIcon;
                     }
@@ -64,10 +79,10 @@
                     <article
                         class="site-why-choose__card h-100 w-100 {{ $wcuLayout === 'meetings' ? 'site-why-choose__card--meetings' : '' }}"
                         tabindex="0"
-                        @if(filled($item->description))
-                            aria-label="{{ $item->title }}. {{ Str::limit(strip_tags($item->description), 200) }}"
+                        @if(filled($wcuDescription))
+                            aria-label="{{ $wcuTitle }}. {{ Str::limit(strip_tags($wcuDescription), 200) }}"
                         @else
-                            aria-label="{{ $item->title }}"
+                            aria-label="{{ $wcuTitle }}"
                         @endif
                     >
                         <div class="site-why-choose__peek">
@@ -75,12 +90,12 @@
                                 <span class="site-why-choose__icon-ring"></span>
                                 <i class="{{ $wcuIcon }} site-why-choose__icon"></i>
                             </div>
-                            <h3 class="site-why-choose__title">{{ $item->title }}</h3>
+                            <h3 class="site-why-choose__title">{{ $wcuTitle }}</h3>
                         </div>
-                        @if(filled($item->description))
-                        <div class="site-why-choose__reveal" role="region" aria-label="Details: {{ $item->title }}">
+                        @if(filled($wcuDescription))
+                        <div class="site-why-choose__reveal" role="region" aria-label="Details: {{ $wcuTitle }}">
                             <div class="site-why-choose__reveal-inner">
-                                {!! nl2br(e($item->description)) !!}
+                                {!! nl2br(e($wcuDescription)) !!}
                             </div>
                         </div>
                         @endif

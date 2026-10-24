@@ -114,7 +114,6 @@
                 <article class="room-rate-board__card">
                     <header class="room-rate-board__head">
                         <h3>{{ site_trans('room.board_'.$plan['key']) }}</h3>
-                        <p>{{ site_trans('room.board_note_'.$plan['key']) }}</p>
                     </header>
                     <div class="room-rate-board__body">
                         @if($plan['discount_type'] === 'percent' && $plan['discount_value'])

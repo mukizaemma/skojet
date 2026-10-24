@@ -22,13 +22,6 @@
             @if($room->bed_type && isset(\App\Models\Room::BED_TYPES[$room->bed_type]))
                 <p class="home-room-card__bed">{{ site_trans('room.bed_'.$room->bed_type) }}</p>
             @endif
-            @if($room->publicRatePlans(hotel_currency($setting)) !== [])
-                <p class="home-room-card__plans">
-                    @foreach($room->publicRatePlans(hotel_currency($setting)) as $plan)
-                        <span>{{ site_trans('room.board_'.$plan['key']) }}</span>
-                    @endforeach
-                </p>
-            @endif
             <p class="home-room-card__excerpt">
                 {!! Str::words(strip_tags($room->description ?? ''), 28, '…') !!}
             </p>

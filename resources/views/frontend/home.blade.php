@@ -21,7 +21,7 @@
                     ['value' => '4', 'count' => true, 'label' => site_trans('home.stat_suites')],
                     ['value' => site_trans('home.stat_hospitality_mark'), 'count' => false, 'label' => site_trans('home.stat_hospitality')],
                     ['value' => site_trans('home.stat_volcano_mark'), 'count' => false, 'label' => site_trans('home.stat_volcano')],
-                    ['value' => site_trans('home.stat_transfers_mark'), 'count' => false, 'label' => site_trans('home.stat_transfers')],
+                    ['value' => site_trans('home.stat_rates_mark'), 'count' => false, 'label' => site_trans('home.stat_rates')],
                 ] as $i => $stat)
                 <div class="skojet-stat" style="animation-delay: {{ $i * 0.08 }}s">
                     @if($stat['count'])

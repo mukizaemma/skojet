@@ -41,9 +41,9 @@ class WhyChooseUsItemSeeder extends Seeder
                 'sort_order' => 5,
             ],
             [
-                'title' => 'Private transfers',
-                'description' => 'Transfers to the Kinigi RDB station and around Musanze for gorilla trekking and other park days.',
-                'icon' => 'fa-solid fa-car',
+                'title' => 'Competitive rates',
+                'description' => 'Clear nightly rates for each suite and meal plan, with offers shown when they are active.',
+                'icon' => 'fa-solid fa-tag',
                 'sort_order' => 6,
             ],
             [

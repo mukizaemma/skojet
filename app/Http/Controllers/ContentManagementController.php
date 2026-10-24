@@ -301,9 +301,13 @@ class ContentManagementController extends Controller
 
     public function updateTermsConditions(Request $request)
     {
-        $terms = TermsCondition::firstOrNew();
-        $terms->content = $request->content;
-        $terms->status = $request->status ?? 'active';
+        $request->validate([
+            'content' => 'nullable|string',
+        ]);
+
+        $terms = TermsCondition::query()->first() ?? new TermsCondition();
+        $terms->content = (string) $request->input('content', '');
+        $terms->status = 'active';
         $terms->updated_by = auth()->id();
         $terms->save();
 

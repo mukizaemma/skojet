@@ -262,7 +262,7 @@ class BookNowPage extends Component
         $this->syncLimitFeedback();
     }
 
-    public function selectMealPlan(string $board): void
+    public function selectMealPlan(string $board, string $occupancy = ''): void
     {
         if (! isset(Room::BOARD_PLANS[$board]) || ! $this->selectedRoom()) {
             return;
@@ -270,7 +270,7 @@ class BookNowPage extends Component
 
         $this->mealPicked = true;
         $this->board = $board;
-        $this->occupancy = '';
+        $this->occupancy = in_array($occupancy, ['single', 'double'], true) ? $occupancy : '';
         $this->alignRate();
         $this->rememberStay();
     }
@@ -518,6 +518,14 @@ class BookNowPage extends Component
             return;
         }
 
+        $kept = $room->rateCell($this->board, $this->occupancy, $currency);
+        if ($kept) {
+            $this->board = $kept['board'];
+            $this->occupancy = $kept['occupancy'];
+
+            return;
+        }
+
         $prefer = (int) $this->adults <= 1 ? 'single' : 'double';
         $onPlan = $room->rateCell($this->board, $prefer, $currency)
             ?? $room->rateCell($this->board, $prefer === 'single' ? 'double' : 'single', $currency);
@@ -542,9 +550,12 @@ class BookNowPage extends Component
 
         $this->validate([
             'board' => 'required|in:'.implode(',', array_keys(Room::BOARD_PLANS)),
+            'occupancy' => 'required|in:single,double',
         ], [
             'board.required' => site_trans('booking.channel_meal_required'),
             'board.in' => site_trans('booking.channel_meal_required'),
+            'occupancy.required' => site_trans('booking.channel_meal_required'),
+            'occupancy.in' => site_trans('booking.channel_meal_required'),
         ]);
     }
 

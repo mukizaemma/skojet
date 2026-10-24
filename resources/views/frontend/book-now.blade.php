@@ -127,54 +127,50 @@
                                     <div class="book-channel__room is-wide">
                                         <p class="book-channel__meal-heading">{{ site_trans('booking.channel_your_room') }}</p>
                                         <p class="book-channel__room-name">{{ $selectedRoom->title }}</p>
-                                        <p class="book-channel__room-lead">{{ site_trans('booking.channel_package_lead') }}</p>
                                     </div>
                                     <div class="book-channel__meals is-wide" role="radiogroup" aria-label="{{ site_trans('booking.channel_meal_plan') }}">
                                         <p class="book-channel__meal-heading">{{ site_trans('booking.channel_meal_plan') }}</p>
                                         @foreach($mealPlans as $plan)
-                                            @php
-                                                $planOccupancy = (int) $adults <= 1 && $plan['single_sale'] !== null ? 'single' : 'double';
-                                                if ($plan[$planOccupancy.'_sale'] === null) {
-                                                    $planOccupancy = $planOccupancy === 'single' ? 'double' : 'single';
-                                                }
-                                                $otherOccupancy = $planOccupancy === 'single' ? 'double' : 'single';
-                                                $planQuote = app(\App\Services\RoomDiscountService::class)->quote(
-                                                    $selectedRoom,
-                                                    (string) $checkin,
-                                                    (string) $checkout,
-                                                    (int) $adults,
-                                                    (int) $children,
-                                                    max(1, (int) $room_count),
-                                                    0,
-                                                    $plan['key'],
-                                                    $planOccupancy
-                                                );
-                                                $planList = (float) $planQuote['nightly'];
-                                                $planSale = (float) (($planQuote['has_discount'] ?? false) ? $planQuote['sale_nightly'] : $planList);
-                                                $otherSale = $plan[$otherOccupancy.'_sale'] ?? null;
-                                            @endphp
-                                            <button
-                                                type="button"
-                                                class="book-channel__meal {{ $board === $plan['key'] ? 'is-selected' : '' }}"
-                                                role="radio"
-                                                aria-checked="{{ $board === $plan['key'] ? 'true' : 'false' }}"
-                                                wire:click="selectMealPlan('{{ $plan['key'] }}')"
-                                            >
+                                            <article class="book-channel__meal {{ $board === $plan['key'] ? 'is-selected' : '' }}">
                                                 <strong>{{ site_trans('room.board_'.$plan['key']) }}</strong>
-                                                <span class="book-channel__meal-occ">{{ site_trans('room.occ_'.$planOccupancy.'_long') }}</span>
-                                                <em>
-                                                    @if(($planQuote['has_discount'] ?? false) && $planSale + 0.5 < $planList)
-                                                        <s>{{ hotel_price($planList, $setting) }}</s>
-                                                    @endif
-                                                    {{ hotel_price($planSale, $setting) }} {{ site_trans('booking.channel_per_night') }}
-                                                </em>
-                                                @if($otherSale !== null)
-                                                    <small class="book-channel__meal-alt">{{ site_trans('room.occ_'.$otherOccupancy.'_long') }} {{ hotel_price($otherSale, $setting) }}</small>
-                                                @endif
-                                                @if(($planQuote['has_discount'] ?? false) && ($planQuote['badge'] ?? '') !== '')
-                                                    <small class="book-channel__meal-offer">{{ $planQuote['badge'] }}</small>
-                                                @endif
-                                            </button>
+                                                <span>{{ site_trans('room.board_note_'.$plan['key']) }}</span>
+                                                <div class="book-channel__meal-occs">
+                                                    @foreach(['single', 'double'] as $occ)
+                                                        @continue($plan[$occ.'_sale'] === null)
+                                                        @php
+                                                            $occQuote = app(\App\Services\RoomDiscountService::class)->quote(
+                                                                $selectedRoom,
+                                                                (string) $checkin,
+                                                                (string) $checkout,
+                                                                (int) $adults,
+                                                                (int) $children,
+                                                                max(1, (int) $room_count),
+                                                                0,
+                                                                $plan['key'],
+                                                                $occ
+                                                            );
+                                                            $occList = (float) $occQuote['nightly'];
+                                                            $occSale = (float) (($occQuote['has_discount'] ?? false) ? $occQuote['sale_nightly'] : $occList);
+                                                            $occSelected = $board === $plan['key'] && $occupancy === $occ;
+                                                        @endphp
+                                                        <button
+                                                            type="button"
+                                                            class="{{ $occSelected ? 'is-selected' : '' }}"
+                                                            role="radio"
+                                                            aria-checked="{{ $occSelected ? 'true' : 'false' }}"
+                                                            wire:click="selectMealPlan('{{ $plan['key'] }}', '{{ $occ }}')"
+                                                        >
+                                                            <span>{{ site_trans('room.occ_'.$occ) }}</span>
+                                                            <strong>
+                                                                @if(($occQuote['has_discount'] ?? false) && $occSale + 0.5 < $occList)
+                                                                    <s>{{ hotel_price($occList, $setting) }}</s>
+                                                                @endif
+                                                                {{ hotel_price($occSale, $setting) }}
+                                                            </strong>
+                                                        </button>
+                                                    @endforeach
+                                                </div>
+                                            </article>
                                         @endforeach
                                     </div>
                                     @error('board') <small class="book-channel__error">{{ $message }}</small> @enderror
@@ -209,10 +205,9 @@
 
                         <aside class="book-channel__panel book-channel__price">
                             <h2>{{ site_trans('booking.channel_price') }}</h2>
-                            <p class="book-channel__meal-heading">{{ site_trans('booking.channel_your_room') }}</p>
                             <p class="book-channel__suite">{{ $selectedRoom->title }}</p>
                             @if(isset(\App\Models\Room::BOARD_PLANS[$board]) && in_array($occupancy, ['single', 'double'], true))
-                                <p class="book-channel__meta">{{ site_trans('room.board_'.$board) }} · {{ site_trans('room.occ_'.$occupancy.'_long') }}</p>
+                                <p class="book-channel__meta">{{ site_trans('room.board_'.$board) }} · {{ site_trans('room.occ_'.$occupancy) }}</p>
                             @endif
                             <div class="book-channel__stay-dates">
                                 <label>
@@ -470,7 +465,7 @@
                     @if($selectedRoom)
                         <p class="book-channel__suite">{{ $selectedRoom->title }}</p>
                         @if(isset(\App\Models\Room::BOARD_PLANS[$board]) && in_array($occupancy, ['single', 'double'], true))
-                            <p class="book-channel__meta">{{ site_trans('room.board_'.$board) }} · {{ site_trans('room.occ_'.$occupancy.'_long') }}</p>
+                            <p class="book-channel__meta">{{ site_trans('room.board_'.$board) }} · {{ site_trans('room.occ_'.$occupancy) }}</p>
                         @endif
                         @if(!empty($selectedQuote['has_discount']))
                             <p class="book-channel__meta"><span class="book-channel__was">{{ hotel_price($selectedQuote['list_total'] ?? 0, $setting) }}</span> {{ hotel_price($selectedQuote['total'] ?? 0, $setting) }}</p>

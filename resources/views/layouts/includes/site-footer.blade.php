@@ -48,6 +48,7 @@
         ['route' => 'dining', 'label' => site_trans('nav.dining')],
         ['route' => 'gallery', 'label' => site_trans('nav.gallery')],
         ['route' => 'contact', 'label' => site_trans('nav.contact')],
+        ['route' => 'terms', 'label' => site_trans('nav.terms')],
     ];
 @endphp
 

@@ -504,7 +504,7 @@
                 <div class="card shadow-sm border-0">
                     <div class="card-header bg-white py-3">
                         <h5 class="mb-1">Terms &amp; Conditions</h5>
-                        <p class="text-muted small mb-0">Legal and policy content shown on the Terms page.</p>
+                        <p class="text-muted small mb-0">One text field. Saving updates the Terms page linked from the footer.</p>
                     </div>
                         {{-- Single form; save action is pinned in card-footer so it cannot be scrolled off-screen --}}
                         <form action="{{ route('content-management.terms.update') }}" method="POST" class="settings-terms-form">
@@ -513,7 +513,7 @@
                             <div class="mb-0 settings-terms-editor-wrap">
                                 <label class="form-label" for="termsContent">Terms content</label>
                                 <p class="text-muted small mb-2">Use the editor for headings, lists, and links; saved HTML is shown on the public Terms page.</p>
-                                <textarea class="form-control" name="content" rows="16" id="termsContent">{{ $terms->content ?? '' }}</textarea>
+                                <textarea class="form-control" name="content" rows="16" id="termsContent">{{ filled(trim((string) ($terms->content ?? ''))) ? $terms->content : \App\Support\HotelTerms::html() }}</textarea>
                             </div>
                     </div>
                     <div class="card-footer bg-light border-top py-3 d-flex justify-content-end gap-2 flex-wrap">
