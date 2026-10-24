@@ -81,6 +81,7 @@
                             <th>Customer Phone</th>
                             <th>Channel</th>
                             <th>Room</th>
+                            <th>Stay</th>
                             <th>CheckIn Date</th>
                             <th>CheckOut Date</th>
                             <th>Action</th>
@@ -113,6 +114,7 @@
                                 <td class="text-nowrap">{{ $booking->phone ?: '—' }}</td>
                                 <td>{{ $channel }}</td>
                                 <td>{{ $roomLabel }}</td>
+                                <td>{{ $booking->staySummary() }}</td>
                                 <td class="text-nowrap">{{ optional($booking->checkin_date)->format('Y-m-d') ?: '—' }}</td>
                                 <td class="text-nowrap">{{ optional($booking->checkout_date)->format('Y-m-d') ?: '—' }}</td>
                                 <td class="text-nowrap">
@@ -132,7 +134,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="text-center text-muted py-4">No reservations found.</td>
+                                <td colspan="9" class="text-center text-muted py-4">No reservations found.</td>
                             </tr>
                         @endforelse
                     </tbody>

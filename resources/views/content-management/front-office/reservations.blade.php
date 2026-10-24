@@ -49,7 +49,7 @@
                                 <td>{{ optional($booking->checkin_date)->format('d M Y') }} – {{ optional($booking->checkout_date)->format('d M Y') }}</td>
                                 <td>{{ optional($booking->created_at)->format('d M Y H:i') }}</td>
                                 <td>{{ $booking->submittedByName() }}</td>
-                                <td>{{ \App\Models\Room::BOARD_PLANS[$booking->board] ?? 'Standard' }}{{ $booking->occupancy ? ' · '.ucfirst($booking->occupancy) : '' }}</td>
+                                <td>{{ $booking->staySummary() }}</td>
                                 <td>{{ $booking->channelLabel() }} · {{ $booking->sourceLabel() }}</td>
                                 <td class="text-capitalize">{{ str_replace('_', ' ', $booking->deskState()) }}</td>
                                 <td class="text-end">{{ hotel_price($booking->total_amount, $setting ?? null, $booking->currencyKey()) }}</td>

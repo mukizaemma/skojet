@@ -135,6 +135,40 @@ class Booking extends Model
         return self::SOURCES[$this->guest_source] ?? self::SOURCES['unspecified'];
     }
 
+    public function mealPlanLabel(): string
+    {
+        if (! filled($this->board)) {
+            return '';
+        }
+
+        return Room::BOARD_PLANS[$this->board] ?? ucwords(str_replace('_', ' ', (string) $this->board));
+    }
+
+    public function occupancyLabel(): string
+    {
+        return match ((string) $this->occupancy) {
+            'single' => 'Single',
+            'double' => 'Double',
+            default => '',
+        };
+    }
+
+    public function isGroupStay(): bool
+    {
+        return ($this->party_type ?? '') === 'group' || (int) ($this->rooms ?? 1) > 1;
+    }
+
+    public function staySummary(): string
+    {
+        $parts = array_values(array_filter([
+            $this->mealPlanLabel(),
+            $this->occupancyLabel(),
+            $this->isGroupStay() ? 'Group' : null,
+        ]));
+
+        return $parts !== [] ? implode(' · ', $parts) : '—';
+    }
+
     public function currencyKey(): string
     {
         return $this->currency === 'rwf' ? 'rwf' : 'usd';

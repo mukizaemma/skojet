@@ -128,6 +128,11 @@
                                         <p class="book-channel__meal-heading">{{ site_trans('booking.channel_your_room') }}</p>
                                         <p class="book-channel__room-name">{{ $selectedRoom->title }}</p>
                                     </div>
+                                    <div class="book-channel__party is-wide" role="radiogroup" aria-label="{{ site_trans('booking.form_party_type') }}">
+                                        <p class="book-channel__meal-heading">{{ site_trans('booking.form_party_type') }}</p>
+                                        <button type="button" wire:click="setParty('individual')" class="{{ $party_type !== 'group' ? 'is-selected' : '' }}">{{ site_trans('booking.party_individual') }}</button>
+                                        <button type="button" wire:click="setParty('group')" class="{{ $party_type === 'group' ? 'is-selected' : '' }}">{{ site_trans('booking.party_group') }}</button>
+                                    </div>
                                     <div class="book-channel__meals is-wide" role="radiogroup" aria-label="{{ site_trans('booking.channel_meal_plan') }}">
                                         <p class="book-channel__meal-heading">{{ site_trans('booking.channel_meal_plan') }}</p>
                                         @foreach($mealPlans as $plan)
@@ -207,7 +212,7 @@
                             <h2>{{ site_trans('booking.channel_price') }}</h2>
                             <p class="book-channel__suite">{{ $selectedRoom->title }}</p>
                             @if(isset(\App\Models\Room::BOARD_PLANS[$board]) && in_array($occupancy, ['single', 'double'], true))
-                                <p class="book-channel__meta">{{ site_trans('room.board_'.$board) }} · {{ site_trans('room.occ_'.$occupancy) }}</p>
+                                <p class="book-channel__meta">{{ site_trans('room.board_'.$board) }} · {{ site_trans('room.occ_'.$occupancy) }}@if($party_type === 'group') · {{ site_trans('booking.party_group') }}@endif</p>
                             @endif
                             <div class="book-channel__stay-dates">
                                 <label>
@@ -291,6 +296,10 @@
 
                     <div class="book-channel__popover book-channel__guests" x-show="open === 'guests'" x-cloak>
                         <p class="book-channel__popover-title">{{ site_trans('booking.channel_guests') }}</p>
+                        <div class="book-channel__party">
+                            <button type="button" wire:click="setParty('individual')" class="{{ $party_type !== 'group' ? 'is-selected' : '' }}">{{ site_trans('booking.party_individual') }}</button>
+                            <button type="button" wire:click="setParty('group')" class="{{ $party_type === 'group' ? 'is-selected' : '' }}">{{ site_trans('booking.party_group') }}</button>
+                        </div>
                         <p class="book-channel__room-label">{{ site_trans('booking.channel_room') }} {{ (int) $room_count > 1 ? '1–'.(int) $room_count : '1' }}</p>
                         <div class="book-channel__stepper">
                             <span>{{ site_trans('booking.channel_adults_ages') }}</span>

@@ -19,8 +19,8 @@
     @if(filled($booking->rooms))
     <tr><td style="padding: 6px 0; border-bottom: 1px solid #eee;"><strong>Rooms</strong></td><td style="padding: 6px 0; border-bottom: 1px solid #eee;">{{ $booking->rooms }}</td></tr>
     @endif
-    @if(filled($booking->party_type))
-    <tr><td style="padding: 6px 0; border-bottom: 1px solid #eee;"><strong>Party</strong></td><td style="padding: 6px 0; border-bottom: 1px solid #eee;">{{ $booking->party_type === 'group' ? 'Group / team' : 'Individual / couple' }}</td></tr>
+    @if($booking->staySummary() !== '—')
+    <tr><td style="padding: 6px 0; border-bottom: 1px solid #eee;"><strong>Stay</strong></td><td style="padding: 6px 0; border-bottom: 1px solid #eee;">{{ $booking->staySummary() }}</td></tr>
     @endif
     @if(filled($booking->country))
     <tr><td style="padding: 6px 0; border-bottom: 1px solid #eee;"><strong>Country</strong></td><td style="padding: 6px 0; border-bottom: 1px solid #eee;">{{ $booking->country }}</td></tr>

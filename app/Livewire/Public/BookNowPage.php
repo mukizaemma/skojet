@@ -122,6 +122,7 @@ class BookNowPage extends Component
             $this->adults = (int) ($saved['adults'] ?? 2);
             $this->children = (int) ($saved['children'] ?? 0);
             $this->room_count = (int) ($saved['room_count'] ?? 1);
+            $this->party_type = (string) ($saved['party_type'] ?? 'individual');
             $this->room_id = $saved['room_id'] ?? null;
             $this->roomPicked = (bool) ($saved['room_picked'] ?? false);
             $this->mealPicked = (bool) ($saved['meal_picked'] ?? false);
@@ -279,6 +280,21 @@ class BookNowPage extends Component
     {
         $this->checkin = $checkin;
         $this->checkout = $checkout;
+        $this->normalizeStayInput();
+        if (! $this->roomPicked) {
+            $this->applyDefaultRoom();
+        }
+        $this->rememberStay();
+        $this->syncLimitFeedback();
+    }
+
+    public function setParty(string $party): void
+    {
+        $this->party_type = $party === 'group' ? 'group' : 'individual';
+        if ($this->party_type === 'individual') {
+            $this->room_count = 1;
+        }
+
         $this->normalizeStayInput();
         if (! $this->roomPicked) {
             $this->applyDefaultRoom();
@@ -445,6 +461,10 @@ class BookNowPage extends Component
         $this->adults = max(1, (int) ($this->adults ?? ($isGroup ? 4 : 2)));
         $this->children = max(0, (int) ($this->children ?? 0));
         $this->room_count = max(1, (int) ($this->room_count ?? 1));
+        if ($this->room_count > 1) {
+            $this->party_type = 'group';
+            $isGroup = true;
+        }
 
         // Soft ceilings only (party size), not room inventory — over-limit values keep
         // the typed number so we can show red labels / explanations instead of silently clamping.
@@ -485,6 +505,7 @@ class BookNowPage extends Component
             'adults' => (int) $this->adults,
             'children' => (int) $this->children,
             'room_count' => (int) $this->room_count,
+            'party_type' => (string) $this->party_type,
             'room_id' => $this->room_id,
             'room_picked' => (bool) $this->roomPicked,
             'board' => (string) $this->board,

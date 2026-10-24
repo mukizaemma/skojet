@@ -86,7 +86,15 @@
                             @endif
                             <tr>
                                 <th class="text-muted">Party</th>
-                                <td>{{ ($booking->party_type ?? '') === 'group' ? 'Group / team' : 'Individual / couple' }}</td>
+                                <td>{{ $booking->isGroupStay() ? 'Group' : 'Individual or couple' }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Meal plan</th>
+                                <td>{{ $booking->mealPlanLabel() !== '' ? $booking->mealPlanLabel() : '—' }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Occupancy</th>
+                                <td>{{ $booking->occupancyLabel() !== '' ? $booking->occupancyLabel() : '—' }}</td>
                             </tr>
                             <tr>
                                 <th class="text-muted">Room</th>
