@@ -62,7 +62,7 @@
             <div class="skojet-signature__heading">
                 <h2 id="signature-suite-heading-{{ $featuredSuite->id }}" class="skojet-intro__title">{{ $featuredSuite->title }}</h2>
                 <p class="skojet-signature__price">
-                    <span class="skojet-signature__price-amount">{{ hotel_price($featuredSuite->headlineNightly(hotel_currency($setting)), $setting) }}</span>
+                    @include('frontend.includes.offer-price', ['room' => $featuredSuite, 'setting' => $setting, 'variant' => 'signature'])
                     <span class="skojet-signature__price-unit">{{ site_trans('home.per_night') }}</span>
                 </p>
             </div>

@@ -460,6 +460,7 @@ return [
         'channel_contact' => 'Contact',
         'channel_address' => 'Adresse',
         'channel_meal_plan' => 'Formule repas',
+        'channel_meal_required' => 'Choisissez une formule repas pour continuer.',
         'channel_price' => 'Détail du prix',
         'channel_standard' => 'Tarif standard',
         'channel_discount' => 'Réduction',
@@ -537,6 +538,13 @@ return [
         'kitchen_text' => 'Le restaurant fait partie du séjour. Il n’est pas ouvert aux visiteurs de l’extérieur.',
         'cta_title' => 'On y dîne en séjournant ici',
         'cta_lead' => 'Réservez une suite et le restaurant est à vous — café, cuisine, vin, bière et brunch, pour les hôtes de la maison.',
+    ],
+
+    'offers' => [
+        'region' => 'Offres en cours',
+        'mark' => 'Offre',
+        'all_suites' => 'Toutes les suites',
+        'until' => 'jusqu’au :date',
     ],
 
     'meetings' => [

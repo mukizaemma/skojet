@@ -73,7 +73,7 @@
                         @endif
                         <span class="room-detail-price-card__label">{{ site_trans('room.from') }}</span>
                         <div class="room-detail-price-card__amount">
-                            <span class="room-detail-price-card__value">{{ hotel_price($room->headlineNightly(hotel_currency($setting)), $setting) }}</span>
+                            @include('frontend.includes.offer-price', ['room' => $room, 'setting' => $setting, 'variant' => 'detail'])
                             <span class="room-detail-price-card__unit">{{ site_trans('room.per_night') }}</span>
                         </div>
                         <p class="room-detail-price-card__note">{{ site_trans('room.price_note') }}</p>
@@ -122,19 +122,43 @@
                         @elseif($plan['discount_type'] === 'amount' && $plan['discount_value'])
                             <span class="room-rate-board__ribbon">{{ site_trans('room.off_amount', ['value' => hotel_price($plan['discount_value'], $setting)]) }}</span>
                         @endif
+                        @php $packageOfferBadge = ''; @endphp
                         @foreach(['single', 'double'] as $occupancyKey)
                             @if($plan[$occupancyKey] !== null)
+                                @php
+                                    $packageQuote = app(\App\Services\RoomDiscountService::class)->quote(
+                                        $room,
+                                        now()->toDateString(),
+                                        now()->addDay()->toDateString(),
+                                        $occupancyKey === 'single' ? 1 : 2,
+                                        0,
+                                        1,
+                                        0,
+                                        $plan['key'],
+                                        $occupancyKey
+                                    );
+                                    $packageFinal = (float) (($packageQuote['has_discount'] ?? false) ? $packageQuote['sale_nightly'] : $plan[$occupancyKey.'_sale']);
+                                    $packageStrike = $packageFinal + 0.5 < (float) $plan[$occupancyKey]
+                                        ? (float) $plan[$occupancyKey]
+                                        : null;
+                                    if ($packageOfferBadge === '' && ($packageQuote['has_discount'] ?? false)) {
+                                        $packageOfferBadge = (string) ($packageQuote['badge'] ?? '');
+                                    }
+                                @endphp
                                 <div class="room-rate-board__row">
                                     <span>{{ site_trans('room.occ_'.$occupancyKey.'_long') }}</span>
                                     <strong>
-                                        @if($plan[$occupancyKey] > $plan[$occupancyKey.'_sale'])
-                                            <s>{{ hotel_price($plan[$occupancyKey], $setting) }}</s>
+                                        @if($packageStrike !== null)
+                                            <s>{{ hotel_price($packageStrike, $setting) }}</s>
                                         @endif
-                                        {{ hotel_price($plan[$occupancyKey.'_sale'], $setting) }}
+                                        {{ hotel_price($packageFinal, $setting) }}
                                     </strong>
                                 </div>
                             @endif
                         @endforeach
+                        @if($packageOfferBadge !== '')
+                            <em class="room-rate-board__offer">{{ $packageOfferBadge }}</em>
+                        @endif
                     </div>
                 </article>
             @endforeach

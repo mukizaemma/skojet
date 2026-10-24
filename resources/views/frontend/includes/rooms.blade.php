@@ -71,7 +71,7 @@
 
                                     </div>
                                 <div class="price h4 d-flex justify-content-between align-items-center flex-wrap" style="gap: 10px;">
-                                    <span>{{ hotel_price($room->headlineNightly(hotel_currency($setting)), $setting) }}<span class="h6 fw-normal">/ night</span></span>
+                                    <span>@include('frontend.includes.offer-price', ['room' => $room, 'setting' => $setting, 'variant' => 'inline'])<span class="h6 fw-normal">/ night</span></span>
                                     <div class="main__right d-flex align-items-center flex-wrap" style="gap: 8px;">
                                         <a wire:navigate href="{{ localized_route('room',['slug'=>$room->slug]) }}"
                                         class="theme-btn btn-style sm-btn border"

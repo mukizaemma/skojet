@@ -9,6 +9,65 @@ if (! function_exists('optimized_image')) {
     }
 }
 
+if (! function_exists('hotel_discount_offers')) {
+    /** Active suite offers for this request. */
+    function hotel_discount_offers(): \Illuminate\Support\Collection
+    {
+        static $offers;
+
+        if ($offers === null) {
+            $offers = \App\Models\RoomDiscount::query()
+                ->with('room:id,title')
+                ->where('status', 'Active')
+                ->get();
+        }
+
+        return $offers;
+    }
+}
+
+if (! function_exists('hotel_offers_today')) {
+    function hotel_offers_today(): \Illuminate\Support\Collection
+    {
+        $today = now()->toDateString();
+
+        return hotel_discount_offers()->filter(function (\App\Models\RoomDiscount $offer) use ($today) {
+            $starts = $offer->starts_on?->toDateString();
+            $ends = $offer->ends_on?->toDateString();
+
+            return $starts !== null && $ends !== null && $starts <= $today && $ends >= $today;
+        })->values();
+    }
+}
+
+if (! function_exists('hotel_offer_badge')) {
+    function hotel_offer_badge(\App\Models\RoomDiscount $offer, ?object $setting = null): string
+    {
+        if ($offer->discount_type === 'percent') {
+            $value = rtrim(rtrim(number_format((float) $offer->amount, 2, '.', ''), '0'), '.');
+
+            return site_trans('room.off_percent', ['value' => $value]);
+        }
+
+        return site_trans('room.off_amount', ['value' => hotel_price((float) $offer->amount, $setting)]);
+    }
+}
+
+if (! function_exists('hotel_nightly_offer')) {
+    /**
+     * @return array{list: float, sale: float, has_discount: bool, badge: string, label: string}
+     */
+    function hotel_nightly_offer(\App\Models\Room $room, ?string $checkin = null, ?string $checkout = null, ?object $setting = null): array
+    {
+        return app(\App\Services\RoomDiscountService::class)->displayNightly(
+            $room,
+            hotel_currency($setting),
+            $checkin,
+            $checkout
+        );
+    }
+}
+
 if (! function_exists('hotel_price')) {
     /**
      * Format a room or site price using the hotel's currency setting (USD or RWF).

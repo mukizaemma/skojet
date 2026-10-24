@@ -104,6 +104,9 @@ class BookNowPage extends Component
     /** @var string single or double occupancy. */
     public $occupancy = '';
 
+    /** @var bool Guest chose a meal plan. Nothing is selected until they do. */
+    public $mealPicked = false;
+
     public function mount(): void
     {
         if (hotel_book_now_is_external()) {
@@ -121,8 +124,9 @@ class BookNowPage extends Component
             $this->room_count = (int) ($saved['room_count'] ?? 1);
             $this->room_id = $saved['room_id'] ?? null;
             $this->roomPicked = (bool) ($saved['room_picked'] ?? false);
-            $this->board = (string) ($saved['board'] ?? '');
-            $this->occupancy = (string) ($saved['occupancy'] ?? '');
+            $this->mealPicked = (bool) ($saved['meal_picked'] ?? false);
+            $this->board = $this->mealPicked ? (string) ($saved['board'] ?? '') : '';
+            $this->occupancy = $this->mealPicked ? (string) ($saved['occupancy'] ?? '') : '';
             $savedStep = (int) ($saved['step'] ?? 1);
             if (in_array($savedStep, [1, 2], true)) {
                 $this->step = $savedStep;
@@ -163,6 +167,7 @@ class BookNowPage extends Component
             if (! $this->roomPicked) {
                 $this->applyDefaultRoom();
             }
+            $this->alignRate();
             $this->rememberStay();
             $this->syncLimitFeedback();
         }
@@ -249,6 +254,7 @@ class BookNowPage extends Component
 
         $this->room_id = $roomId;
         $this->roomPicked = true;
+        $this->mealPicked = true;
         $this->board = $board;
         $this->occupancy = $occupancy;
         $this->normalizeStayInput();
@@ -262,6 +268,7 @@ class BookNowPage extends Component
             return;
         }
 
+        $this->mealPicked = true;
         $this->board = $board;
         $this->occupancy = '';
         $this->alignRate();
@@ -313,6 +320,7 @@ class BookNowPage extends Component
         $this->room_id = null;
         $this->board = '';
         $this->occupancy = '';
+        $this->mealPicked = false;
         $this->normalizeStayInput();
         $this->applyDefaultRoom();
         $this->alignRate();
@@ -340,6 +348,7 @@ class BookNowPage extends Component
     {
         $this->validateStay();
         $this->validateGuest();
+        $this->validateMealPlan();
         $this->validate([
             'confirm_via' => 'required|in:email,whatsapp',
             'agree_terms' => 'accepted',
@@ -480,6 +489,7 @@ class BookNowPage extends Component
             'room_picked' => (bool) $this->roomPicked,
             'board' => (string) $this->board,
             'occupancy' => (string) $this->occupancy,
+            'meal_picked' => (bool) $this->mealPicked,
             'step' => (int) $this->step,
         ]]);
     }
@@ -501,6 +511,13 @@ class BookNowPage extends Component
             return;
         }
 
+        if (! $this->mealPicked || ! isset(Room::BOARD_PLANS[$this->board])) {
+            $this->board = '';
+            $this->occupancy = '';
+
+            return;
+        }
+
         $prefer = (int) $this->adults <= 1 ? 'single' : 'double';
         $onPlan = $room->rateCell($this->board, $prefer, $currency)
             ?? $room->rateCell($this->board, $prefer === 'single' ? 'double' : 'single', $currency);
@@ -511,9 +528,24 @@ class BookNowPage extends Component
             return;
         }
 
-        $resolved = $room->resolveRate($this->board, $this->occupancy, $prefer, $currency);
-        $this->board = $resolved['board'];
-        $this->occupancy = $resolved['occupancy'];
+        $this->mealPicked = false;
+        $this->board = '';
+        $this->occupancy = '';
+    }
+
+    protected function validateMealPlan(): void
+    {
+        $room = $this->selectedRoom();
+        if (! $room || $room->publicRatePlans(hotel_currency()) === []) {
+            return;
+        }
+
+        $this->validate([
+            'board' => 'required|in:'.implode(',', array_keys(Room::BOARD_PLANS)),
+        ], [
+            'board.required' => site_trans('booking.channel_meal_required'),
+            'board.in' => site_trans('booking.channel_meal_required'),
+        ]);
     }
 
     protected function rateNote(): ?string

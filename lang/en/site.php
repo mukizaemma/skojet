@@ -514,6 +514,7 @@ return [
         'channel_last_name' => 'Last name',
         'channel_requests' => 'Special requests',
         'channel_meal_plan' => 'Meal plan',
+        'channel_meal_required' => 'Choose a meal plan to continue.',
         'channel_nights_one' => ':count night',
         'channel_nights_many' => ':count nights',
         'channel_terms' => 'I agree to the booking conditions.',
@@ -578,6 +579,13 @@ return [
         'kitchen_text' => 'The restaurant is part of the stay. It is not open to visitors from outside.',
         'cta_title' => 'Dine here by staying here',
         'cta_lead' => 'Reserve a suite and the restaurant is yours — coffee, food, wine, beer and brunch, for guests of the house.',
+    ],
+
+    'offers' => [
+        'region' => 'Current offers',
+        'mark' => 'Offer',
+        'all_suites' => 'Every suite',
+        'until' => 'until :date',
     ],
 
     'meetings' => [

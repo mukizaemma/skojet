@@ -14,7 +14,7 @@
                 <div class="home-room-card__price">
                     <span class="home-room-card__price-from">{{ site_trans('room.from') }}</span>
                     <div class="home-room-card__price-line">
-                        <span class="home-room-card__price-amount">{{ hotel_price($room->headlineNightly(hotel_currency($setting)), $setting) }}</span>
+                        @include('frontend.includes.offer-price', ['room' => $room, 'setting' => $setting, 'variant' => 'card'])
                         <span class="home-room-card__price-unit">/ night</span>
                     </div>
                 </div>

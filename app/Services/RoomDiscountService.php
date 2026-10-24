@@ -52,6 +52,7 @@ class RoomDiscountService
             'total' => $list,
             'label' => '',
             'has_discount' => false,
+            'badge' => '',
             'board' => $resolved['board'] ?? '',
             'occupancy' => $resolved['occupancy'] ?? '',
             'rack_nightly' => $resolved['rack'] ?? $nightly,
@@ -68,6 +69,7 @@ class RoomDiscountService
 
         $saved = 0.0;
         $labels = [];
+        $badgeOffer = null;
         $cursor = new DateTime($checkin);
         $stayEnd = new DateTime($checkout);
 
@@ -85,6 +87,7 @@ class RoomDiscountService
                 if ($cut > $best) {
                     $best = $cut;
                     $bestLabel = $offer->title;
+                    $badgeOffer = $offer;
                 }
             }
             $saved += $best * $rooms;
@@ -104,6 +107,7 @@ class RoomDiscountService
             'discount_total' => $saved,
             'total' => $total,
             'label' => implode(', ', array_keys($labels)),
+            'badge' => count($labels) === 1 && $badgeOffer ? hotel_offer_badge($badgeOffer) : implode(', ', array_keys($labels)),
             'has_discount' => $saved >= 0.5,
             'board' => $resolved['board'] ?? '',
             'occupancy' => $resolved['occupancy'] ?? '',
@@ -112,18 +116,80 @@ class RoomDiscountService
     }
 
     /**
-     * @return Collection<int, RoomDiscount>
+     * Lowest nightly the guest would pay, with an active date offer applied.
+     *
+     * @return array{list: float, sale: float, has_discount: bool, badge: string, label: string}
      */
+    public function displayNightly(Room $room, ?string $currency = null, ?string $checkin = null, ?string $checkout = null): array
+    {
+        $checkin = $checkin ?: now()->toDateString();
+        $checkout = $checkout ?: now()->parse($checkin)->addDay()->toDateString();
+        $currency = $currency === 'rwf' ? 'rwf' : ($currency === 'usd' ? 'usd' : hotel_currency());
+        $bestList = null;
+        $bestSale = null;
+        $badge = '';
+        $label = '';
+        $hasDiscount = false;
+        $plans = $room->publicRatePlans($currency);
+
+        $consider = function (array $quote) use (&$bestList, &$bestSale, &$badge, &$label, &$hasDiscount): void {
+            $list = (float) $quote['nightly'];
+            $sale = (float) (($quote['has_discount'] ?? false) ? $quote['sale_nightly'] : $quote['nightly']);
+            if ($bestSale !== null && $sale >= $bestSale) {
+                return;
+            }
+            $bestList = $list;
+            $bestSale = $sale;
+            $hasDiscount = (bool) ($quote['has_discount'] ?? false) && $sale + 0.5 < $list;
+            $badge = $hasDiscount ? (string) ($quote['badge'] ?? '') : '';
+            $label = $hasDiscount ? (string) ($quote['label'] ?? '') : '';
+        };
+
+        if ($plans === []) {
+            $consider($this->quote($room, $checkin, $checkout, 2, 0, 1, 0, null, null, $currency));
+        } else {
+            foreach ($plans as $plan) {
+                foreach (['single', 'double'] as $occupancy) {
+                    if ($plan[$occupancy.'_sale'] === null) {
+                        continue;
+                    }
+                    $consider($this->quote(
+                        $room,
+                        $checkin,
+                        $checkout,
+                        $occupancy === 'single' ? 1 : 2,
+                        0,
+                        1,
+                        0,
+                        $plan['key'],
+                        $occupancy,
+                        $currency
+                    ));
+                }
+            }
+        }
+
+        return [
+            'list' => (float) ($bestList ?? 0),
+            'sale' => (float) ($bestSale ?? 0),
+            'has_discount' => $hasDiscount,
+            'badge' => $badge,
+            'label' => $label,
+        ];
+    }
+
     protected function offersFor(Room $room, string $checkin, string $checkout): Collection
     {
-        return RoomDiscount::query()
-            ->where('status', 'Active')
-            ->where(function ($query) use ($room) {
-                $query->whereNull('room_id')->orWhere('room_id', $room->id);
-            })
-            ->whereDate('starts_on', '<=', $checkout)
-            ->whereDate('ends_on', '>=', $checkin)
-            ->get();
+        return hotel_discount_offers()->filter(function (RoomDiscount $offer) use ($room, $checkin, $checkout) {
+            if ($offer->room_id !== null && (int) $offer->room_id !== (int) $room->id) {
+                return false;
+            }
+
+            $starts = $offer->starts_on?->toDateString();
+            $ends = $offer->ends_on?->toDateString();
+
+            return $starts !== null && $ends !== null && $starts <= $checkout && $ends >= $checkin;
+        })->values();
     }
 
     protected function nightSaving(RoomDiscount $offer, float $nightly, string $currency = 'usd'): float

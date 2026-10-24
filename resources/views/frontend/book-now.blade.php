@@ -27,6 +27,7 @@
                     </a>
                 </div>
             @elseif($step === 2 && $selectedRoom)
+                @php $mealRequired = $selectedRoom->publicRatePlans(hotel_currency($setting)) !== []; @endphp
                 <div
                     class="book-channel__checkout"
                     x-data="{
@@ -36,6 +37,8 @@
                         email: @entangle('email').live,
                         country: @entangle('country').live,
                         terms: @entangle('agree_terms').live,
+                        board: @entangle('board').live,
+                        mealRequired: @js($mealRequired),
                         copy: @js([
                             'emailTitle' => site_trans('booking.channel_confirm_email_title'),
                             'emailText' => site_trans('booking.channel_confirm_email_text'),
@@ -45,7 +48,9 @@
                             'cancel' => site_trans('booking.channel_cancel'),
                         ]),
                         get ready() {
-                            return [this.first, this.last, this.phone, this.email, this.country].every((value) => String(value || '').trim() !== '') && !!this.terms;
+                            const contactReady = [this.first, this.last, this.phone, this.email, this.country].every((value) => String(value || '').trim() !== '') && !!this.terms;
+                            const mealReady = !this.mealRequired || String(this.board || '').trim() !== '';
+                            return contactReady && mealReady;
                         },
                         ask(via) {
                             if (!this.ready || typeof Swal === 'undefined') {
@@ -127,7 +132,19 @@
                                                 if ($plan[$planOccupancy.'_sale'] === null) {
                                                     $planOccupancy = $planOccupancy === 'single' ? 'double' : 'single';
                                                 }
-                                                $planNightly = $plan[$planOccupancy.'_sale'];
+                                                $planQuote = app(\App\Services\RoomDiscountService::class)->quote(
+                                                    $selectedRoom,
+                                                    (string) $checkin,
+                                                    (string) $checkout,
+                                                    (int) $adults,
+                                                    (int) $children,
+                                                    max(1, (int) $room_count),
+                                                    0,
+                                                    $plan['key'],
+                                                    $planOccupancy
+                                                );
+                                                $planList = (float) $planQuote['nightly'];
+                                                $planSale = (float) (($planQuote['has_discount'] ?? false) ? $planQuote['sale_nightly'] : $planList);
                                             @endphp
                                             <button
                                                 type="button"
@@ -138,10 +155,19 @@
                                             >
                                                 <strong>{{ site_trans('room.board_'.$plan['key']) }}</strong>
                                                 <span>{{ site_trans('room.board_note_'.$plan['key']) }}</span>
-                                                <em>{{ hotel_price($planNightly, $setting) }} {{ site_trans('booking.channel_per_night') }}</em>
+                                                <em>
+                                                    @if(($planQuote['has_discount'] ?? false) && $planSale + 0.5 < $planList)
+                                                        <s>{{ hotel_price($planList, $setting) }}</s>
+                                                    @endif
+                                                    {{ hotel_price($planSale, $setting) }} {{ site_trans('booking.channel_per_night') }}
+                                                </em>
+                                                @if(($planQuote['has_discount'] ?? false) && ($planQuote['badge'] ?? '') !== '')
+                                                    <small class="book-channel__meal-offer">{{ $planQuote['badge'] }}</small>
+                                                @endif
                                             </button>
                                         @endforeach
                                     </div>
+                                    @error('board') <small class="book-channel__error">{{ $message }}</small> @enderror
                                 @endif
                                 <label class="is-wide">
                                     <span>{{ site_trans('booking.channel_requests') }}</span>
@@ -194,6 +220,9 @@
                             @endif
                             <p class="book-channel__meta">{{ $nights }} {{ $nights === 1 ? 'night' : 'nights' }} · {{ site_trans('booking.channel_guests_line', ['count' => $guestCount]) }}</p>
 
+                            @if($mealRequired && ! isset(\App\Models\Room::BOARD_PLANS[$board]))
+                                <p class="book-channel__meta">{{ site_trans('booking.channel_meal_required') }}</p>
+                            @else
                             <dl>
                                 <div>
                                     <dt>{{ isset(\App\Models\Room::BOARD_PLANS[$board]) ? site_trans('room.board_'.$board) : site_trans('booking.channel_standard') }}</dt>
@@ -214,6 +243,7 @@
                                 <span>{{ site_trans('booking.channel_total') }}</span>
                                 <strong>{{ hotel_price($selectedQuote['total'] ?? $estimatedTotal, $setting) }}</strong>
                             </div>
+                            @endif
                         </aside>
                     </div>
                 </div>

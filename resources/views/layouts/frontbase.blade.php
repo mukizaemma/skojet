@@ -565,6 +565,7 @@
     <!-- header area end -->
     @endpersist
 
+    @include('frontend.includes.offer-bar')
 
     <div class="container-fluid">
         @isset($slot)
