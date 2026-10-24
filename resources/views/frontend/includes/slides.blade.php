@@ -16,7 +16,10 @@
         : '';
     $firstCaption = trim((string) ($firstSlide?->heading ?: ''));
     $firstLead = trim((string) ($firstSlide?->subheading ?: ''));
-    $initialPrimaryLabel = filled($firstSlide?->button) ? $firstSlide->button : $bookLabel;
+    $rawSlideLabel = trim((string) ($firstSlide?->button ?? ''));
+    $initialPrimaryLabel = ($rawSlideLabel !== '' && ! hotel_is_legacy_reserve_label($rawSlideLabel))
+        ? $rawSlideLabel
+        : $bookLabel;
     $initialPrimaryUrl = filled($firstSlide?->link) ? $firstSlide->link : $bookUrl;
     $initialPrimaryExternal = filled($firstSlide?->link) ? true : $bookExternal;
 @endphp
@@ -40,7 +43,7 @@
                 <div class="swiper-slide"
                      data-caption="{{ $caption }}"
                      data-lead="{{ $lead }}"
-                     data-button-label="{{ $slide->button ?? '' }}"
+                     data-button-label="{{ hotel_is_legacy_reserve_label((string) ($slide->button ?? '')) ? '' : ($slide->button ?? '') }}"
                      data-button-link="{{ $slide->link ?? '' }}">
                     <div class="banner__slider__image">
                         @if($slide->media_type === 'video')

@@ -107,7 +107,7 @@
                     @include('frontend.includes.reservation-link', [
                         'style' => 'fill',
                         'class' => 'site-footer__book-btn footer__book-cta',
-                        'label' => site_trans('buttons.book_your_stay'),
+                        'label' => hotel_book_now_label(),
                     ])
                     <a href="{{ $ftMapUrl }}" class="theme-btn btn-style border skojet-footer__map" target="_blank" rel="noopener noreferrer">
                         <span>{{ site_trans('footer.get_here') }}</span>

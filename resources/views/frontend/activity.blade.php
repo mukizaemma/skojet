@@ -14,55 +14,48 @@
     };
 @endphp
 
-    <header class="activity-show__intro">
-        <div class="container">
-            <p class="activity-show__eyebrow">{{ site_trans('nav.experiences') }}</p>
-            <h1>{{ $activity->title }}</h1>
-        </div>
-    </header>
+    <div class="container">
+        <div class="activity-show__layout">
+            <div class="activity-show__main">
+                <p class="activity-show__eyebrow">{{ site_trans('nav.experiences') }}</p>
+                <h1>{{ $activity->title }}</h1>
 
-    @if($coverUrl)
-        <figure class="activity-show__cover">
-            <img src="{{ $coverUrl }}" alt="{{ $activity->title }}">
-        </figure>
-    @endif
+                @if($coverUrl)
+                    <figure class="activity-show__cover">
+                        <img src="{{ $coverUrl }}" alt="{{ $activity->title }}">
+                    </figure>
+                @endif
 
-    @if(filled(trim(strip_tags($activity->description ?? ''))))
-        <section class="activity-show__story">
-            <div class="container">
-                <div class="activity-show__copy">
-                    {!! $activity->description !!}
-                </div>
-            </div>
-        </section>
-    @endif
+                @if(filled(trim(strip_tags($activity->description ?? ''))))
+                    <div class="activity-show__copy">
+                        {!! $activity->description !!}
+                    </div>
+                @endif
 
-    @if($images->isNotEmpty())
-        <section class="activity-show__gallery" aria-label="{{ site_trans('booking.activity_gallery') }}">
-            <div class="container">
-                <h2>{{ site_trans('booking.activity_gallery') }}</h2>
-                <div class="activity-show__grid">
-                    @foreach($images as $img)
-                        @php $imgUrl = $imageUrl($img->image); @endphp
-                        @if($imgUrl)
-                            <figure>
-                                <img src="{{ $imgUrl }}" alt="{{ $img->caption ?: $activity->title }}" loading="lazy">
-                                @if(filled($img->caption))
-                                    <figcaption>{{ $img->caption }}</figcaption>
+                @if($images->isNotEmpty())
+                    <section class="activity-show__gallery" aria-label="{{ site_trans('booking.activity_gallery') }}">
+                        <h2>{{ site_trans('booking.activity_gallery') }}</h2>
+                        <div class="activity-show__grid">
+                            @foreach($images as $img)
+                                @php $imgUrl = $imageUrl($img->image); @endphp
+                                @if($imgUrl)
+                                    <figure>
+                                        <img src="{{ $imgUrl }}" alt="{{ $img->caption ?: $activity->title }}" loading="lazy">
+                                        @if(filled($img->caption))
+                                            <figcaption>{{ $img->caption }}</figcaption>
+                                        @endif
+                                    </figure>
                                 @endif
-                            </figure>
-                        @endif
-                    @endforeach
-                </div>
+                            @endforeach
+                        </div>
+                    </section>
+                @endif
             </div>
-        </section>
-    @endif
 
-    <section class="activity-show__enquiry" id="activity-enquiry">
-        <div class="container">
-            <div class="activity-show__form">
+            <aside class="activity-show__panel" id="activity-enquiry">
+                <p class="activity-show__eyebrow">{{ site_trans('booking.activity_enquiry_eyebrow') }}</p>
                 <h2>{{ site_trans('booking.activity_enquiry_title') }}</h2>
-                <p>{{ site_trans('booking.activity_enquiry_lead') }}</p>
+                <p class="activity-show__lead">{{ site_trans('booking.activity_enquiry_lead') }}</p>
 
                 @if($errors->any())
                     <div class="activity-show__errors" role="alert">
@@ -126,17 +119,24 @@
                         <span>{{ site_trans('booking.activity_submit') }}</span>
                     </button>
                 </form>
-            </div>
+            </aside>
         </div>
-    </section>
+    </div>
 
     @if($allActivities->isNotEmpty())
         <section class="activity-show__more">
             <div class="container">
+                <p class="activity-show__eyebrow">{{ site_trans('nav.experiences') }}</p>
                 <h2>{{ site_trans('booking.activity_more') }}</h2>
                 <div class="activity-show__more-grid">
                     @foreach($allActivities as $other)
-                        <a wire:navigate href="{{ localized_route('activity', ['slug' => $other->slug]) }}">{{ $other->title }}</a>
+                        @php $otherCover = filled($other->cover_image) ? asset('storage/'.$other->cover_image) : null; @endphp
+                        <a wire:navigate href="{{ localized_route('activity', ['slug' => $other->slug]) }}" class="activity-show__more-card">
+                            @if($otherCover)
+                                <img src="{{ $otherCover }}" alt="" loading="lazy">
+                            @endif
+                            <span>{{ $other->title }}</span>
+                        </a>
                     @endforeach
                 </div>
             </div>

@@ -7,7 +7,10 @@
     $bookUrl = hotel_book_now_url($setting ?? null, $roomId > 0 ? $roomId : null);
     $bookExternal = hotel_book_now_is_external($setting ?? null);
     $btnClass = trim('theme-btn btn-style ' . ($style ?? 'sm-btn fill') . ' ' . ($class ?? ''));
-    $btnLabel = $label ?? site_trans('buttons.book_your_stay');
+    $btnLabel = trim((string) ($label ?? ''));
+    if ($btnLabel === '' || hotel_is_legacy_reserve_label($btnLabel)) {
+        $btnLabel = hotel_book_now_label();
+    }
 @endphp
 @if($bookExternal)
     <a href="{{ $bookUrl }}"

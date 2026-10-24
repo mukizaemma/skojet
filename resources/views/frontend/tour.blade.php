@@ -230,7 +230,7 @@
                         </div>
                         <div class="col-12">
                           <div class="booking__form-btn">
-                            <button class="custom-btn custom-btn--fluid" type="submit"><span>{{ site_trans('buttons.book_your_stay') }}</span></button>
+                            <button class="custom-btn custom-btn--fluid" type="submit"><span>{{ hotel_book_now_label() }}</span></button>
                           </div>
                         </div>
                       </div>

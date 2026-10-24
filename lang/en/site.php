@@ -517,6 +517,7 @@ return [
         'channel_nights_one' => ':count night',
         'channel_nights_many' => ':count nights',
         'channel_terms' => 'I agree to the booking conditions.',
+        'activity_enquiry_eyebrow' => 'Quotation',
         'activity_enquiry_title' => 'Send an enquiry',
         'activity_enquiry_lead' => 'Tell us the dates, the activities, and what you hope for. We will reply with a detailed quotation.',
         'activity_dates' => 'Activity dates',

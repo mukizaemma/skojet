@@ -72,7 +72,7 @@
                   <p>
                     Book your stay now for a peaceful retreat amidst nature!
                   </p>
-                  <a href="{{ hotel_reservation_url($setting) ?? '#' }}" target="_blank" rel="noopener noreferrer" class="custom-btn"><span>{{ site_trans('buttons.book_your_stay') }}</span></a>
+                  <a href="{{ hotel_reservation_url($setting) ?? '#' }}" target="_blank" rel="noopener noreferrer" class="custom-btn"><span>{{ hotel_book_now_label() }}</span></a>
 
                 </div>
               </div>

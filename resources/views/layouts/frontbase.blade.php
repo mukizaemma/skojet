@@ -91,7 +91,7 @@
     <!-- main style custom css -->
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="assets/css/kibeho-theme.css">
-    <link rel="stylesheet" href="assets/css/skojet-theme.css">
+    <link rel="stylesheet" href="assets/css/skojet-theme.css?v={{ filemtime(public_path('assets/css/skojet-theme.css')) }}">
     <!-- Font Awesome — icons, not required for first paint -->
     <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>

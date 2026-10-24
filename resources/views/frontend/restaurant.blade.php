@@ -114,7 +114,7 @@
                 <span>{{ site_trans('buttons.contact_us') }}</span>
             </a>
             <a wire:navigate href="{{ localized_route('connect') }}" class="theme-btn btn-style border">
-                <span>{{ site_trans('buttons.book_your_stay') }}</span>
+                <span>{{ hotel_book_now_label() }}</span>
             </a>
         </div>
     </div>

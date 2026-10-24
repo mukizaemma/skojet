@@ -49,11 +49,11 @@
                target="_blank"
                rel="noopener noreferrer"
                data-no-spa-navigate>
-                <span>{{ site_trans('buttons.book_your_stay') }}</span>
+                <span>{{ hotel_book_now_label() }}</span>
             </a>
         @else
             <a wire:navigate href="{{ $bookUrl }}" class="theme-btn btn-style fill hotel-cta-panel__btn">
-                <span>{{ site_trans('buttons.book_your_stay') }}</span>
+                <span>{{ hotel_book_now_label() }}</span>
             </a>
         @endif
 

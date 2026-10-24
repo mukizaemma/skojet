@@ -162,13 +162,43 @@ if (! function_exists('site_hotel_schema')) {
     }
 }
 
+if (! function_exists('hotel_is_legacy_reserve_label')) {
+    function hotel_is_legacy_reserve_label(string $label): bool
+    {
+        $normalized = mb_strtolower(trim($label));
+
+        return in_array($normalized, [
+            'reserve your suite',
+            'réservez votre suite',
+            'reservez votre suite',
+        ], true);
+    }
+}
+
+if (! function_exists('hotel_book_now_label')) {
+    /** Short label for Book Now buttons. Ignores a saved “Reserve your suite” phrase. */
+    function hotel_book_now_label(): string
+    {
+        $label = trim(site_trans('buttons.book_now'));
+        if ($label === '' || hotel_is_legacy_reserve_label($label)) {
+            return site_locale() === \App\Support\SiteLocale::FRENCH ? 'Réserver' : 'Book Now';
+        }
+
+        return $label;
+    }
+}
+
 if (! function_exists('slideshow_cta_label')) {
     function slideshow_cta_label(?object $setting = null): string
     {
         $setting = $setting ?? \App\Models\Setting::first();
         $label = trim((string) ($setting?->slideshow_cta_label ?? ''));
 
-        return $label !== '' ? $label : site_trans('buttons.book_your_stay');
+        if ($label === '' || hotel_is_legacy_reserve_label($label)) {
+            return hotel_book_now_label();
+        }
+
+        return $label;
     }
 }
 
