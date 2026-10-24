@@ -801,8 +801,9 @@
     <!-- back to top -->
     @php $stickyWhatsappDigits = hotel_whatsapp_digits($setting); @endphp
     @if(filled($stickyWhatsappDigits))
-        <a class="skojet-whatsapp-fab" href="https://wa.me/{{ $stickyWhatsappDigits }}" target="_blank" rel="noopener noreferrer" aria-label="{{ site_trans('footer.whatsapp_chat') }}">
+        <a class="skojet-whatsapp-fab" href="https://wa.me/{{ $stickyWhatsappDigits }}" target="_blank" rel="noopener noreferrer" aria-label="{{ site_trans('footer.whatsapp_direct') }}">
             <i class="fab fa-whatsapp" aria-hidden="true"></i>
+            <span>{{ site_trans('footer.whatsapp_direct') }}</span>
         </a>
     @endif
     <button type="button" class="rts__back__top" id="rts-back-to-top">

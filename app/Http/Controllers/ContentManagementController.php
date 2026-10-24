@@ -488,6 +488,7 @@ class ContentManagementController extends Controller
         Gallery::syncExistingServerPhotos();
 
         $ordered = $this->orderedGalleryImages();
+        $homeImages = $this->homeGalleryImages();
         $images = Gallery::query()
             ->photos()
             ->orderBy('sort_order')
@@ -497,8 +498,10 @@ class ContentManagementController extends Controller
 
         return view('content-management.gallery.index', [
             'images' => $images,
-            'homeImages' => $ordered->where('show_on_home', true)->values(),
+            'homeImages' => $homeImages,
             'galleryTotal' => $ordered->count(),
+            'firstHomeId' => $homeImages->first()?->id,
+            'lastHomeId' => $homeImages->last()?->id,
             'nextSort' => ((int) $ordered->max('sort_order')) + 1,
             'firstGalleryId' => $ordered->first()?->id,
             'lastGalleryId' => $ordered->last()?->id,
@@ -751,23 +754,35 @@ class ContentManagementController extends Controller
     {
         $request->validate([
             'direction' => 'required|in:up,down',
+            'scope' => 'nullable|in:home,gallery',
         ]);
 
-        $images = $this->orderedGalleryImages()->values();
+        $scope = $request->input('scope') === 'home' ? 'home' : 'gallery';
+        $images = ($scope === 'home' ? $this->homeGalleryImages() : $this->orderedGalleryImages())->values();
         $index = $images->search(fn (Gallery $row) => (int) $row->id === (int) $gallery->id);
         $swap = $request->input('direction') === 'up' ? $index - 1 : $index + 1;
 
         if ($index === false || $swap < 0 || $swap >= $images->count()) {
             return redirect()->route('content-management.gallery', [
-                'tab' => 'gallery',
-                'page' => $request->input('page'),
+                'tab' => $scope,
+                'page' => $scope === 'gallery' ? $request->input('page') : null,
             ]);
         }
 
         $items = $images->all();
-        [$items[$index], $items[$swap]] = [$items[$swap], $items[$index]];
-        $this->writeGalleryOrder(collect($items));
+        if ($scope === 'home') {
+            $this->swapSortOrder($items[$index], $items[$swap]);
+        } else {
+            [$items[$index], $items[$swap]] = [$items[$swap], $items[$index]];
+            $this->writeGalleryOrder(collect($items));
+        }
         PublicWebsiteData::flushCaches();
+
+        if ($scope === 'home') {
+            return redirect()->route('content-management.gallery', [
+                'tab' => 'home',
+            ])->with('success', 'Homepage order updated.');
+        }
 
         $perPage = 15;
         $newPage = (int) floor($swap / $perPage) + 1;
@@ -885,9 +900,32 @@ class ContentManagementController extends Controller
             ->with('success', 'Gallery image removed.');
     }
 
+    private function homeGalleryImages()
+    {
+        return Gallery::query()
+            ->where('show_on_home', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+    }
+
     private function homeGalleryCount(): int
     {
-        return Gallery::query()->where('show_on_home', true)->count();
+        return $this->homeGalleryImages()->count();
+    }
+
+    private function swapSortOrder(Gallery $current, Gallery $neighbor): void
+    {
+        $currentOrder = (int) $current->sort_order;
+        $neighborOrder = (int) $neighbor->sort_order;
+        if ($currentOrder === $neighborOrder) {
+            $neighborOrder = $currentOrder + 1;
+        }
+
+        $current->sort_order = $neighborOrder;
+        $neighbor->sort_order = $currentOrder;
+        $current->save();
+        $neighbor->save();
     }
 
     /**

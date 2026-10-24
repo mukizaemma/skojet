@@ -69,13 +69,15 @@ class PublicWebsiteData
     {
         return Cache::remember(self::HOME_CACHE_KEY, 600, function () {
             $homeGallery = Gallery::query()
-                ->where('media_type', 'image')
                 ->where('show_on_home', true)
                 ->whereNotNull('image')
+                ->where('image', '!=', '')
                 ->orderBy('sort_order')
                 ->orderBy('id')
-                ->limit(6)
-                ->get();
+                ->get()
+                ->filter(fn (Gallery $image) => $image->publicImageUrl() !== '')
+                ->take(6)
+                ->values();
 
             return [
                 'setting' => Setting::query()->first(),
@@ -589,6 +591,7 @@ class PublicWebsiteData
             ->where('id', '!=', $activity->id)
             ->take(3)
             ->get();
+        $enquiryActivities = TourActivity::query()->active()->ordered()->get(['id', 'title']);
         $setting = Setting::first();
         $about = About::first();
 
@@ -596,6 +599,7 @@ class PublicWebsiteData
             'activity' => $activity,
             'images' => $images,
             'allActivities' => $allActivities,
+            'enquiryActivities' => $enquiryActivities,
             'setting' => $setting,
             'about' => $about,
         ];

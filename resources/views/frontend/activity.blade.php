@@ -1,116 +1,145 @@
-<div class="public-livewire-page">
-
+<div class="public-livewire-page activity-show">
 @php
-    $heroImage = $activity->cover_image
-        ? asset('storage/' . $activity->cover_image)
-        : (($about && $about?->image2) ? asset('storage/' . $about?->image2) : asset('storage/images/about/default.jpg'));
+    $coverUrl = filled($activity->cover_image) ? asset('storage/'.$activity->cover_image) : null;
+    $selectedActivityIds = array_map('intval', (array) old('activity_ids', [$activity->id]));
+    $imageUrl = function (?string $path): ?string {
+        if (! filled($path)) {
+            return null;
+        }
+        if (str_contains($path, '/')) {
+            return asset('storage/'.$path);
+        }
+
+        return asset('storage/images/tour-activities/'.$path);
+    };
 @endphp
 
-    <!-- Page header: cover image -->
-    <div class="rts__section page__hero__height page__hero__bg" style="background-image: url({{ $heroImage }}); background-size: cover; background-position: center; background-repeat: no-repeat;">
+    <header class="activity-show__intro">
         <div class="container">
-            <div class="row align-items-center justify-content-center">
-                <div class="col-lg-12">
-                    <div class="page__hero__content">
-                        <h1 class="wow fadeInUp">{{ $activity->title }}</h1>
-                        <p class="wow fadeInUp font-sm">Book your spot for this experience</p>
-                    </div>
-                </div>
-            </div>
+            <p class="activity-show__eyebrow">{{ site_trans('nav.experiences') }}</p>
+            <h1>{{ $activity->title }}</h1>
         </div>
-    </div>
+    </header>
 
-    <!-- Description -->
-    <div class="rts__section section__padding" style="background: #fff;">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-10 mx-auto">
-                    <div class="mb-0">
-                        {!! $activity->description !!}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Gallery -->
-    @if($images->isNotEmpty())
-    <div class="rts__section section__padding" style="background: #f9f9f9;">
-        <div class="container">
-            <div class="row justify-content-center text-center mb-4">
-                <div class="col-lg-6">
-                    <h2 class="mb-0" style="font-size: 28px; font-weight: bold;">Gallery</h2>
-                </div>
-            </div>
-            <div class="row g-4">
-                @foreach($images as $img)
-                    @php
-                        $imgUrl = $img->image && (strpos($img->image, 'tour-activities/') === 0 || strpos($img->image, '/') !== false)
-                            ? asset('storage/' . $img->image)
-                            : asset('storage/images/tour-activities/' . $img->image);
-                    @endphp
-                    <div class="col-lg-4 col-md-6">
-                        <div class="rounded-3 overflow-hidden shadow-sm bg-white">
-                            <img src="{{ $imgUrl }}" alt="{{ $img->caption ?? $activity->title }}" loading="lazy" style="width: 100%; height: 260px; object-fit: cover;">
-                            @if(!empty($img->caption))
-                                <p class="p-3 mb-0 small text-muted">{{ $img->caption }}</p>
-                            @endif
-                        </div>
-                    </div>
-                @endforeach
-            </div>
-        </div>
-    </div>
+    @if($coverUrl)
+        <figure class="activity-show__cover">
+            <img src="{{ $coverUrl }}" alt="{{ $activity->title }}">
+        </figure>
     @endif
 
-    <!-- Booking form for this tour activity -->
-    <div class="rts__section section__padding" id="booking">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-8 mx-auto">
-                    <div class="rts__booking__form has__background" style="padding: 40px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
-                        <h3 class="mb-20 text-center">Book or enquire</h3>
-                        <p class="text-muted small text-center mb-4">
-                            Room nights: <strong>Booking.com</strong>. For this activity, contact us on WhatsApp or email.
-                        </p>
-                        @include('frontend.includes.hotel-booking-channels', [
-                            'contextLabel' => ' Activity: '.$activity->title,
-                            'tourActivityId' => $activity->id,
-                        ])
-                    </div>
+    @if(filled(trim(strip_tags($activity->description ?? ''))))
+        <section class="activity-show__story">
+            <div class="container">
+                <div class="activity-show__copy">
+                    {!! $activity->description !!}
                 </div>
             </div>
-        </div>
-    </div>
+        </section>
+    @endif
 
-    <!-- Other activities -->
-    @if($allActivities->isNotEmpty())
-    <div class="rts__section section__padding" style="background: #f9f9f9;">
-        <div class="container">
-            <div class="row justify-content-center text-center mb-4">
-                <div class="col-lg-6">
-                    <h2 class="mb-0" style="font-size: 28px; font-weight: bold;">Other Tour Activities</h2>
+    @if($images->isNotEmpty())
+        <section class="activity-show__gallery" aria-label="{{ site_trans('booking.activity_gallery') }}">
+            <div class="container">
+                <h2>{{ site_trans('booking.activity_gallery') }}</h2>
+                <div class="activity-show__grid">
+                    @foreach($images as $img)
+                        @php $imgUrl = $imageUrl($img->image); @endphp
+                        @if($imgUrl)
+                            <figure>
+                                <img src="{{ $imgUrl }}" alt="{{ $img->caption ?: $activity->title }}" loading="lazy">
+                                @if(filled($img->caption))
+                                    <figcaption>{{ $img->caption }}</figcaption>
+                                @endif
+                            </figure>
+                        @endif
+                    @endforeach
                 </div>
             </div>
-            <div class="row g-4">
-                @foreach($allActivities as $other)
-                    @php
-                        $otherCover = $other->cover_image ? asset('storage/' . $other->cover_image) : asset('storage/images/about/default.jpg');
-                    @endphp
-                    <div class="col-lg-4 col-md-6">
-                        <div class="h-100 rounded-3 overflow-hidden shadow-sm bg-white">
-                            <a wire:navigate href="{{ localized_route('activity', ['slug' => $other->slug]) }}">
-                                <img src="{{ $otherCover }}" alt="{{ $other->title }}" loading="lazy" style="width: 100%; height: 220px; object-fit: cover;">
-                            </a>
-                            <div class="p-3">
-                                <a wire:navigate href="{{ localized_route('activity', ['slug' => $other->slug]) }}" class="h6 text-dark text-decoration-none">{{ $other->title }}</a>
-                                <a wire:navigate href="{{ localized_route('activity', ['slug' => $other->slug]) }}" class="d-block mt-2 small text-primary">View more</a>
-                            </div>
-                        </div>
+        </section>
+    @endif
+
+    <section class="activity-show__enquiry" id="activity-enquiry">
+        <div class="container">
+            <div class="activity-show__form">
+                <h2>{{ site_trans('booking.activity_enquiry_title') }}</h2>
+                <p>{{ site_trans('booking.activity_enquiry_lead') }}</p>
+
+                @if($errors->any())
+                    <div class="activity-show__errors" role="alert">
+                        <ul>
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
                     </div>
-                @endforeach
+                @endif
+
+                <form action="{{ route('enquiry.submit') }}" method="POST" data-no-spa-navigate>
+                    @csrf
+                    <input type="hidden" name="enquiry_type" value="activity">
+                    <input type="hidden" name="activity_id" value="{{ $activity->id }}">
+
+                    <div class="activity-show__fields">
+                        <label>
+                            <span>{{ site_trans('booking.form_name') }} *</span>
+                            <input type="text" name="names" value="{{ old('names') }}" required autocomplete="name">
+                        </label>
+                        <label>
+                            <span>{{ site_trans('booking.form_phone') }} *</span>
+                            <input type="tel" name="phone" value="{{ old('phone') }}" required autocomplete="tel">
+                        </label>
+                        <label class="is-wide">
+                            <span>{{ site_trans('booking.form_email') }} *</span>
+                            <input type="email" name="email" value="{{ old('email') }}" required autocomplete="email">
+                        </label>
+                        <fieldset class="is-wide">
+                            <legend>{{ site_trans('booking.activity_dates') }} *</legend>
+                            <div class="activity-show__dates">
+                                <label>
+                                    <span>{{ site_trans('booking.activity_date_start') }}</span>
+                                    <input type="date" name="activity_start" value="{{ old('activity_start') }}" min="{{ now()->toDateString() }}" required>
+                                </label>
+                                <label>
+                                    <span>{{ site_trans('booking.activity_date_end') }}</span>
+                                    <input type="date" name="activity_end" value="{{ old('activity_end') }}" min="{{ old('activity_start', now()->toDateString()) }}" required>
+                                </label>
+                            </div>
+                        </fieldset>
+                        <fieldset class="is-wide">
+                            <legend>{{ site_trans('booking.activity_choices') }} *</legend>
+                            <div class="activity-show__choices">
+                                @foreach($enquiryActivities as $option)
+                                    <label>
+                                        <input type="checkbox" name="activity_ids[]" value="{{ $option->id }}" @checked(in_array((int) $option->id, $selectedActivityIds, true))>
+                                        <span>{{ $option->title }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </fieldset>
+                        <label class="is-wide">
+                            <span>{{ site_trans('booking.activity_expectations') }} *</span>
+                            <textarea name="expectations" rows="5" required placeholder="{{ site_trans('booking.activity_expectations_hint') }}">{{ old('expectations') }}</textarea>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="theme-btn btn-style fill">
+                        <span>{{ site_trans('booking.activity_submit') }}</span>
+                    </button>
+                </form>
             </div>
         </div>
-    </div>
+    </section>
+
+    @if($allActivities->isNotEmpty())
+        <section class="activity-show__more">
+            <div class="container">
+                <h2>{{ site_trans('booking.activity_more') }}</h2>
+                <div class="activity-show__more-grid">
+                    @foreach($allActivities as $other)
+                        <a wire:navigate href="{{ localized_route('activity', ['slug' => $other->slug]) }}">{{ $other->title }}</a>
+                    @endforeach
+                </div>
+            </div>
+        </section>
     @endif
 </div>

@@ -223,7 +223,7 @@
             meta.innerHTML = '';
             var form = input.closest('form');
             if (form) {
-                form.querySelectorAll('input[name="existing_images[]"]').forEach(function (el) {
+                form.querySelectorAll('input[data-existing-for="' + existingFieldKey(input) + '"]').forEach(function (el) {
                     el.remove();
                 });
             }
@@ -528,12 +528,19 @@
 
             var form = activeInput.closest('form');
             if (form) {
+                var fieldKey = existingFieldKey(activeInput);
+                if (!activeInput.multiple) {
+                    form.querySelectorAll('input[data-existing-for="' + fieldKey + '"]').forEach(function (el) {
+                        el.remove();
+                    });
+                }
                 selectedLibrary.forEach(function (item) {
                     if (!item.path) return;
                     var hidden = document.createElement('input');
                     hidden.type = 'hidden';
-                    hidden.name = 'existing_images[]';
+                    hidden.name = activeInput.multiple ? 'existing_images[]' : 'existing_cover';
                     hidden.value = item.path;
+                    hidden.setAttribute('data-existing-for', fieldKey);
                     form.appendChild(hidden);
                 });
             }
@@ -546,6 +553,10 @@
             useBtn.disabled = false;
             useBtn.textContent = 'Use selected';
         }
+    }
+
+    function existingFieldKey(input) {
+        return input.id || input.name || 'image';
     }
 
     function shouldEnhance(input) {

@@ -62,8 +62,9 @@ class RoomManagementController extends Controller
         $room->room_status = 'available';
         $room->user_id = auth()->id();
 
-        if ($request->hasFile('cover_image')) {
-            $room->cover_image = store_optimized_image($request->file('cover_image'), 'rooms');
+        $coverPath = $this->resolveCoverPath($request);
+        if ($coverPath !== null) {
+            $room->cover_image = $coverPath;
         }
 
         $room->save();
@@ -73,15 +74,7 @@ class RoomManagementController extends Controller
             $room->amenities()->sync($request->amenities);
         }
 
-        // Handle gallery images
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $index => $image) {
-                Roomimage::create([
-                    'room_id' => $room->id,
-                    'image' => store_optimized_image($image, 'rooms/gallery'),
-                ]);
-            }
-        }
+        $this->attachGalleryImages($request, $room);
 
         return response()->json(['success' => true, 'message' => 'Room created successfully']);
     }
@@ -121,11 +114,12 @@ class RoomManagementController extends Controller
         $room->guests_included_in_price = min((int) $room->guests_included_in_price ?: 2, (int) $request->max_occupancy);
         $room->status = $request->status;
 
-        if ($request->hasFile('cover_image')) {
-            if ($room->cover_image) {
+        $coverPath = $this->resolveCoverPath($request, $room->cover_image);
+        if ($coverPath !== null && $coverPath !== $room->cover_image) {
+            if ($room->cover_image && str_starts_with((string) $room->cover_image, 'rooms/')) {
                 Storage::disk('public')->delete($room->cover_image);
             }
-            $room->cover_image = store_optimized_image($request->file('cover_image'), 'rooms');
+            $room->cover_image = $coverPath;
         }
 
         $room->save();
@@ -137,15 +131,7 @@ class RoomManagementController extends Controller
             $room->amenities()->detach();
         }
 
-        // Handle new gallery images
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $index => $image) {
-                Roomimage::create([
-                    'room_id' => $room->id,
-                    'image' => store_optimized_image($image, 'rooms/gallery'),
-                ]);
-            }
-        }
+        $this->attachGalleryImages($request, $room);
 
         return response()->json(['success' => true, 'message' => 'Room updated successfully']);
     }
@@ -289,5 +275,87 @@ class RoomManagementController extends Controller
         $number = round((float) $value, 2);
 
         return $number < 0 ? null : $number;
+    }
+
+    private function resolveCoverPath(Request $request, ?string $current = null): ?string
+    {
+        if ($request->hasFile('cover_image')) {
+            $stored = store_optimized_image($request->file('cover_image'), 'rooms');
+            if (is_string($stored) && $stored !== '' && Storage::disk('public')->exists($stored)) {
+                return $stored;
+            }
+        }
+
+        $existing = $this->existingPublicImage($request->input('existing_cover'));
+        if ($existing !== null && $existing !== $current) {
+            return $existing;
+        }
+
+        return null;
+    }
+
+    private function attachGalleryImages(Request $request, Room $room): void
+    {
+        $linked = [];
+        foreach ((array) $request->input('existing_images', []) as $relative) {
+            $path = $this->existingPublicImage($relative);
+            if ($path === null || isset($linked[$path])) {
+                continue;
+            }
+            $linked[$path] = true;
+            $already = $room->images()->where('image', $path)->exists();
+            if ($already) {
+                continue;
+            }
+            Roomimage::create([
+                'room_id' => $room->id,
+                'image' => $path,
+            ]);
+        }
+
+        if (! $request->hasFile('images')) {
+            return;
+        }
+
+        foreach ($request->file('images') as $image) {
+            if (! $image) {
+                continue;
+            }
+            $stem = pathinfo($image->getClientOriginalName(), PATHINFO_FILENAME);
+            $alreadyLinked = false;
+            foreach (array_keys($linked) as $path) {
+                if (pathinfo($path, PATHINFO_FILENAME) === $stem) {
+                    $alreadyLinked = true;
+                    break;
+                }
+            }
+            if ($alreadyLinked) {
+                continue;
+            }
+            $stored = store_optimized_image($image, 'rooms/gallery');
+            if (! is_string($stored) || $stored === '' || ! Storage::disk('public')->exists($stored)) {
+                continue;
+            }
+            Roomimage::create([
+                'room_id' => $room->id,
+                'image' => $stored,
+            ]);
+        }
+    }
+
+    private function existingPublicImage(mixed $path): ?string
+    {
+        $path = str_replace('\\', '/', trim((string) $path));
+        $path = ltrim($path, '/');
+        if ($path === '' || str_contains($path, '..') || str_contains($path, "\0")) {
+            return null;
+        }
+
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        if (! in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true)) {
+            return null;
+        }
+
+        return Storage::disk('public')->exists($path) ? $path : null;
     }
 }

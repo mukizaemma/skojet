@@ -256,6 +256,18 @@ class BookNowPage extends Component
         $this->syncLimitFeedback();
     }
 
+    public function selectMealPlan(string $board): void
+    {
+        if (! isset(Room::BOARD_PLANS[$board]) || ! $this->selectedRoom()) {
+            return;
+        }
+
+        $this->board = $board;
+        $this->occupancy = '';
+        $this->alignRate();
+        $this->rememberStay();
+    }
+
     public function setStayDates(string $checkin, string $checkout): void
     {
         $this->checkin = $checkin;
@@ -490,6 +502,15 @@ class BookNowPage extends Component
         }
 
         $prefer = (int) $this->adults <= 1 ? 'single' : 'double';
+        $onPlan = $room->rateCell($this->board, $prefer, $currency)
+            ?? $room->rateCell($this->board, $prefer === 'single' ? 'double' : 'single', $currency);
+        if ($onPlan) {
+            $this->board = $onPlan['board'];
+            $this->occupancy = $onPlan['occupancy'];
+
+            return;
+        }
+
         $resolved = $room->resolveRate($this->board, $this->occupancy, $prefer, $currency);
         $this->board = $resolved['board'];
         $this->occupancy = $resolved['occupancy'];

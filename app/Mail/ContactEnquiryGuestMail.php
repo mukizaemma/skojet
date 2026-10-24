@@ -20,12 +20,15 @@ class ContactEnquiryGuestMail extends Mailable
         $subject = 'We received your message — '.config('app.name');
         if (($this->enquiry->enquiry_type ?? '') === 'proposal') {
             $subject = 'We received your proposal request — '.config('app.name');
+        } elseif (($this->enquiry->enquiry_type ?? '') === 'activity') {
+            $subject = 'We received your activity enquiry — '.config('app.name');
         }
 
         $type = $this->enquiry->enquiry_type ?? 'general';
         $enquiryTypeLine = match ($type) {
             'room' => 'room enquiry',
             'proposal' => 'proposal request',
+            'activity' => 'activity enquiry',
             default => 'message',
         };
 

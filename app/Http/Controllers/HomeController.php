@@ -330,7 +330,7 @@ class HomeController extends Controller
     {
         $enquiryType = $request->input('enquiry_type', 'general');
         $rules = [
-            'enquiry_type' => 'required|in:general,room',
+            'enquiry_type' => 'required|in:general,room,activity',
             'names' => 'required|string|max:255',
             'phone' => 'required|string|max:60',
             'email' => 'required|email|max:255',
@@ -339,6 +339,13 @@ class HomeController extends Controller
         if ($enquiryType === 'general') {
             $rules['subject'] = 'required|string|max:255';
             $rules['message'] = 'required|string|max:5000';
+        } elseif ($enquiryType === 'activity') {
+            $rules['activity_id'] = 'nullable|integer|exists:tour_activities,id';
+            $rules['activity_start'] = 'required|date|after_or_equal:today';
+            $rules['activity_end'] = 'required|date|after_or_equal:activity_start';
+            $rules['activity_ids'] = 'required|array|min:1|max:20';
+            $rules['activity_ids.*'] = 'integer|exists:tour_activities,id';
+            $rules['expectations'] = 'required|string|max:5000';
         } else {
             $rules['room_id'] = 'required|exists:rooms,id';
             $rules['checkin_date'] = 'required|date|after_or_equal:today';
@@ -374,6 +381,26 @@ class HomeController extends Controller
             if ($request->filled('enquiry_context')) {
                 $payload['message'] = trim($payload['message']."\n\n[Context:".trim((string) $request->input('enquiry_context')).']');
             }
+        } elseif ($validated['enquiry_type'] === 'activity') {
+            $page = filled($validated['activity_id'] ?? null)
+                ? TourActivity::query()->find($validated['activity_id'])
+                : null;
+            $chosen = TourActivity::query()
+                ->whereIn('id', $validated['activity_ids'])
+                ->ordered()
+                ->pluck('title');
+            $pageTitle = $page?->title ?: ($chosen->first() ?: 'Activity');
+            $payload['subject'] = 'Activity quotation: '.$pageTitle;
+            $payload['checkin_date'] = $validated['activity_start'];
+            $payload['checkout_date'] = $validated['activity_end'];
+            $payload['message'] = implode("\n", [
+                'Activity page: '.$pageTitle,
+                'Dates: '.$validated['activity_start'].' to '.$validated['activity_end'],
+                'Activities: '.$chosen->implode(', '),
+                '',
+                'Expectations:',
+                $validated['expectations'],
+            ]);
         } else {
             $room = Room::find($validated['room_id']);
             $payload['room_id'] = (int) $validated['room_id'];
@@ -407,7 +434,7 @@ class HomeController extends Controller
         $guestSent = SiteNotificationMail::sendToGuest($message->email, new ContactEnquiryGuestMail($message));
 
         return $this->redirectBackWithContactEmailSwal(
-            redirect()->back()->withFragment('enquiry-contacts'),
+            redirect()->back()->withFragment($validated['enquiry_type'] === 'activity' ? 'activity-enquiry' : 'enquiry-contacts'),
             $adminSent,
             $guestSent,
             true,

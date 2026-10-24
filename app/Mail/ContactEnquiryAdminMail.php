@@ -19,12 +19,21 @@ class ContactEnquiryAdminMail extends Mailable
     {
         $type = $this->enquiry->enquiry_type ?? 'general';
 
-        $prefix = $type === 'proposal' ? 'New proposal request' : 'New website enquiry';
+        $prefix = match ($type) {
+            'proposal' => 'New proposal request',
+            'activity' => 'Activity quotation',
+            default => 'New website enquiry',
+        };
 
-        $adminTitle = $type === 'proposal' ? 'New proposal request' : 'New website enquiry';
+        $adminTitle = match ($type) {
+            'proposal' => 'New proposal request',
+            'activity' => 'Activity quotation',
+            default => 'New website enquiry',
+        };
         $typeLabel = match ($type) {
             'room' => 'Room enquiry',
             'proposal' => 'Proposal (meetings / dining)',
+            'activity' => 'Activity quotation',
             default => 'General information',
         };
 

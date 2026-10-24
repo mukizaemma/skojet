@@ -189,30 +189,19 @@
                         <textarea class="form-control" id="room_description" name="description" rows="6" placeholder="Enter room description..."></textarea>
                         <small class="text-muted">Use the rich text editor toolbar to format your room description with styles, colors, lists, and more</small>
                     </div>
-                    <div class="mb-3" id="room_current_media" style="display: none;">
-                        <label class="form-label">Current images</label>
-                        <div class="border rounded p-3 bg-white">
-                            <div class="mb-3">
-                                <div class="small text-muted mb-1">Cover</div>
-                                <div id="room_current_cover" class="d-flex align-items-start gap-3 flex-wrap"></div>
-                            </div>
-                            <div>
-                                <div class="small text-muted mb-1">Gallery</div>
-                                <div id="room_current_gallery" class="d-flex flex-wrap gap-2"></div>
-                                <p id="room_current_gallery_empty" class="small text-muted mb-0" style="display: none;">No gallery images yet.</p>
-                            </div>
-                        </div>
-                    </div>
                     <div class="mb-3">
                         <label class="form-label">Cover Image</label>
+                        <div id="room_current_cover" class="d-flex align-items-start gap-3 flex-wrap mb-2"></div>
                         <input type="file" class="form-control" id="room_cover_image" name="cover_image" accept="image/*">
                         @include('content-management.includes.image-upload-hint')
-                        <small class="text-muted">Optional — replaces the current cover when you choose a new or existing image.</small>
+                        <small class="text-muted">The current cover is shown above. Upload a new photo or choose an existing one to replace it when you save.</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Gallery Images (Multiple)</label>
+                        <div id="room_current_gallery" class="d-flex flex-wrap gap-2 mb-2"></div>
+                        <p id="room_current_gallery_empty" class="small text-muted mb-2" style="display: none;">No gallery images yet.</p>
                         <input type="file" class="form-control" id="room_images" name="images[]" multiple accept="image/*">
-                        <small class="text-muted">Adds to the gallery below. Existing gallery images stay unless you remove them.</small>
+                        <small class="text-muted">New images are added to the gallery above. Existing gallery images stay unless you remove them.</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Amenities</label>
@@ -267,34 +256,29 @@ function __formatRoomAdminPrice (v) {
 let currentRoomId = null;
 
 function clearRoomCurrentMedia() {
-    const wrap = document.getElementById('room_current_media');
     const cover = document.getElementById('room_current_cover');
     const gallery = document.getElementById('room_current_gallery');
     const empty = document.getElementById('room_current_gallery_empty');
-    if (!wrap) return;
-    wrap.style.display = 'none';
-    cover.innerHTML = '';
-    gallery.innerHTML = '';
-    empty.style.display = 'none';
+    if (cover) cover.innerHTML = '';
+    if (gallery) gallery.innerHTML = '';
+    if (empty) empty.style.display = 'none';
 }
 
 function renderRoomCurrentMedia(data) {
-    const wrap = document.getElementById('room_current_media');
     const cover = document.getElementById('room_current_cover');
     const gallery = document.getElementById('room_current_gallery');
     const empty = document.getElementById('room_current_gallery_empty');
-    if (!wrap) return;
+    if (!cover || !gallery) return;
 
-    wrap.style.display = 'block';
     cover.innerHTML = '';
     gallery.innerHTML = '';
 
     if (data.cover_url) {
         cover.innerHTML =
-            '<img src="' + data.cover_url + '" alt="Cover" class="rounded border" style="width:160px;height:110px;object-fit:cover;">' +
-            '<div class="small text-muted">Current cover image</div>';
+            '<img src="' + data.cover_url + '" alt="Cover" class="rounded border" style="width:220px;height:150px;object-fit:cover;display:block;background:#f3f4f6;">' +
+            '<div class="small text-muted">Current cover. Use the buttons below to replace it.</div>';
     } else {
-        cover.innerHTML = '<span class="small text-muted">No cover image yet.</span>';
+        cover.innerHTML = '<span class="small text-muted">No cover image yet. Upload one or choose an existing photo below.</span>';
     }
 
     const images = Array.isArray(data.images) ? data.images : [];

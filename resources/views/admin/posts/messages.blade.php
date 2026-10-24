@@ -44,6 +44,8 @@
                                     <span class="badge badge-info">Room</span>
                                 @elseif(($rs->enquiry_type ?? '') === 'proposal')
                                     <span class="badge badge-primary">Proposal</span>
+                                @elseif(($rs->enquiry_type ?? '') === 'activity')
+                                    <span class="badge badge-success">Activity</span>
                                 @else
                                     <span class="badge badge-secondary">General</span>
                                 @endif

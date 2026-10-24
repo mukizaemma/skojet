@@ -45,7 +45,7 @@
             <div class="tab-content">
                 <div class="tab-pane fade {{ $activeTab === 'home' ? 'show active' : '' }}" id="home-gallery-pane" role="tabpanel" aria-labelledby="home-gallery-tab">
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-                        <p class="text-muted small mb-0">These images appear on the homepage. Order follows the sort number, and only the first 6 are shown.</p>
+                        <p class="text-muted small mb-0">These are the homepage images, in the order visitors see them. Use the arrows to rearrange them. The homepage shows the first 6.</p>
                         @if($homeImages->count() < 6)
                             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#galleryAddModal" data-show-home="1" data-return-tab="home">
                                 <i class="fa fa-plus me-2"></i>Add home image
@@ -59,7 +59,11 @@
                         <div class="row g-3">
                             @foreach($homeImages as $image)
                                 <div class="col-md-4">
-                                    @include('content-management.gallery.card', ['image' => $image, 'returnTab' => 'home'])
+                                    @include('content-management.gallery.card', [
+                                        'image' => $image,
+                                        'returnTab' => 'home',
+                                        'homePosition' => $loop->iteration,
+                                    ])
                                 </div>
                             @endforeach
                         </div>

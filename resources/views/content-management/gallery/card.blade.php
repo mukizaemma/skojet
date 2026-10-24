@@ -7,9 +7,30 @@
     @endif
     <div class="card-body py-3">
         <p class="mb-1 fw-semibold">{{ $image->caption ?: 'Untitled' }}</p>
-        <p class="small text-muted mb-2">Order {{ $image->sort_order }}@if($image->show_on_home) · On home page @endif</p>
+        @if(($returnTab ?? '') === 'home')
+            <p class="small text-muted mb-2">Position {{ $homePosition ?? $image->sort_order }} on the home page</p>
+        @else
+            <p class="small text-muted mb-2">Order {{ $image->sort_order }}@if($image->show_on_home) · On home page @endif</p>
+        @endif
         <div class="d-flex flex-wrap gap-2">
-            @if($returnTab === 'gallery')
+            @if(($returnTab ?? '') === 'home')
+                <form action="{{ route('content-management.gallery.move', $image) }}" method="POST">
+                    @csrf
+                    <input type="hidden" name="direction" value="up">
+                    <input type="hidden" name="scope" value="home">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary" @disabled((int) $image->id === (int) ($firstHomeId ?? 0)) title="Move earlier on the home page">
+                        <i class="fa fa-arrow-up"></i>
+                    </button>
+                </form>
+                <form action="{{ route('content-management.gallery.move', $image) }}" method="POST">
+                    @csrf
+                    <input type="hidden" name="direction" value="down">
+                    <input type="hidden" name="scope" value="home">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary" @disabled((int) $image->id === (int) ($lastHomeId ?? 0)) title="Move later on the home page">
+                        <i class="fa fa-arrow-down"></i>
+                    </button>
+                </form>
+            @elseif($returnTab === 'gallery')
                 <form action="{{ route('content-management.gallery.move', $image) }}" method="POST">
                     @csrf
                     <input type="hidden" name="direction" value="up">

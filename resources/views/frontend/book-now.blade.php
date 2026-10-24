@@ -115,6 +115,34 @@
                                         <input type="text" wire:model="postal_code" autocomplete="postal-code">
                                     </label>
                                 </div>
+                                @php
+                                    $mealPlans = $selectedRoom->publicRatePlans(hotel_currency($setting));
+                                @endphp
+                                @if($mealPlans !== [])
+                                    <div class="book-channel__meals is-wide" role="radiogroup" aria-label="{{ site_trans('booking.channel_meal_plan') }}">
+                                        <p class="book-channel__meal-heading">{{ site_trans('booking.channel_meal_plan') }}</p>
+                                        @foreach($mealPlans as $plan)
+                                            @php
+                                                $planOccupancy = (int) $adults <= 1 && $plan['single_sale'] !== null ? 'single' : 'double';
+                                                if ($plan[$planOccupancy.'_sale'] === null) {
+                                                    $planOccupancy = $planOccupancy === 'single' ? 'double' : 'single';
+                                                }
+                                                $planNightly = $plan[$planOccupancy.'_sale'];
+                                            @endphp
+                                            <button
+                                                type="button"
+                                                class="book-channel__meal {{ $board === $plan['key'] ? 'is-selected' : '' }}"
+                                                role="radio"
+                                                aria-checked="{{ $board === $plan['key'] ? 'true' : 'false' }}"
+                                                wire:click="selectMealPlan('{{ $plan['key'] }}')"
+                                            >
+                                                <strong>{{ site_trans('room.board_'.$plan['key']) }}</strong>
+                                                <span>{{ site_trans('room.board_note_'.$plan['key']) }}</span>
+                                                <em>{{ hotel_price($planNightly, $setting) }} {{ site_trans('booking.channel_per_night') }}</em>
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                @endif
                                 <label class="is-wide">
                                     <span>{{ site_trans('booking.channel_requests') }}</span>
                                     <textarea wire:model="message" rows="2"></textarea>
@@ -149,15 +177,26 @@
                             @if(isset(\App\Models\Room::BOARD_PLANS[$board]) && in_array($occupancy, ['single', 'double'], true))
                                 <p class="book-channel__meta">{{ site_trans('room.board_'.$board) }} · {{ site_trans('room.occ_'.$occupancy.'_long') }}</p>
                             @endif
-                            <p class="book-channel__meta">
-                                {{ \Carbon\Carbon::parse($checkin)->format('D, M j, Y') }}
-                                – {{ \Carbon\Carbon::parse($checkout)->format('D, M j, Y') }}
-                            </p>
+                            <div class="book-channel__stay-dates">
+                                <label>
+                                    <span>{{ site_trans('booking.form_checkin') }}</span>
+                                    <input type="date" wire:model.live="checkin" min="{{ now()->toDateString() }}" required>
+                                </label>
+                                <label>
+                                    <span>{{ site_trans('booking.form_checkout') }}</span>
+                                    <input type="date" wire:model.live="checkout" min="{{ $checkin }}" required>
+                                </label>
+                            </div>
+                            @error('checkin') <small class="book-channel__error">{{ $message }}</small> @enderror
+                            @error('checkout') <small class="book-channel__error">{{ $message }}</small> @enderror
+                            @if($datesReady && (int) $roomsAvailable < (int) $room_count)
+                                <small class="book-channel__error">{{ site_trans('booking.wizard_rooms_dates_inventory', ['max' => $roomsAvailable, 'inventory' => $roomInventory]) }}</small>
+                            @endif
                             <p class="book-channel__meta">{{ $nights }} {{ $nights === 1 ? 'night' : 'nights' }} · {{ site_trans('booking.channel_guests_line', ['count' => $guestCount]) }}</p>
 
                             <dl>
                                 <div>
-                                    <dt>{{ site_trans('booking.channel_standard') }}</dt>
+                                    <dt>{{ isset(\App\Models\Room::BOARD_PLANS[$board]) ? site_trans('room.board_'.$board) : site_trans('booking.channel_standard') }}</dt>
                                     <dd>{{ hotel_price($selectedQuote['list_total'] ?? 0, $setting) }}</dd>
                                 </div>
                                 @if(!empty($selectedQuote['has_discount']))
