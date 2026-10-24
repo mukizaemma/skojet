@@ -17,6 +17,7 @@ use App\Models\Facility;
 use App\Models\Amenity;
 use App\Models\Gallery;
 use App\Services\AggregatedGalleryService;
+use App\Services\PublicWebsiteData;
 use App\Models\Slide;
 use App\Models\Setting;
 use App\Models\ServiceImage;
@@ -483,9 +484,11 @@ class ContentManagementController extends Controller
 
     public function gallery()
     {
+        Gallery::reconcileImagePaths();
+
         $ordered = $this->orderedGalleryImages();
         $images = Gallery::query()
-            ->where('media_type', 'image')
+            ->photos()
             ->orderBy('sort_order')
             ->orderBy('id')
             ->paginate(15)
@@ -521,6 +524,10 @@ class ContentManagementController extends Controller
             'sort_order' => 'nullable|integer|min:0|max:9999',
             'show_on_home' => 'nullable|boolean',
             'return_tab' => 'nullable|in:home,gallery',
+        ], [
+            'images.required' => 'Choose at least one image to upload.',
+            'images.*.image' => 'Each file must be a JPG, PNG, GIF, or WEBP photo.',
+            'images.*.max' => 'Each image must be 15 MB or smaller.',
         ]);
 
         $wantHome = $request->boolean('show_on_home');
@@ -531,12 +538,33 @@ class ContentManagementController extends Controller
             $homeFullNote = ' The home page already has 6 images, so these were added to the gallery page only.';
         }
 
+        Storage::disk('public')->makeDirectory('gallery');
+
         $sort = $request->filled('sort_order')
             ? (int) $validated['sort_order']
             : ((int) Gallery::query()->max('sort_order') + 1);
         $placedHome = 0;
+        $saved = 0;
+        $failed = [];
 
         foreach ($files as $file) {
+            if (! $file || ! $file->isValid()) {
+                $failed[] = $file ? $file->getClientOriginalName() : 'a selected file';
+                continue;
+            }
+
+            try {
+                $path = store_optimized_image($file, 'gallery');
+            } catch (\Throwable $e) {
+                $failed[] = $file->getClientOriginalName();
+                continue;
+            }
+
+            if ($path === '' || ! Storage::disk('public')->exists($path)) {
+                $failed[] = $file->getClientOriginalName();
+                continue;
+            }
+
             $onHome = $wantHome && $placedHome < $homeSlots;
             if ($onHome) {
                 $placedHome++;
@@ -547,12 +575,25 @@ class ContentManagementController extends Controller
             $gallery->caption = $validated['caption'] ?? null;
             $gallery->sort_order = $sort;
             $gallery->show_on_home = $onHome;
-            $gallery->image = store_optimized_image($file, 'gallery');
+            $gallery->image = $path;
             $gallery->save();
+            $saved++;
             $sort++;
         }
 
-        $count = count($files);
+        if ($saved === 0) {
+            $detail = $failed === []
+                ? 'No images were saved.'
+                : 'Could not save: '.implode(', ', $failed).'. Use JPG, PNG, GIF, or WEBP.';
+
+            return redirect()
+                ->route('content-management.gallery', ['tab' => $validated['return_tab'] ?? 'gallery'])
+                ->with('error', $detail);
+        }
+
+        PublicWebsiteData::flushCaches();
+
+        $count = $saved;
         $message = $count === 1
             ? 'Gallery image added.'
             : $count.' gallery images added.';
@@ -560,6 +601,9 @@ class ContentManagementController extends Controller
             $message .= $homeFullNote;
         } elseif ($wantHome && $placedHome < $count) {
             $message .= ' '.$placedHome.' '.($placedHome === 1 ? 'is' : 'are').' on the home page. The home page holds 6 images, so the rest stay on the gallery page.';
+        }
+        if ($failed !== []) {
+            $message .= ' Could not save: '.implode(', ', $failed).'.';
         }
 
         $tab = $wantHome && $placedHome > 0 ? 'home' : ($validated['return_tab'] ?? 'gallery');
@@ -589,19 +633,25 @@ class ContentManagementController extends Controller
         $items = $images->all();
         [$items[$index], $items[$swap]] = [$items[$swap], $items[$index]];
         $this->writeGalleryOrder(collect($items));
+        PublicWebsiteData::flushCaches();
+
+        $perPage = 15;
+        $newPage = (int) floor($swap / $perPage) + 1;
 
         return redirect()->route('content-management.gallery', [
             'tab' => 'gallery',
-            'page' => $request->input('page'),
+            'page' => $newPage > 1 ? $newPage : null,
         ])->with('success', 'Gallery order updated.');
     }
 
     public function removeDuplicateGalleryImages()
     {
+        Gallery::reconcileImagePaths();
+
         $groups = [];
         foreach ($this->orderedGalleryImages() as $image) {
-            $full = storage_path('app/public/'.ltrim((string) $image->image, '/'));
-            $key = is_file($full) ? md5_file($full) : 'missing-'.$image->id;
+            $full = $image->absoluteImagePath();
+            $key = $full ? md5_file($full) : 'missing-'.$image->id;
             $groups[$key][] = $image;
         }
 
@@ -624,13 +674,15 @@ class ContentManagementController extends Controller
 
             array_shift($group);
             foreach ($group as $duplicate) {
-                $this->deleteGalleryFile($duplicate->image);
+                $path = $duplicate->image;
                 $duplicate->delete();
+                $this->deleteGalleryFile($path);
                 $removed++;
             }
         }
 
         $this->writeGalleryOrder($this->orderedGalleryImages());
+        PublicWebsiteData::flushCaches();
 
         return redirect()
             ->route('content-management.gallery', ['tab' => 'gallery'])
@@ -662,12 +714,23 @@ class ContentManagementController extends Controller
         }
         $gallery->show_on_home = $showOnHome;
 
+        $previousImage = (string) $gallery->image;
         if ($request->hasFile('image')) {
-            $this->deleteGalleryFile($gallery->image);
-            $gallery->image = store_optimized_image($request->file('image'), 'gallery');
+            Storage::disk('public')->makeDirectory('gallery');
+            $path = store_optimized_image($request->file('image'), 'gallery');
+            if ($path === '' || ! Storage::disk('public')->exists($path)) {
+                return redirect()
+                    ->route('content-management.gallery', ['tab' => $validated['return_tab'] ?? 'gallery'])
+                    ->with('error', 'The replacement image could not be saved. Use a JPG, PNG, GIF, or WEBP file.');
+            }
+            $gallery->image = $path;
         }
 
         $gallery->save();
+        if ($request->hasFile('image') && $previousImage !== (string) $gallery->image) {
+            $this->deleteGalleryFile($previousImage);
+        }
+        PublicWebsiteData::flushCaches();
 
         return redirect()
             ->route('content-management.gallery', ['tab' => $validated['return_tab'] ?? 'gallery'])
@@ -676,8 +739,10 @@ class ContentManagementController extends Controller
 
     public function destroyGalleryImage(Request $request, Gallery $gallery)
     {
-        $this->deleteGalleryFile($gallery->image);
+        $path = $gallery->image;
         $gallery->delete();
+        $this->deleteGalleryFile($path);
+        PublicWebsiteData::flushCaches();
 
         $tab = $request->input('return_tab') === 'home' ? 'home' : 'gallery';
 
@@ -694,7 +759,7 @@ class ContentManagementController extends Controller
     private function orderedGalleryImages()
     {
         return Gallery::query()
-            ->where('media_type', 'image')
+            ->photos()
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
@@ -713,7 +778,13 @@ class ContentManagementController extends Controller
 
     private function deleteGalleryFile(?string $path): void
     {
-        if (! $path || ! str_starts_with($path, 'gallery/')) {
+        $path = ltrim((string) $path, '/');
+        if ($path === '' || ! str_starts_with($path, 'gallery/')) {
+            return;
+        }
+
+        $stillUsed = Gallery::query()->where('image', $path)->exists();
+        if ($stillUsed) {
             return;
         }
 
@@ -748,24 +819,34 @@ class ContentManagementController extends Controller
             if (!is_array($files)) {
                 $files = [$files];
             }
+            Storage::disk('public')->makeDirectory('gallery');
             $count = 0;
             $caption = $request->input('caption');
             $category = $request->input('category');
+            $sort = (int) Gallery::query()->max('sort_order') + 1;
             foreach ($files as $file) {
                 if (!$file || !$file->isValid()) {
+                    continue;
+                }
+                $path = store_optimized_image($file, 'gallery');
+                if ($path === '' || ! Storage::disk('public')->exists($path)) {
                     continue;
                 }
                 $gallery = new Gallery();
                 $gallery->media_type = 'image';
                 $gallery->category = $category;
                 $gallery->caption = $caption;
-                $gallery->image = store_optimized_image($file, 'gallery');
+                $gallery->image = $path;
+                $gallery->sort_order = $sort;
+                $gallery->show_on_home = false;
                 $gallery->save();
                 $count++;
+                $sort++;
             }
             if ($count === 0) {
-                return redirect()->back()->with('error', 'Please select at least one image to upload.');
+                return redirect()->back()->with('error', 'Please select at least one JPG, PNG, GIF, or WEBP image.');
             }
+            PublicWebsiteData::flushCaches();
             return redirect()->back()->with('success', $count === 1
                 ? 'Gallery image added successfully.'
                 : $count . ' gallery images added successfully.');

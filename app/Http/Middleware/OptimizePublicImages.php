@@ -50,7 +50,7 @@ class OptimizePublicImages
         }
 
         $path = ltrim($request->path(), '/');
-        foreach (['content-management', 'admin', 'account', 'livewire', 'storage', 'setting', 'api'] as $prefix) {
+        foreach (['content-management', 'admin', 'account', 'livewire', 'storage', 'setting', 'api', 'media'] as $prefix) {
             if ($path === $prefix || str_starts_with($path, $prefix.'/')) {
                 return true;
             }

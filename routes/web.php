@@ -51,6 +51,9 @@ Route::get('/storage/cache/img/w{width}/v{version}/{path}', [App\Http\Controller
     ->withoutMiddleware('web')
     ->name('optimized-image');
 
+Route::get('/media/gallery/{gallery}', [App\Http\Controllers\GalleryMediaController::class, 'show'])
+    ->name('gallery.media');
+
 // ============================================
 // CONTENT MANAGEMENT DASHBOARD ROUTES
 // Access: Super Admin (role_id=1) & Content Manager (role_id=2)

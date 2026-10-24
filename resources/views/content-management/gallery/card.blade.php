@@ -1,5 +1,10 @@
+@php $galleryImageUrl = $image->publicImageUrl(); @endphp
 <div class="card h-100">
-    <img src="{{ $image->publicImageUrl() }}" alt="{{ $image->caption }}" class="card-img-top" style="height:180px;object-fit:cover;">
+    @if($galleryImageUrl !== '')
+        <img src="{{ $galleryImageUrl }}" alt="{{ $image->caption ?: 'Gallery image' }}" class="card-img-top" style="height:180px;width:100%;object-fit:cover;display:block;background:#f3f4f6;">
+    @else
+        <div class="d-flex align-items-center justify-content-center text-muted small px-3 text-center" style="height:180px;background:#f3f4f6;">Image file missing. Edit this card and upload the photo again.</div>
+    @endif
     <div class="card-body py-3">
         <p class="mb-1 fw-semibold">{{ $image->caption ?: 'Untitled' }}</p>
         <p class="small text-muted mb-2">Order {{ $image->sort_order }}@if($image->show_on_home) · On home page @endif</p>
@@ -31,7 +36,7 @@
                 data-caption="{{ $image->caption }}"
                 data-sort="{{ $image->sort_order }}"
                 data-home="{{ $image->show_on_home ? '1' : '0' }}"
-                data-preview="{{ $image->publicImageUrl() }}"
+                data-preview="{{ $galleryImageUrl }}"
                 data-return-tab="{{ $returnTab }}"
             >Edit</button>
             <form action="{{ route('content-management.gallery.destroy', $image) }}" method="POST" onsubmit="return confirm('Remove this image?');">
