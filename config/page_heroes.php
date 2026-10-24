@@ -25,6 +25,10 @@ return [
         'label' => 'Contact',
         'path' => '/contact',
     ],
+    'terms' => [
+        'label' => 'Terms & Conditions',
+        'path' => '/terms-and-conditions',
+    ],
     'reviews' => [
         'label' => 'Guest reviews',
         'path' => '/reviews',
