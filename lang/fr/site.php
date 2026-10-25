@@ -555,6 +555,10 @@ return [
         'mark' => 'Offre',
         'all_suites' => 'Toutes les suites',
         'until' => 'jusqu’au :date',
+        'modal_kicker' => 'Réduction en cours',
+        'modal_title' => 'Une réduction est disponible',
+        'modal_lead' => 'Des tarifs réduits sont ouverts pour les dates ci-dessous. Réservez pendant que cette offre est valable.',
+        'close' => 'Fermer',
     ],
 
     'meetings' => [

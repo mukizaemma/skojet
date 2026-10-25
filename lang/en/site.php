@@ -596,6 +596,10 @@ return [
         'mark' => 'Offer',
         'all_suites' => 'Every suite',
         'until' => 'until :date',
+        'modal_kicker' => 'Current discount',
+        'modal_title' => 'A discount is available now',
+        'modal_lead' => 'Reduced rates are open for the dates below. Reserve while this offer lasts.',
+        'close' => 'Close',
     ],
 
     'meetings' => [

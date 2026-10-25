@@ -439,35 +439,32 @@
     @persist('site-header')
     <div class="header__top">
         <div class="container">
-            <div class="row justify-content-between align-items-center">
-                <div class="col-lg-7 col-md-12">
-                    <div class="social__links d-flex align-items-center flex-wrap gap-2">
-                        @if(filled($headerPhone))
-                        <a class="link__item gap-10" href="tel:{{ preg_replace('/\s+/', '', $headerPhone) }}"><i class="flaticon-phone-flip"></i> {{ $headerPhone }}</a>
-                        @endif
-                        @if(filled($headerEmail))
-                        <a class="link__item gap-10" href="mailto:{{ $headerEmail }}"><i class="flaticon-envelope"></i> {{ $headerEmail }}</a>
-                        @endif
-                        @if(count($headerSocialLinks) > 0)
-                        <div class="header__social">
-                            @foreach($headerSocialLinks as $social)
-                                <a href="{{ trim($social['url']) }}" target="_blank" rel="noopener noreferrer" aria-label="{{ $social['label'] }}">
-                                    <i class="{{ $social['icon'] }}"></i>
-                                </a>
-                            @endforeach
-                        </div>
-                        @endif
-                    </div>
+            <div class="header__top__bar">
+                <div class="social__links header__top__lead">
+                    @if(filled($headerPhone))
+                    <a class="link__item gap-10" href="tel:{{ preg_replace('/\s+/', '', $headerPhone) }}"><i class="flaticon-phone-flip"></i> {{ $headerPhone }}</a>
+                    @endif
+                    @if(filled($headerEmail))
+                    <a class="link__item gap-10" href="mailto:{{ $headerEmail }}"><i class="flaticon-envelope"></i> {{ $headerEmail }}</a>
+                    @endif
                 </div>
-                <div class="col-lg-5 col-md-12 mt-2 mt-lg-0">
-                    <div class="d-flex flex-wrap align-items-center justify-content-lg-end gap-3">
-                        @include('frontend.includes.language-switcher')
-                        @if(filled($headerAddress))
-                        <div class="location text-md-start">
-                        <a class="link__item gap-10" href="{{ $headerMapUrl }}" target="_blank" rel="noopener noreferrer"><i class="flaticon-marker"></i>{{ $headerAddress }}</a>
-                        </div>
-                        @endif
+                @include('frontend.includes.offer-bar')
+                <div class="header__top__trail">
+                    @if(count($headerSocialLinks) > 0)
+                    <div class="header__social">
+                        @foreach($headerSocialLinks as $social)
+                            <a href="{{ trim($social['url']) }}" target="_blank" rel="noopener noreferrer" aria-label="{{ $social['label'] }}">
+                                <i class="{{ $social['icon'] }}"></i>
+                            </a>
+                        @endforeach
                     </div>
+                    @endif
+                    @include('frontend.includes.language-switcher')
+                    @if(filled($headerAddress))
+                    <div class="location">
+                        <a class="link__item gap-10" href="{{ $headerMapUrl }}" target="_blank" rel="noopener noreferrer"><i class="flaticon-marker"></i>{{ $headerAddress }}</a>
+                    </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -565,7 +562,7 @@
     <!-- header area end -->
     @endpersist
 
-    @include('frontend.includes.offer-bar')
+    @include('frontend.includes.offer-modal')
 
     <div class="container-fluid">
         @isset($slot)

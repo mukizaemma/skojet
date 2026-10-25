@@ -3326,46 +3326,304 @@ a.text-primary {
     padding: 0.12rem 0.4rem;
 }
 
-.skojet-offer-bar {
-    background: #000;
-    color: #fff;
+.header__top__bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 0.65rem 1rem;
+    min-width: 0;
+    height: 30px;
+    overflow: hidden;
 }
 
-.skojet-offer-bar__row {
+.header__top .header__top__lead,
+.header__top .header__top__trail {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem 1.75rem;
-    padding: 0.7rem 0;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 0.65rem 1rem;
+    min-width: 0;
+    flex: 0 1 auto;
 }
 
-.skojet-offer-bar p {
+.header__top .header__top__trail {
+    margin-left: auto;
+    justify-content: flex-end;
+}
+
+.header__top .social__links {
+    justify-content: flex-start;
+    gap: 0.65rem 1rem;
+}
+
+.header__top .location {
+    justify-content: flex-end;
+    min-width: 0;
+}
+
+.header__top__lead .link__item,
+.header__top .location .link__item {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.header__top .header__social {
+    flex: 0 0 auto;
+    margin-left: 0;
+}
+
+.header__top .site-lang-switcher {
+    flex: 0 0 auto;
+}
+
+.header__top__offer {
+    flex: 1 1 auto;
+    min-width: 0;
     display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.45rem 0.7rem;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.header__top__offer-line {
+    display: block;
+    max-width: 100%;
+    height: 26px;
     margin: 0;
-    font-size: 0.92rem;
+    padding: 0 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    border-radius: 999px;
+    color: #fff;
+    font-size: 13px;
+    line-height: 24px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.skojet-offer-bar__kicker,
-.skojet-offer-bar em,
-.skojet-offer-bar__until {
-    font-style: normal;
-    font-size: 0.68rem;
-    font-weight: 600;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-}
-
-.skojet-offer-bar strong {
-    font-family: var(--font-display);
-    font-size: 1.15rem;
+.header__top__offer-line strong {
+    font-family: var(--font-display, "Playfair Display", Georgia, serif);
+    font-size: 14px;
     font-weight: 500;
 }
 
-.skojet-offer-bar em {
+.header__top__offer-kicker,
+.header__top__offer-until,
+.header__top__offer-line em {
+    font-style: normal;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.header__top__offer-line em {
+    display: inline-block;
+    margin: 0 0.2rem;
+    padding: 0 0.35rem;
     border: 1px solid rgba(255, 255, 255, 0.75);
-    padding: 0.12rem 0.4rem;
+    line-height: 16px;
+    vertical-align: middle;
+}
+
+.header__top__offer-line > * {
+    margin-right: 0.4rem;
+}
+
+.header__top__offer-line > *:last-child {
+    margin-right: 0;
+}
+
+@media screen and (max-width: 1199px) {
+    .header__top__lead .link__item,
+    .header__top .location .link__item {
+        max-width: 9rem;
+    }
+}
+
+@media screen and (max-width: 767px) {
+    .header__top .header__social {
+        display: none;
+    }
+
+    .header__top__lead .link__item:first-child {
+        max-width: 1.75rem;
+    }
+
+    .header__top__lead .link__item:last-child,
+    .header__top .location .link__item {
+        max-width: 6.25rem;
+    }
+
+    .header__top .location {
+        flex: 0 0 auto;
+        min-width: 4.5rem;
+        max-width: 6.25rem;
+    }
+
+    .header__top__offer {
+        flex: 1 1 0;
+        min-width: 4.25rem;
+    }
+}
+
+@media screen and (max-width: 576px) {
+    .header__top {
+        display: block;
+    }
+}
+
+.skojet-footer__offers {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    width: 100%;
+    margin: 0;
+}
+
+.skojet-footer__offer {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.92rem;
+    line-height: 1.45;
+}
+
+.skojet-footer__offer strong {
+    display: block;
+    margin-bottom: 0.15rem;
+    color: #fff;
+    font-family: var(--font-display, "Playfair Display", Georgia, serif);
+    font-size: 1.2rem;
+    font-weight: 500;
+    line-height: 1.25;
+}
+
+.skojet-offer-modal {
+    z-index: 20000;
+}
+
+.modal-backdrop.skojet-offer-backdrop {
+    z-index: 19990;
+}
+
+.skojet-offer-modal .modal-dialog {
+    max-width: 34rem;
+}
+
+.skojet-offer-modal .modal-content {
+    position: relative;
+    padding: 1.85rem 1.6rem 1.45rem;
+    border: 0;
+    border-radius: 2px;
+    background: #fff;
+    color: #111;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+
+.skojet-offer-modal__x {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 44px;
+    height: 44px;
+    border: 1px solid #111;
+    background: #fff;
+    color: #111;
+    font-size: 1.6rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.skojet-offer-modal__x:hover,
+.skojet-offer-modal__x:focus-visible {
+    background: #111;
+    color: #fff;
+}
+
+.skojet-offer-modal__kicker {
+    margin: 0 0 0.45rem;
+    padding-right: 2.5rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.skojet-offer-modal h2 {
+    margin: 0 0 0.7rem;
+    padding-right: 2.5rem;
+    font-size: clamp(1.7rem, 3vw, 2.2rem);
+    line-height: 1.15;
+}
+
+.skojet-offer-modal__lead {
+    margin: 0 0 1.1rem;
+    color: #333;
+}
+
+.skojet-offer-modal__list {
+    list-style: none;
+    margin: 0 0 1.25rem;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.skojet-offer-modal__list li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.12);
+    font-size: 0.95rem;
+}
+
+.skojet-offer-modal__list strong {
+    font-family: var(--font-display, "Playfair Display", Georgia, serif);
+    font-size: 1.25rem;
+    font-weight: 500;
+}
+
+.skojet-offer-modal__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+}
+
+.skojet-offer-modal__actions .theme-btn,
+.skojet-offer-modal__dismiss {
+    min-height: 44px;
+    padding: 0.7rem 1.2rem;
+    border-radius: 2px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    line-height: 1;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.skojet-offer-modal__actions .theme-btn::before,
+.skojet-offer-modal__actions .theme-btn::after,
+.skojet-offer-modal__actions .theme-btn:hover::before,
+.skojet-offer-modal__actions .theme-btn:hover::after {
+    content: none !important;
+    display: none !important;
+}
+
+.skojet-offer-modal__dismiss {
+    border: 1px solid #111;
+    background: #fff;
+    color: #111;
+}
+
+.skojet-offer-modal__dismiss:hover,
+.skojet-offer-modal__dismiss:focus-visible {
+    background: #111;
+    color: #fff;
 }
 
 .terms-page__body {

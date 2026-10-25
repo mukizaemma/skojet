@@ -104,6 +104,8 @@
                         </div>
                     </div>
 
+                @include('frontend.includes.offer-bar', ['variant' => 'footer'])
+
                 <div class="skojet-footer__book">
                     @include('frontend.includes.reservation-link', [
                         'style' => 'fill',
