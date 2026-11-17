@@ -222,6 +222,8 @@ Route::middleware(['auth', 'admin'])->prefix('content-management')->name('conten
         Route::get('/', [App\Http\Controllers\FrontDeskController::class, 'home'])->name('home');
         Route::get('/calendar', [App\Http\Controllers\FrontDeskController::class, 'calendar'])->name('calendar');
         Route::get('/reservations', [App\Http\Controllers\FrontDeskController::class, 'reservations'])->name('reservations');
+        Route::get('/reservations/export.pdf', [App\Http\Controllers\FrontDeskController::class, 'exportReservationsPdf'])->name('reservations.export.pdf');
+        Route::get('/reservations/export.xls', [App\Http\Controllers\FrontDeskController::class, 'exportReservationsExcel'])->name('reservations.export.xls');
         Route::get('/reservations/create', [App\Http\Controllers\FrontDeskController::class, 'create'])->name('create');
         Route::post('/reservations/quote', [App\Http\Controllers\FrontDeskController::class, 'quote'])->name('quote');
         Route::post('/reservations', [App\Http\Controllers\FrontDeskController::class, 'store'])->name('store');

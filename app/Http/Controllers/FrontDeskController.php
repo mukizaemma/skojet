@@ -127,17 +127,77 @@ class FrontDeskController extends Controller
 
     public function reservations(Request $request)
     {
-        $start = $request->input('start_date');
-        $end = $request->input('end_date');
-        $reservations = $this->roomBookings()
-            ->with(['room', 'assignedRoom', 'creator', 'user'])
-            ->when($start, fn ($query) => $query->whereDate('checkout_date', '>=', $start))
-            ->when($end, fn ($query) => $query->whereDate('checkin_date', '<=', $end))
-            ->latest()
+        $filters = $this->stayFilters($request);
+        $reservations = $this->stayQuery($filters)
             ->paginate(20)
             ->withQueryString();
 
-        return view('content-management.front-office.reservations', compact('reservations', 'start', 'end'));
+        return view('content-management.front-office.reservations', compact('reservations', 'filters'));
+    }
+
+    public function exportReservationsPdf(Request $request)
+    {
+        $filters = $this->stayFilters($request);
+        $reservations = $this->stayQuery($filters)->limit(2000)->get();
+
+        return PdfFile::download(
+            view('bills.pdf', [
+                'title' => 'Room reservations',
+                'body' => view('content-management.front-office.reservations-export', [
+                    'reservations' => $reservations,
+                    'filters' => $filters,
+                    'setting' => Setting::query()->first(),
+                ])->render(),
+            ])->render(),
+            'room-reservations.pdf',
+            'landscape'
+        );
+    }
+
+    public function exportReservationsExcel(Request $request)
+    {
+        $filters = $this->stayFilters($request);
+        $reservations = $this->stayQuery($filters)->limit(2000)->get();
+        $rows = [
+            ['Booking', 'Guest', 'Phone', 'Email', 'Suite', 'Check-in', 'Check-out', 'Submitted', 'Created by', 'Rate', 'Came from', 'Status', 'Total', 'Balance', 'Currency'],
+        ];
+        foreach ($reservations as $booking) {
+            $rows[] = [
+                (string) $booking->id,
+                $booking->names,
+                $booking->phone,
+                $booking->email,
+                $booking->stayRoom()?->title ?? 'Unallocated',
+                optional($booking->checkin_date)->format('Y-m-d'),
+                optional($booking->checkout_date)->format('Y-m-d'),
+                optional($booking->created_at)->format('Y-m-d H:i'),
+                $booking->submittedByName(),
+                $booking->staySummary(),
+                $booking->channelLabel().' · '.$booking->sourceLabel(),
+                ucwords(str_replace('_', ' ', $booking->deskState())),
+                number_format((float) $booking->total_amount, 2, '.', ''),
+                number_format((float) $booking->balance_amount, 2, '.', ''),
+                strtoupper($booking->currencyKey()),
+            ];
+        }
+
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>'
+            .'<?mso-application progid="Excel.Sheet"?>'
+            .'<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'
+            .'<Worksheet ss:Name="Reservations"><Table>';
+        foreach ($rows as $row) {
+            $xml .= '<Row>';
+            foreach ($row as $cell) {
+                $xml .= '<Cell><Data ss:Type="String">'.htmlspecialchars((string) $cell, ENT_XML1).'</Data></Cell>';
+            }
+            $xml .= '</Row>';
+        }
+        $xml .= '</Table></Worksheet></Workbook>';
+
+        return response($xml, 200, [
+            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="room-reservations.xls"',
+        ]);
     }
 
     public function create(Request $request)
@@ -535,13 +595,6 @@ class FrontDeskController extends Controller
             ->get();
         $setting = Setting::query()->first();
         $ready = Schema::hasTable('restaurant_reservations');
-        $recent = $ready
-            ? RestaurantReservation::query()
-                ->where('status', '!=', 'cancelled')
-                ->orderByDesc('id')
-                ->limit(12)
-                ->get()
-            : collect();
         $menuItems = [];
         if ($ready && Schema::hasTable('restaurant_menu_items')) {
             foreach (RestaurantMenuItem::publicGroups() as $category => $rows) {
@@ -563,7 +616,6 @@ class FrontDeskController extends Controller
             'start' => $start,
             'end' => $end,
             'visits' => $visits,
-            'recent' => $recent,
             'menuItems' => $menuItems,
             'oldCart' => collect(old('items', []))->map(fn ($qty) => (int) $qty)->filter(fn ($qty) => $qty > 0),
             'roomCharges' => $roomCharges,
@@ -928,6 +980,58 @@ class FrontDeskController extends Controller
                 'count' => $rows->count(),
             ];
         })->filter(fn (array $row) => $row['count'] > 0)->values()->all();
+    }
+
+    /**
+     * @return array{q: string, start_date: string, end_date: string}
+     */
+    private function stayFilters(Request $request): array
+    {
+        return [
+            'q' => trim((string) $request->input('q', '')),
+            'start_date' => $this->stayFilterDate($request->input('start_date')),
+            'end_date' => $this->stayFilterDate($request->input('end_date')),
+        ];
+    }
+
+    private function stayFilterDate(mixed $value): string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return '';
+        }
+
+        try {
+            return Carbon::parse($value)->toDateString();
+        } catch (\Throwable) {
+            return '';
+        }
+    }
+
+    /**
+     * @param  array{q: string, start_date: string, end_date: string}  $filters
+     */
+    private function stayQuery(array $filters)
+    {
+        $query = $this->roomBookings()->with(['room', 'assignedRoom', 'creator', 'user']);
+        if ($filters['q'] !== '') {
+            $term = '%'.addcslashes($filters['q'], '%_\\').'%';
+            $query->where(function ($inner) use ($term, $filters) {
+                $inner->where('names', 'like', $term)
+                    ->orWhere('phone', 'like', $term)
+                    ->orWhere('email', 'like', $term);
+                if (ctype_digit($filters['q'])) {
+                    $inner->orWhere('id', (int) $filters['q']);
+                }
+            });
+        }
+        if ($filters['start_date'] !== '') {
+            $query->whereDate('checkout_date', '>=', $filters['start_date']);
+        }
+        if ($filters['end_date'] !== '') {
+            $query->whereDate('checkin_date', '<=', $filters['end_date']);
+        }
+
+        return $query->latest();
     }
 
     private function roomBookings()

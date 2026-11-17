@@ -267,36 +267,6 @@
                     })();
                 </script>
             @endif
-            <div class="bg-white border rounded p-3 mb-4">
-                <h5 class="mb-3">Recent bills</h5>
-                <div class="table-responsive">
-                    <table class="table align-middle mb-0">
-                        <thead><tr><th>Bill</th><th>When</th><th class="text-end">Total</th><th>Payment</th><th></th></tr></thead>
-                        <tbody>
-                            @forelse($recent as $bill)
-                                @php $open = $bill->accessGranted(); @endphp
-                                <tr>
-                                    <td>
-                                        <a href="{{ route('content-management.restaurant-reservations.show', $bill) }}">{{ $bill->names }}</a>
-                                        <div class="text-muted small">{{ $bill->reference }}</div>
-                                    </td>
-                                    <td>{{ optional($bill->reserved_for)->format('d M Y · H:i') }}</td>
-                                    <td class="text-end">{{ $bill->money((float) $bill->total_amount) }}</td>
-                                    <td>
-                                        <span style="display:inline-block;padding:0.15rem 0.55rem;border-radius:999px;background:{{ $open ? '#1f7a3a' : '#e2b100' }};color:{{ $open ? '#fff' : '#1a1a1a' }};">{{ $open ? 'Paid' : 'Not paid' }}</span>
-                                    </td>
-                                    <td class="text-end text-nowrap">
-                                        <a href="{{ route('content-management.restaurant-reservations.show', $bill) }}">View bill</a>
-                                        <a class="ms-2" href="{{ route('content-management.restaurant-reservations.show', $bill) }}?print=1" target="_blank" rel="noopener">Print</a>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="5" class="text-muted">No restaurant bills yet.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
         @endif
         <form method="GET" class="row g-2 align-items-end mb-4">
             <div class="col-auto">
@@ -325,50 +295,56 @@
                     <div class="col-12"><div class="bg-white border rounded p-3 text-muted">No dining bills in this period.</div></div>
                 @endforelse
             </div>
-            <h6 class="mb-2">Dining bills</h6>
             <div class="bg-white border rounded mb-4">
                 <table class="table align-middle mb-0">
-                    <thead><tr><th>Guest</th><th>When</th><th class="text-end">Total</th><th class="text-end">Paid</th><th class="text-end">Due</th><th></th></tr></thead>
+                    <thead><tr><th>Bill</th><th>When</th><th class="text-end">Total</th><th class="text-end">Paid</th><th class="text-end">Due</th><th>Payment</th><th></th></tr></thead>
                     <tbody>
                         @forelse($visits as $visit)
+                            @php $open = $visit->accessGranted(); @endphp
                             <tr>
-                                <td>{{ $visit->names }}<div class="text-muted small">{{ $visit->reference }}</div></td>
+                                <td>
+                                    <a href="{{ route('content-management.restaurant-reservations.show', $visit) }}">{{ $visit->names }}</a>
+                                    <div class="text-muted small">{{ $visit->reference }}</div>
+                                </td>
                                 <td>{{ optional($visit->reserved_for)->format('d M Y · H:i') }}</td>
                                 <td class="text-end">{{ $visit->money((float) $visit->total_amount) }}</td>
                                 <td class="text-end">{{ $visit->money((float) $visit->paid_amount) }}</td>
                                 <td class="text-end">{{ $visit->money(max(0, (float) $visit->total_amount - (float) $visit->paid_amount)) }}</td>
+                                <td>
+                                    <span style="display:inline-block;padding:0.15rem 0.55rem;border-radius:999px;background:{{ $open ? '#1f7a3a' : '#e2b100' }};color:{{ $open ? '#fff' : '#1a1a1a' }};">{{ $open ? 'Paid' : 'Not paid' }}</span>
+                                </td>
                                 <td class="text-end text-nowrap">
                                     <a href="{{ route('content-management.restaurant-reservations.show', $visit) }}">View bill</a>
                                     <a class="ms-2" href="{{ route('content-management.restaurant-reservations.show', $visit) }}?print=1" target="_blank" rel="noopener">Print</a>
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="text-muted p-3">No dining bills in this period.</td></tr>
+                            <tr><td colspan="7" class="text-muted p-3">No bills in this period.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
-            <h6 class="mb-2">Posted to a room bill</h6>
-            <div class="bg-white border rounded">
-                <table class="table align-middle mb-0">
-                    <thead><tr><th>Guest</th><th>Item</th><th class="text-end">Amount</th></tr></thead>
-                    <tbody>
-                        @forelse($roomCharges as $charge)
-                            <tr>
-                                <td>
-                                    @if($charge->booking)
-                                        <a href="{{ route('content-management.front-office.show', $charge->booking) }}">{{ $charge->booking->names }}</a>
-                                    @endif
-                                </td>
-                                <td>{{ $charge->name }}</td>
-                                <td class="text-end">{{ hotel_price($charge->line_total, $setting ?? null, $charge->booking?->currencyKey() ?? 'usd') }}</td>
-                            </tr>
-                        @empty
-                            <tr><td colspan="3" class="text-muted p-3">No restaurant items were posted to a room in this period.</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+            @if($roomCharges->isNotEmpty())
+                <h6 class="mb-2">Posted to a room bill</h6>
+                <div class="bg-white border rounded">
+                    <table class="table align-middle mb-0">
+                        <thead><tr><th>Guest</th><th>Item</th><th class="text-end">Amount</th></tr></thead>
+                        <tbody>
+                            @foreach($roomCharges as $charge)
+                                <tr>
+                                    <td>
+                                        @if($charge->booking)
+                                            <a href="{{ route('content-management.front-office.show', $charge->booking) }}">{{ $charge->booking->names }}</a>
+                                        @endif
+                                    </td>
+                                    <td>{{ $charge->name }}</td>
+                                    <td class="text-end">{{ hotel_price($charge->line_total, $setting ?? null, $charge->booking?->currencyKey() ?? 'usd') }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
         @endif
     </div>
 </div>

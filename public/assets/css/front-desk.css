@@ -1350,6 +1350,167 @@
     }
 }
 
+.pos-invoice__bar,
+.pos-ticket,
+.pos-pay,
+.pos-share {
+    background: #fff;
+    border: 1px solid #e6e6e6;
+    border-radius: 16px;
+}
+
+.pos-invoice__bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.85rem 1rem;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 1rem 1.1rem;
+}
+
+.pos-invoice__bar h4 {
+    font-variant-numeric: tabular-nums;
+}
+
+.pos-status {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.35rem 0.8rem;
+    font-weight: 650;
+}
+
+.pos-status.is-paid {
+    background: #1f7a3a;
+    color: #fff;
+}
+
+.pos-status.is-due {
+    background: #e2b100;
+    color: #1a1a1a;
+}
+
+.pos-invoice__grid {
+    display: grid;
+    gap: 1rem;
+    align-items: start;
+}
+
+.pos-ticket {
+    overflow: hidden;
+}
+
+.pos-ticket table {
+    width: 100%;
+    margin: 0;
+}
+
+.pos-ticket th {
+    padding: 0.75rem 1rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #777;
+    font-weight: 600;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.pos-ticket td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f6f6f6;
+    vertical-align: middle;
+}
+
+.pos-ticket__sum {
+    display: grid;
+    gap: 0.35rem;
+    padding: 0.85rem 1rem 0.4rem;
+}
+
+.pos-ticket__sum div,
+.pos-due {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.pos-due {
+    margin: 0.45rem 0.75rem 0.75rem;
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    background: #111;
+    color: #fff;
+    font-size: 1.15rem;
+}
+
+.pos-ticket__add {
+    padding: 0.35rem 1rem 1rem;
+    border-top: 1px solid #f0f0f0;
+}
+
+.pos-ticket__add-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 4.5rem auto;
+    gap: 0.45rem;
+}
+
+.pos-pay,
+.pos-share {
+    padding: 1rem 1.05rem 1.05rem;
+}
+
+.pos-share {
+    margin-top: 0.75rem;
+}
+
+.pos-pay__meta {
+    margin: 0 0 0.9rem;
+}
+
+.pos-pay__meta div {
+    display: grid;
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+    gap: 0.35rem;
+    margin-bottom: 0.35rem;
+}
+
+.pos-pay__meta dt {
+    color: #777;
+    font-weight: 500;
+}
+
+.pos-pay__meta dd {
+    margin: 0;
+}
+
+.pos-pay__visit {
+    margin-top: 1rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid #f0f0f0;
+}
+
+.pos-invoice-print {
+    display: none;
+}
+
+@media (min-width: 992px) {
+    .pos-invoice__grid {
+        grid-template-columns: minmax(0, 1fr) 22rem;
+    }
+
+    .pos-invoice__side {
+        position: sticky;
+        top: 0.75rem;
+    }
+}
+
+@media print {
+    .pos-invoice-print {
+        display: block;
+    }
+}
+
 @media (min-width: 992px) {
     .pos-sale {
         grid-template-columns: minmax(0, 1fr) 22rem;

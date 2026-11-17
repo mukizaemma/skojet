@@ -1,7 +1,7 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-menu">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-stay-search">
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
@@ -10,17 +10,27 @@
             <h4 class="mb-0">Reservations</h4>
             <a href="{{ route('content-management.front-office.create') }}" class="btn btn-dark">New reservation</a>
         </div>
-        <form method="GET" class="row g-2 align-items-end mb-3">
-            <div class="col-auto">
-                <label class="form-label mb-1">From</label>
-                <input type="date" name="start_date" value="{{ $start }}" class="form-control">
-            </div>
-            <div class="col-auto">
-                <label class="form-label mb-1">To</label>
-                <input type="date" name="end_date" value="{{ $end }}" class="form-control">
-            </div>
-            <div class="col-auto">
-                <button class="btn btn-dark" type="submit">Filter</button>
+        <form id="stay-search" method="GET" class="bg-white border rounded p-3 mb-3">
+            <div class="row g-2 align-items-end">
+                <div class="col-lg-4">
+                    <label class="form-label" for="stay-q">Search</label>
+                    <input class="form-control" id="stay-q" type="search" name="q" value="{{ $filters['q'] }}" placeholder="Name, phone, email, or booking number" autocomplete="off">
+                </div>
+                <div class="col-6 col-lg-2">
+                    <label class="form-label">From</label>
+                    <input class="form-control" type="date" name="start_date" value="{{ $filters['start_date'] }}">
+                </div>
+                <div class="col-6 col-lg-2">
+                    <label class="form-label">To</label>
+                    <input class="form-control" type="date" name="end_date" value="{{ $filters['end_date'] }}">
+                </div>
+                <div class="col-lg-4 d-flex flex-wrap gap-2">
+                    <a class="btn btn-outline-dark" href="{{ route('content-management.front-office.reservations.export.pdf', request()->only(['q', 'start_date', 'end_date'])) }}">PDF</a>
+                    <a class="btn btn-outline-dark" href="{{ route('content-management.front-office.reservations.export.xls', request()->only(['q', 'start_date', 'end_date'])) }}">Excel</a>
+                    @if($filters['q'] !== '' || $filters['start_date'] !== '' || $filters['end_date'] !== '')
+                        <a class="btn btn-link" href="{{ route('content-management.front-office.reservations') }}">Clear</a>
+                    @endif
+                </div>
             </div>
         </form>
         <div class="bg-white border rounded">
@@ -57,7 +67,7 @@
                                 <td>@include('content-management.front-office.partials.stay-actions')</td>
                             </tr>
                         @empty
-                            <tr><td colspan="11" class="text-muted p-3">No reservations in this range.</td></tr>
+                            <tr><td colspan="11" class="text-muted p-3">No reservations match this search.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -66,4 +76,32 @@
         <div class="mt-3">{{ $reservations->links() }}</div>
     </div>
 </div>
+<script>
+    (function () {
+        const form = document.getElementById('stay-search');
+        const box = document.getElementById('stay-q');
+        if (!form || !box) {
+            return;
+        }
+        let timer = null;
+        box.addEventListener('input', function () {
+            window.sessionStorage.setItem('stay-search-focus', '1');
+            window.clearTimeout(timer);
+            timer = window.setTimeout(function () {
+                form.requestSubmit();
+            }, 350);
+        });
+        form.querySelectorAll('input[type="date"]').forEach(function (field) {
+            field.addEventListener('change', function () {
+                form.requestSubmit();
+            });
+        });
+        if (window.sessionStorage.getItem('stay-search-focus') === '1') {
+            window.sessionStorage.removeItem('stay-search-focus');
+            box.focus();
+            const end = box.value.length;
+            box.setSelectionRange(end, end);
+        }
+    })();
+</script>
 @endsection

@@ -1,7 +1,7 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-menu">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-invoice">
 <style>
     @media print {
         .sidebar, .navbar, .desk-top, .no-print { display: none !important; }
@@ -16,134 +16,194 @@
             @include('content-management.front-office.partials.alerts')
         </div>
 
-        <div class="d-flex flex-wrap gap-2 mb-3 no-print">
-            <a class="btn btn-outline-dark" href="{{ route('content-management.front-office.pos.sales') }}">Sales</a>
-            <a class="btn btn-outline-dark" href="{{ route('content-management.restaurant-reservations') }}">All dining reservations</a>
-            <button class="btn btn-dark" type="button" onclick="window.print()">Print</button>
-            <a class="btn btn-outline-dark" href="{{ route('content-management.restaurant-reservations.pdf', $reservation) }}">Download PDF</a>
-            <button class="btn btn-outline-dark" type="button" id="save-bill-image">Save image</button>
-        </div>
+        @php
+            $paidNow = (float) $reservation->paid_amount;
+            $billTotal = (float) $reservation->total_amount;
+            $due = max(0, round($billTotal - $paidNow, 2));
+            $settled = $reservation->accessGranted();
+            $suggestedPaid = $paidNow > 0
+                ? $paidNow
+                : ((float) $reservation->claimed_amount > 0 ? (float) $reservation->claimed_amount : $billTotal);
+            $customOpen = filled(old('custom_name')) || filled(old('custom_price')) || $errors->has('custom_name');
+            $guestBits = collect([$reservation->phone, $reservation->email])->filter();
+        @endphp
 
-        <div class="row g-4">
-            <div class="col-lg-7">
-                <article id="restaurant-bill">
-                    @include('restaurant.bill-document', ['reservation' => $reservation])
-                </article>
+        <div class="pos-invoice no-print">
+            <div class="pos-invoice__bar">
+                <div>
+                    <a class="desk-pos__back" href="{{ route('content-management.front-office.pos.sales') }}">Sales</a>
+                    <h4 class="mb-1">{{ $reservation->reference }}</h4>
+                    <p class="text-muted mb-0">{{ $reservation->names }} · {{ optional($reservation->reserved_for)->format('D, M j, Y · H:i') }} · {{ $reservation->guests }} {{ $reservation->guests === 1 ? 'guest' : 'guests' }}@if($guestBits->isNotEmpty()) · {{ $guestBits->implode(' · ') }}@endif</p>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="pos-status {{ $settled ? 'is-paid' : 'is-due' }}">{{ $settled ? 'Paid' : 'Not paid' }}</span>
+                    <button class="btn btn-dark" type="button" onclick="window.print()">Print</button>
+                    <a class="btn btn-outline-dark" href="{{ route('content-management.restaurant-reservations.pdf', $reservation) }}">PDF</a>
+                    <button class="btn btn-outline-dark" type="button" id="save-bill-image">Image</button>
+                </div>
             </div>
 
-            <div class="col-lg-5 no-print">
-                <div class="bg-light rounded p-4 mb-3">
-                    <h5>Payment received</h5>
-                    <p class="mb-1">Guest says they paid the {{ $reservation->payment_choice === 'full' ? 'full bill' : 'minimum' }}: <strong>{{ $reservation->money((float) $reservation->claimed_amount) }}</strong></p>
-                    <p class="mb-1">Name on the MoMo payment: <strong>{{ $reservation->payer_name ?: '—' }}</strong></p>
-                    <p class="mb-3">MoMo code: <strong>{{ $reservation->momo_code ?: '—' }}</strong>@if(filled($reservation->momo_account_name)) · {{ $reservation->momo_account_name }}@endif</p>
-                    <form method="POST" action="{{ route('content-management.restaurant-reservations.payment', $reservation) }}">
+            <div class="pos-invoice__grid">
+                <section class="pos-ticket">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th class="text-end">Qty</th>
+                                <th class="text-end">Price</th>
+                                <th class="text-end">Amount</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($reservation->items as $item)
+                                <tr>
+                                    <td>
+                                        <strong>{{ $item->name }}</strong>
+                                        @if(filled($item->description))
+                                            <div class="text-muted small">{{ $item->description }}</div>
+                                        @endif
+                                    </td>
+                                    <td class="text-end">{{ $item->quantity }}</td>
+                                    <td class="text-end">{{ $reservation->money((float) $item->unit_price) }}</td>
+                                    <td class="text-end">{{ $reservation->money((float) $item->line_total) }}</td>
+                                    <td class="text-end">
+                                        <form method="POST" action="{{ route('content-management.restaurant-reservations.items.destroy', [$reservation, $item]) }}">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button class="btn btn-link btn-sm text-danger p-0" type="submit">Remove</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="5" class="text-muted">No items on this bill yet.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                    <div class="pos-ticket__sum">
+                        <div><span>Total</span><strong>{{ $reservation->money($billTotal) }}</strong></div>
+                        <div><span>Paid</span><strong>{{ $reservation->money($paidNow) }}</strong></div>
+                    </div>
+                    <div class="pos-due"><span>Due</span><strong>{{ $reservation->money($due) }}</strong></div>
+                    <form class="pos-ticket__add" method="POST" action="{{ route('content-management.restaurant-reservations.items.store', $reservation) }}">
                         @csrf
-                        <label class="form-label" for="paid_amount">Amount received</label>
-                        @php
-                            $suggestedPaid = (float) $reservation->paid_amount > 0
-                                ? (float) $reservation->paid_amount
-                                : ((float) $reservation->claimed_amount > 0 ? (float) $reservation->claimed_amount : (float) $reservation->total_amount);
-                        @endphp
-                        <input class="form-control mb-2" id="paid_amount" type="number" name="paid_amount" min="0" step="0.01" value="{{ old('paid_amount', number_format($suggestedPaid, 2, '.', '')) }}">
-                        <div class="d-flex flex-wrap gap-2">
-                            <button class="btn btn-dark" type="submit" name="received" value="yes">Money received</button>
-                            <button class="btn btn-outline-dark" type="submit" name="received" value="no">Money not received</button>
-                        </div>
-                        <p class="text-muted small mt-2 mb-0">The guest is emailed this bill with the updated paid amount. Not received sets the paid amount to zero and keeps access yellow.</p>
-                    </form>
-                    <form method="POST" action="{{ route('content-management.restaurant-reservations.status', $reservation) }}" class="row g-2 align-items-end mt-3">
-                        @csrf
-                        <div class="col">
-                            <label class="form-label">Visit</label>
-                            <select class="form-select" name="status">
-                                @foreach(['pending' => 'Pending', 'confirmed' => 'Confirmed', 'completed' => 'Completed', 'cancelled' => 'Cancelled'] as $key => $label)
-                                    <option value="{{ $key }}" @selected($reservation->status === $key)>{{ $label }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-auto">
-                            <button class="btn btn-outline-dark" type="submit">Save</button>
-                        </div>
-                    </form>
-                </div>
-
-                <div class="bg-light rounded p-4 mb-3">
-                    <h5>Items</h5>
-                    <ul class="list-unstyled mb-3">
-                        @forelse($reservation->items as $item)
-                            <li class="d-flex justify-content-between align-items-center gap-2 py-1">
-                                <span>{{ $item->quantity }} × {{ $item->name }}</span>
-                                <form method="POST" action="{{ route('content-management.restaurant-reservations.items.destroy', [$reservation, $item]) }}">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button class="btn btn-link btn-sm text-danger p-0" type="submit">Remove</button>
-                                </form>
-                            </li>
-                        @empty
-                            <li class="text-muted">No items on this bill yet.</li>
-                        @endforelse
-                    </ul>
-                    <h5>Add to the bill</h5>
-                    <form method="POST" action="{{ route('content-management.restaurant-reservations.items.store', $reservation) }}" class="row g-2">
-                        @csrf
-                        <div class="col-12">
-                            <label class="form-label">Menu item</label>
-                            <select class="form-select" name="menu_item_id">
+                        <label class="form-label" for="bill-menu">Add an item</label>
+                        <div class="pos-ticket__add-row">
+                            <select class="form-select" id="bill-menu" name="menu_item_id">
                                 <option value="">Custom item</option>
-                                @foreach($menu as $item)
-                                    <option value="{{ $item->id }}">{{ $item->categoryLabel() }} · {{ $item->name }} · {{ $reservation->money($item->priceFor($reservation->price_tier)) }}</option>
+                                @foreach(\App\Models\RestaurantMenuItem::CATEGORIES as $key => $label)
+                                    @php $group = $menu->where('category', $key); @endphp
+                                    @if($group->isNotEmpty())
+                                        <optgroup label="{{ $label }}">
+                                            @foreach($group as $item)
+                                                <option value="{{ $item->id }}" @selected((string) old('menu_item_id') === (string) $item->id)>{{ $item->name }} · {{ $reservation->money($item->priceFor($reservation->price_tier)) }}</option>
+                                            @endforeach
+                                        </optgroup>
+                                    @endif
                                 @endforeach
                             </select>
+                            <input class="form-control" type="number" name="quantity" min="1" max="99" value="{{ old('quantity', 1) }}" required aria-label="Quantity">
+                            <button class="btn btn-dark" type="submit">Add</button>
                         </div>
-                        <div class="col-7">
-                            <label class="form-label">Custom name</label>
-                            <input class="form-control" type="text" name="custom_name" maxlength="120" placeholder="Only if it is not on the menu">
-                        </div>
-                        <div class="col-5">
-                            <label class="form-label">Custom price</label>
-                            <input class="form-control" type="number" name="custom_price" min="0" step="0.01">
-                        </div>
-                        <div class="col-4">
-                            <label class="form-label">Quantity</label>
-                            <input class="form-control" type="number" name="quantity" min="1" max="99" value="1" required>
-                        </div>
-                        <div class="col-8 d-flex align-items-end">
-                            <button class="btn btn-dark" type="submit">Add item</button>
+                        <div class="row g-2 mt-2" id="bill-custom" @unless($customOpen) hidden @endunless>
+                            <div class="col-7">
+                                <input class="form-control" type="text" name="custom_name" value="{{ old('custom_name') }}" maxlength="120" placeholder="Item name">
+                            </div>
+                            <div class="col-5">
+                                <input class="form-control" type="number" name="custom_price" value="{{ old('custom_price') }}" min="0" step="0.01" placeholder="Price">
+                            </div>
                         </div>
                     </form>
-                </div>
+                </section>
 
-                <div class="bg-light rounded p-4">
-                    <h5>Share this bill</h5>
-                    <label class="form-label" for="share-number">Any WhatsApp number</label>
-                    <div class="input-group mb-3">
-                        <input class="form-control" id="share-number" type="tel" placeholder="2507…">
-                        <button class="btn btn-dark" type="button" id="share-any">Open WhatsApp</button>
+                <aside class="pos-invoice__side">
+                    <div class="pos-pay">
+                        <h5 class="mb-3">Payment</h5>
+                        @if(filled($reservation->momo_code) || filled($reservation->payer_name) || (float) $reservation->claimed_amount > 0)
+                            <dl class="pos-pay__meta">
+                                @if(filled($reservation->momo_code))
+                                    <div><dt>MoMo</dt><dd>{{ $reservation->momo_code }}@if(filled($reservation->momo_account_name)) · {{ $reservation->momo_account_name }}@endif</dd></div>
+                                @endif
+                                @if((float) $reservation->claimed_amount > 0 || filled($reservation->payer_name))
+                                    <div><dt>Guest said</dt><dd>{{ $reservation->payment_choice === 'full' ? 'Full bill' : 'Minimum' }} · {{ $reservation->money((float) $reservation->claimed_amount) }}@if(filled($reservation->payer_name)) · {{ $reservation->payer_name }}@endif</dd></div>
+                                @endif
+                            </dl>
+                        @endif
+                        <form method="POST" action="{{ route('content-management.restaurant-reservations.payment', $reservation) }}">
+                            @csrf
+                            <label class="form-label" for="paid_amount">Amount received</label>
+                            <div class="pos-paid mb-3">
+                                <input class="form-control" id="paid_amount" type="number" name="paid_amount" min="0" step="0.01" value="{{ old('paid_amount', number_format($suggestedPaid, 2, '.', '')) }}">
+                                <button class="btn btn-outline-dark" id="pay-total" type="button">Total</button>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-dark" type="submit" name="received" value="yes">Money received</button>
+                                <button class="btn btn-outline-dark" type="submit" name="received" value="no">Money not received</button>
+                            </div>
+                        </form>
+                        <form method="POST" action="{{ route('content-management.restaurant-reservations.status', $reservation) }}" class="pos-pay__visit">
+                            @csrf
+                            <label class="form-label" for="bill-status">Visit</label>
+                            <div class="pos-paid">
+                                <select class="form-select" id="bill-status" name="status">
+                                    @foreach(['pending' => 'Pending', 'confirmed' => 'Confirmed', 'completed' => 'Completed', 'cancelled' => 'Cancelled'] as $key => $label)
+                                        <option value="{{ $key }}" @selected($reservation->status === $key)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                                <button class="btn btn-outline-dark" type="submit">Save</button>
+                            </div>
+                        </form>
                     </div>
 
-                    @if($reservation->isPaid())
-                        @if($reservation->submit_via === 'email')
-                            <form method="POST" action="{{ route('content-management.restaurant-reservations.share', $reservation) }}">
-                                @csrf
-                                <button class="btn btn-outline-dark" type="submit">Email the paid bill to {{ $reservation->email }}</button>
-                            </form>
-                        @else
-                            <a class="btn btn-outline-dark" id="share-guest" href="#">Send the paid bill on the guest’s WhatsApp</a>
+                    <div class="pos-share">
+                        <h5 class="mb-3">Send</h5>
+                        <label class="form-label" for="share-number">WhatsApp</label>
+                        <div class="input-group mb-3">
+                            <input class="form-control" id="share-number" type="tel" placeholder="2507…">
+                            <button class="btn btn-dark" type="button" id="share-any">Open</button>
+                        </div>
+                        @if($reservation->isPaid())
+                            @if($reservation->submit_via === 'email' && filled($reservation->email))
+                                <form method="POST" action="{{ route('content-management.restaurant-reservations.share', $reservation) }}">
+                                    @csrf
+                                    <button class="btn btn-outline-dark w-100" type="submit">Email {{ $reservation->email }}</button>
+                                </form>
+                            @elseif(filled($reservation->phone))
+                                <a class="btn btn-outline-dark w-100" id="share-guest" href="#">Guest WhatsApp</a>
+                            @endif
                         @endif
-                    @elseif($reservation->submit_via === 'desk')
-                        <p class="text-muted mb-0">Confirm the payment, then use Print. An email goes out only when this bill has a guest email.</p>
-                    @else
-                        <p class="text-muted mb-0">The guest asked for {{ $reservation->submit_via === 'whatsapp' ? 'WhatsApp' : 'email' }}. That send is available after you mark the bill as paid.</p>
-                    @endif
-                </div>
+                    </div>
+                </aside>
             </div>
         </div>
+
+        <article class="pos-invoice-print" id="restaurant-bill">
+            @include('restaurant.bill-document', ['reservation' => $reservation])
+        </article>
     </div>
 </div>
 <script type="application/json" id="bill-lines">@json($reservation->billLines())</script>
 <script type="application/json" id="guest-bill-text">@json($guestBillText)</script>
 <script>
+    (function () {
+        const menu = document.getElementById('bill-menu');
+        const custom = document.getElementById('bill-custom');
+        if (!menu || !custom) return;
+        const paint = function () {
+            custom.hidden = menu.value !== '';
+        };
+        if (menu.value === '' && custom.hidden) {
+            const first = Array.from(menu.options).find(function (option) { return option.value !== ''; });
+            if (first) menu.value = first.value;
+        }
+        menu.addEventListener('change', paint);
+        paint();
+        document.getElementById('pay-total')?.addEventListener('click', function () {
+            const field = document.getElementById('paid_amount');
+            if (field) field.value = @json(number_format($billTotal, 2, '.', ''));
+        });
+    })();
+
     document.getElementById('save-bill-image')?.addEventListener('click', function () {
         const lines = JSON.parse(document.getElementById('bill-lines').textContent || '[]');
         const canvas = document.createElement('canvas');
