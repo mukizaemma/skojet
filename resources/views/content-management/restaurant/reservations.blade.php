@@ -168,6 +168,7 @@
         </div>
     </div>
 </div>
+@php $savedReservationItems = old('items', []); @endphp
 <script>
     (function () {
         const modalEl = document.getElementById('reservation-modal');
@@ -178,7 +179,7 @@
         const order = document.getElementById('reserve-order');
         const none = document.getElementById('reserve-menu-none');
         const status = document.getElementById('reserve-menu-status');
-        const savedQty = @json(old('items', []));
+        const savedQty = @json($savedReservationItems);
         let category = 'all';
         let loaded = false;
         let loading = false;

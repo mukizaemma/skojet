@@ -420,6 +420,24 @@
     color: #fff;
 }
 
+.pos-report-print {
+    display: none;
+}
+
+@media print {
+    .pos-head,
+    .pos-report-filters,
+    .pos-nav {
+        display: none !important;
+    }
+
+    .pos-report-print {
+        display: block;
+        margin-bottom: 1rem;
+        font-size: 14px;
+    }
+}
+
 .desk-pos__back {
     display: inline-block;
     margin-bottom: 0.75rem;

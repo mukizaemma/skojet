@@ -26,6 +26,7 @@
                 : ((float) $reservation->claimed_amount > 0 ? (float) $reservation->claimed_amount : $billTotal);
             $customOpen = filled(old('custom_name')) || filled(old('custom_price')) || $errors->has('custom_name');
             $guestBits = collect([$reservation->phone, $reservation->email])->filter();
+            $billTotalInput = number_format($billTotal, 2, '.', '');
         @endphp
 
         <div class="pos-invoice no-print">
@@ -200,7 +201,7 @@
         paint();
         document.getElementById('pay-total')?.addEventListener('click', function () {
             const field = document.getElementById('paid_amount');
-            if (field) field.value = @json(number_format($billTotal, 2, '.', ''));
+            if (field) field.value = @json($billTotalInput);
         });
     })();
 

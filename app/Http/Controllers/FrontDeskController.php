@@ -626,45 +626,71 @@ class FrontDeskController extends Controller
     public function posReports(Request $request)
     {
         [$start, $end] = $this->posPeriod($request);
-        $ready = Schema::hasTable('restaurant_reservations');
-        $visits = $ready
-            ? RestaurantReservation::query()
-                ->whereDate('reserved_for', '>=', $start)
-                ->whereDate('reserved_for', '<=', $end)
-                ->get()
+        $ready = Schema::hasTable('restaurant_reservations') && Schema::hasTable('restaurant_reservation_items');
+        $category = array_key_exists((string) $request->input('category'), RestaurantMenuItem::CATEGORIES)
+            ? (string) $request->input('category')
+            : '';
+        $item = (string) $request->input('item', '');
+        if (! str_starts_with($item, 'id:') && ! str_starts_with($item, 'name:')) {
+            $item = '';
+        }
+        $menuItems = $ready && Schema::hasTable('restaurant_menu_items')
+            ? RestaurantMenuItem::query()->orderBy('sort_order')->orderBy('name')->get()
             : collect();
-        $open = $visits->where('status', '!=', 'cancelled');
-        $items = $ready && Schema::hasTable('restaurant_reservation_items')
-            ? RestaurantReservationItem::query()
+        $lines = collect();
+        $customItems = collect();
+        if ($ready) {
+            $sold = RestaurantReservationItem::query()
                 ->whereHas('reservation', function ($query) use ($start, $end) {
                     $query->whereDate('reserved_for', '>=', $start)
                         ->whereDate('reserved_for', '<=', $end)
                         ->where('status', '!=', 'cancelled');
-                })
-                ->with('reservation:id,price_tier')
-                ->get()
-            : collect();
-        $categories = collect(RestaurantMenuItem::CATEGORIES)->map(function (string $label, string $key) use ($items) {
-            $rows = $items->where('category', $key);
+                });
+            $customItems = (clone $sold)
+                ->whereNull('menu_item_id')
+                ->orderBy('name')
+                ->get(['name', 'category'])
+                ->unique(fn (RestaurantReservationItem $row) => $row->category.'|'.$row->name)
+                ->values();
+            if ($category !== '') {
+                $sold->where('category', $category);
+            }
+            if (str_starts_with($item, 'id:')) {
+                $sold->where('menu_item_id', (int) substr($item, 3));
+            } elseif (str_starts_with($item, 'name:')) {
+                $sold->where('name', rawurldecode(substr($item, 5)))->whereNull('menu_item_id');
+            }
+            $lines = $sold->with('reservation')->get()->sortByDesc(function (RestaurantReservationItem $line) {
+                return optional($line->reservation?->reserved_for)->timestamp ?? 0;
+            })->values();
+        }
+        $international = $lines->filter(fn (RestaurantReservationItem $line) => ! $line->reservation?->usesLocalPrices());
+        $local = $lines->filter(fn (RestaurantReservationItem $line) => (bool) $line->reservation?->usesLocalPrices());
+        $tierSummary = function ($rows): array {
+            $total = round((float) $rows->sum('line_total'), 2);
+            $paid = round((float) $rows->filter(fn (RestaurantReservationItem $line) => $line->reservation?->payment_status === 'paid')->sum('line_total'), 2);
 
             return [
-                'label' => $label,
-                'international' => (float) $rows->filter(fn (RestaurantReservationItem $item) => ($item->reservation?->price_tier ?? 'international') !== 'local')->sum('line_total'),
-                'local' => (float) $rows->filter(fn (RestaurantReservationItem $item) => $item->reservation?->price_tier === 'local')->sum('line_total'),
+                'total' => $total,
+                'paid' => $paid,
+                'due' => max(0, round($total - $paid, 2)),
             ];
-        });
+        };
 
         return view('content-management.front-office.pos.reports', [
             'start' => $start,
             'end' => $end,
             'ready' => $ready,
-            'tiers' => $this->diningTierTotals($open),
-            'categories' => $categories,
-            'counts' => [
-                'reservations' => $open->count(),
-                'paid' => $open->where('payment_status', 'paid')->count(),
-                'unpaid' => $open->where('payment_status', '!=', 'paid')->count(),
-                'cancelled' => $visits->where('status', 'cancelled')->count(),
+            'category' => $category,
+            'item' => $item,
+            'menuItems' => $menuItems,
+            'customItems' => $customItems,
+            'lines' => $lines,
+            'summary' => [
+                'bills' => $lines->pluck('restaurant_reservation_id')->unique()->count(),
+                'quantity' => (int) $lines->sum('quantity'),
+                'international' => $tierSummary($international),
+                'local' => $tierSummary($local),
             ],
         ]);
     }

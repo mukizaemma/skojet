@@ -155,10 +155,14 @@
         <textarea name="message" class="form-control" rows="3">{{ old('message', $booking->message) }}</textarea>
     </div>
 </div>
+@php
+    $deskBoardValue = old('board', $booking->board);
+    $deskOccupancyValue = old('occupancy', $booking->occupancy ?: 'double');
+@endphp
 <script>
     const deskRates = @json($roomRates);
-    const deskBoard = @json(old('board', $booking->board));
-    const deskOccupancy = @json(old('occupancy', $booking->occupancy ?: 'double'));
+    const deskBoard = @json($deskBoardValue);
+    const deskOccupancy = @json($deskOccupancyValue);
     const currencySelect = document.getElementById('desk-currency');
     const roomSelect = document.getElementById('desk-room');
     const boardSelect = document.getElementById('desk-board');

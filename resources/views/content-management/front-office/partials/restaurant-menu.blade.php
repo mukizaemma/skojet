@@ -115,6 +115,21 @@
     </div>
 </div>
 <script type="application/json" id="menu-item-data">@json($menuPayload)</script>
+@php
+    $menuStoreUrl = route('content-management.restaurant-menu.store');
+    $menuUpdateUrl = route('content-management.restaurant-menu.update', ['item' => '__ID__']);
+    $menuDestroyUrl = route('content-management.restaurant-menu.destroy', ['item' => '__ID__']);
+    $oldMenuItem = [
+        'item_id' => old('item_id'),
+        'category' => old('category', $activeCategory),
+        'name' => old('name', ''),
+        'description' => old('description', ''),
+        'price_international' => old('price_international', '0'),
+        'price_local' => old('price_local', '0'),
+        'sort_order' => old('sort_order', '0'),
+        'is_active' => (bool) old('is_active'),
+    ];
+@endphp
 <script>
     (function () {
         const items = JSON.parse(document.getElementById('menu-item-data').textContent || '[]');
@@ -124,9 +139,9 @@
         const removeForm = document.getElementById('menu-item-delete');
         const removeButton = document.getElementById('menu-remove');
         const modalEl = document.getElementById('menu-item-modal');
-        const storeUrl = @json(route('content-management.restaurant-menu.store'));
-        const updateUrl = @json(route('content-management.restaurant-menu.update', ['item' => '__ID__']));
-        const destroyUrl = @json(route('content-management.restaurant-menu.destroy', ['item' => '__ID__']));
+        const storeUrl = @json($menuStoreUrl);
+        const updateUrl = @json($menuUpdateUrl);
+        const destroyUrl = @json($menuDestroyUrl);
         const search = document.getElementById('menu-search');
         const pager = document.getElementById('menu-pager');
         const pageSize = 25;
@@ -267,16 +282,16 @@
 
         @if($errors->any())
             fill({
-                id: @json(old('item_id')),
-                category: @json(old('category', $activeCategory)),
-                name: @json(old('name', '')),
-                description: @json(old('description', '')),
-                price_international: @json(old('price_international', '0')),
-                price_local: @json(old('price_local', '0')),
-                sort_order: @json(old('sort_order', '0')),
-                is_active: @json((bool) old('is_active'))
+                id: @json($oldMenuItem['item_id']),
+                category: @json($oldMenuItem['category']),
+                name: @json($oldMenuItem['name']),
+                description: @json($oldMenuItem['description']),
+                price_international: @json($oldMenuItem['price_international']),
+                price_local: @json($oldMenuItem['price_local']),
+                sort_order: @json($oldMenuItem['sort_order']),
+                is_active: @json($oldMenuItem['is_active'])
             });
-            if (!@json(old('item_id'))) {
+            if (!@json($oldMenuItem['item_id'])) {
                 document.getElementById('menu-item-title').textContent = 'Add menu item';
                 form.action = storeUrl;
                 removeButton.hidden = true;
