@@ -581,19 +581,8 @@ class FrontDeskController extends Controller
         return view('content-management.front-office.pos');
     }
 
-    public function posSales(Request $request)
+    public function posSales()
     {
-        [$start, $end] = $this->posPeriod($request);
-        $visits = $this->diningVisits($start, $end, false);
-        $roomCharges = BookingCharge::query()
-            ->with('booking')
-            ->where('category', 'restaurant')
-            ->where('included', false)
-            ->whereDate('created_at', '>=', $start)
-            ->whereDate('created_at', '<=', $end)
-            ->latest()
-            ->get();
-        $setting = Setting::query()->first();
         $ready = Schema::hasTable('restaurant_reservations');
         $menuItems = [];
         if ($ready && Schema::hasTable('restaurant_menu_items')) {
@@ -613,14 +602,23 @@ class FrontDeskController extends Controller
         }
 
         return view('content-management.front-office.pos.sales', [
+            'menuItems' => $menuItems,
+            'oldCart' => collect(old('items', []))->map(fn ($qty) => (int) $qty)->filter(fn ($qty) => $qty > 0),
+            'ready' => $ready,
+        ]);
+    }
+
+    public function posInvoices(Request $request)
+    {
+        [$start, $end] = $this->posPeriod($request);
+        $ready = Schema::hasTable('restaurant_reservations');
+        $visits = $ready ? $this->diningVisits($start, $end, false) : collect();
+
+        return view('content-management.front-office.pos.invoices', [
             'start' => $start,
             'end' => $end,
             'visits' => $visits,
-            'menuItems' => $menuItems,
-            'oldCart' => collect(old('items', []))->map(fn ($qty) => (int) $qty)->filter(fn ($qty) => $qty > 0),
-            'roomCharges' => $roomCharges,
-            'tiers' => $this->diningTierTotals($visits),
-            'setting' => $setting,
+            'tiers' => $ready ? $this->diningTierTotals($visits) : [],
             'ready' => $ready,
         ]);
     }

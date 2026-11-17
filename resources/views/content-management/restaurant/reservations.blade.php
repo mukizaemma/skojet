@@ -1,16 +1,16 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-reserve-modal">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-pos-nav">
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
         @include('content-management.front-office.partials.alerts')
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-            <h4 class="mb-0">Reservations</h4>
-            <div class="d-flex gap-2">
-                <button class="btn btn-dark btn-sm" type="button" id="open-reservation">New reservation</button>
-                <a class="btn btn-outline-dark btn-sm" href="{{ route('content-management.front-office.pos') }}">POS</a>
+        <div class="pos-head">
+            <h4>Reservations</h4>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                @include('content-management.front-office.partials.pos-nav', ['current' => 'reservations'])
+                <button class="btn btn-dark" type="button" id="open-reservation">New reservation</button>
             </div>
         </div>
 

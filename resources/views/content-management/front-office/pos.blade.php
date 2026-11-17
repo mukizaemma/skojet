@@ -1,7 +1,7 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-pos-tiles">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-pos-nav">
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
@@ -11,13 +11,17 @@
                 <span class="desk-pos__icon" aria-hidden="true"><i class="fas fa-receipt"></i></span>
                 <strong>Sales</strong>
             </a>
+            <a class="desk-pos__card desk-pos__card--invoices" href="{{ route('content-management.front-office.pos.invoices') }}">
+                <span class="desk-pos__icon" aria-hidden="true"><i class="fas fa-file-invoice"></i></span>
+                <strong>Invoices</strong>
+            </a>
             <a class="desk-pos__card desk-pos__card--reservations" href="{{ route('content-management.restaurant-reservations') }}">
                 <span class="desk-pos__icon" aria-hidden="true"><i class="fas fa-utensils"></i></span>
                 <strong>Reservations</strong>
             </a>
             <a class="desk-pos__card desk-pos__card--reports" href="{{ route('content-management.front-office.pos.reports') }}">
                 <span class="desk-pos__icon" aria-hidden="true"><i class="fas fa-chart-bar"></i></span>
-                <strong>Reports</strong>
+                <strong>POS Reports</strong>
             </a>
             <a class="desk-pos__card desk-pos__card--menu" href="{{ route('content-management.front-office.settings.extras.index', ['section' => 'menu']) }}">
                 <span class="desk-pos__icon" aria-hidden="true"><i class="fas fa-book-open"></i></span>

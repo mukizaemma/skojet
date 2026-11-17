@@ -350,6 +350,7 @@
 }
 
 .desk-pos__card--sales .desk-pos__icon { background: #fff1e8; color: #c2410c; }
+.desk-pos__card--invoices .desk-pos__icon { background: #f3e8ff; color: #6b21a8; }
 .desk-pos__card--reservations .desk-pos__icon { background: #e8f6ec; color: #16703a; }
 .desk-pos__card--reports .desk-pos__icon { background: #e8f1fb; color: #1d4f91; }
 .desk-pos__card--menu .desk-pos__icon { background: #fbf3df; color: #8a5a00; }
@@ -375,8 +376,48 @@
 
 @media (min-width: 1100px) {
     .desk-pos {
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
+}
+
+@media (min-width: 1400px) {
+    .desk-pos {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+}
+
+.pos-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.pos-head h4 {
+    margin: 0;
+}
+
+.pos-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.pos-nav a {
+    border: 1px solid #e6e6e6;
+    border-radius: 999px;
+    background: #fff;
+    color: #1a1a1a;
+    padding: 0.4rem 0.85rem;
+    text-decoration: none;
+}
+
+.pos-nav a.is-current {
+    background: #111;
+    border-color: #111;
+    color: #fff;
 }
 
 .desk-pos__back {

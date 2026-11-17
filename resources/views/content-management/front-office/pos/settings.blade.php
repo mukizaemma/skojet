@@ -1,13 +1,16 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-pos">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-pos-nav">
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
         @include('content-management.front-office.partials.alerts')
-        <a class="desk-pos__back" href="{{ route('content-management.front-office.pos') }}">POS</a>
-        <h4 class="mb-1">Restaurant settings</h4>
+        <div class="pos-head">
+            <h4>Settings</h4>
+            @include('content-management.front-office.partials.pos-nav')
+        </div>
+        <h5 class="mb-3">Restaurant access</h5>
         <p class="text-muted mb-3">Guests see the international price unless they choose the local price. They can send a reservation when the order reaches the minimum for that price.</p>
         @if(! $ready)
             <div class="bg-white border rounded p-3 text-muted">Restaurant settings appear after the dining tables are created. Run the database migration, then open this page again.</div>

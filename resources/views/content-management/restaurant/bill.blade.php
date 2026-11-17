@@ -1,7 +1,7 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-invoice">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-pos-nav">
 <style>
     @media print {
         .sidebar, .navbar, .desk-top, .no-print { display: none !important; }
@@ -29,12 +29,12 @@
         @endphp
 
         <div class="pos-invoice no-print">
+            <div class="pos-head">
+                <h4>{{ $reservation->reference }}</h4>
+                @include('content-management.front-office.partials.pos-nav', ['current' => 'invoices'])
+            </div>
             <div class="pos-invoice__bar">
-                <div>
-                    <a class="desk-pos__back" href="{{ route('content-management.front-office.pos.sales') }}">Sales</a>
-                    <h4 class="mb-1">{{ $reservation->reference }}</h4>
-                    <p class="text-muted mb-0">{{ $reservation->names }} · {{ optional($reservation->reserved_for)->format('D, M j, Y · H:i') }} · {{ $reservation->guests }} {{ $reservation->guests === 1 ? 'guest' : 'guests' }}@if($guestBits->isNotEmpty()) · {{ $guestBits->implode(' · ') }}@endif</p>
-                </div>
+                <p class="text-muted mb-0">{{ $reservation->names }} · {{ optional($reservation->reserved_for)->format('D, M j, Y · H:i') }} · {{ $reservation->guests }} {{ $reservation->guests === 1 ? 'guest' : 'guests' }}@if($guestBits->isNotEmpty()) · {{ $guestBits->implode(' · ') }}@endif</p>
                 <div class="d-flex flex-wrap align-items-center gap-2">
                     <span class="pos-status {{ $settled ? 'is-paid' : 'is-due' }}">{{ $settled ? 'Paid' : 'Not paid' }}</span>
                     <button class="btn btn-dark" type="button" onclick="window.print()">Print</button>

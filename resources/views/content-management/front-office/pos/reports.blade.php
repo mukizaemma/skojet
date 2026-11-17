@@ -1,13 +1,14 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-pos">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-pos-nav">
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
-        <a class="desk-pos__back" href="{{ route('content-management.front-office.pos') }}">POS</a>
-        <h4 class="mb-1">Restaurant reports</h4>
-        <p class="text-muted mb-3">Reservations and sales for the dining room.</p>
+        <div class="pos-head">
+            <h4>POS Reports</h4>
+            @include('content-management.front-office.partials.pos-nav', ['current' => 'reports'])
+        </div>
         <form method="GET" class="row g-2 align-items-end mb-4">
             <div class="col-auto">
                 <label class="form-label mb-1">From</label>

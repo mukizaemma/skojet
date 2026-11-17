@@ -1,23 +1,20 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-menu-pages">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-pos-nav">
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
         @include('content-management.front-office.partials.alerts')
-        <a class="desk-pos__back" href="{{ route('content-management.front-office.pos') }}">POS</a>
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-            <div>
-                <h4 class="mb-1">Menu management</h4>
-                <p class="text-muted mb-0">The restaurant menu is what guests order when they reserve a table. Room extras are added to a guest’s room bill.</p>
-            </div>
-            <div class="d-flex flex-wrap gap-2">
+        <div class="pos-head">
+            <h4>Menu management</h4>
+            @include('content-management.front-office.partials.pos-nav')
+        </div>
+        <div class="d-flex flex-wrap gap-2 mb-3">
                 <a class="btn btn-sm {{ $section === 'extras' ? 'btn-dark' : 'btn-outline-dark' }}" href="{{ route('content-management.front-office.settings.extras.index') }}">Room extras</a>
                 @if($menuReady)
                     <a class="btn btn-sm {{ $section === 'menu' ? 'btn-dark' : 'btn-outline-dark' }}" href="{{ route('content-management.front-office.settings.extras.index', ['section' => 'menu']) }}">Restaurant menu</a>
                 @endif
-            </div>
         </div>
         @if($section === 'menu' && $menuReady)
             @include('content-management.front-office.partials.restaurant-menu')

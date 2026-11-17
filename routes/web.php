@@ -246,6 +246,7 @@ Route::middleware(['auth', 'admin'])->prefix('content-management')->name('conten
         Route::get('/reports', [App\Http\Controllers\FrontDeskController::class, 'reports'])->name('reports');
         Route::get('/pos', [App\Http\Controllers\FrontDeskController::class, 'pos'])->name('pos');
         Route::get('/pos/sales', [App\Http\Controllers\FrontDeskController::class, 'posSales'])->name('pos.sales');
+        Route::get('/pos/invoices', [App\Http\Controllers\FrontDeskController::class, 'posInvoices'])->name('pos.invoices');
         Route::post('/pos/sales', [App\Http\Controllers\RestaurantReservationController::class, 'storeDesk'])->name('pos.sales.store');
         Route::get('/pos/reports', [App\Http\Controllers\FrontDeskController::class, 'posReports'])->name('pos.reports');
         Route::get('/pos/settings', [App\Http\Controllers\FrontDeskController::class, 'posSettings'])->name('pos.settings');
