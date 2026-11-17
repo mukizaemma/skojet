@@ -473,6 +473,36 @@ if (! function_exists('localized_route')) {
     }
 }
 
+if (! function_exists('restaurant_money')) {
+    function restaurant_money(mixed $amount, string $tier = 'international'): string
+    {
+        $value = (float) $amount;
+        if ($tier === 'local') {
+            return 'RWF '.number_format($value, 0);
+        }
+
+        $decimals = abs($value - round($value)) < 0.001 ? 0 : 2;
+
+        return '$'.number_format($value, $decimals);
+    }
+}
+
+if (! function_exists('whatsapp_digits')) {
+    function whatsapp_digits(?string $phone): string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone) ?? '';
+        if ($digits === '') {
+            return '';
+        }
+
+        if (str_starts_with($digits, '0') && strlen($digits) >= 9 && strlen($digits) <= 10) {
+            return '250'.substr($digits, 1);
+        }
+
+        return $digits;
+    }
+}
+
 if (! function_exists('locale_switch_url')) {
     function locale_switch_url(string $targetLocale): string
     {

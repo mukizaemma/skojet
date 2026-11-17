@@ -259,6 +259,7 @@
                     </div>
                 </div>
             @else
+                @include('frontend.includes.reserve-choice', ['mode' => 'room'])
                 <div class="book-channel__pick">
                 <div
                     class="book-channel__bar"

@@ -22,6 +22,7 @@ class SitemapBuilder
         '/our-services' => ['priority' => '0.8', 'changefreq' => 'monthly'],
         '/our-rooms' => ['priority' => '0.9', 'changefreq' => 'weekly'],
         '/dining' => ['priority' => '0.8', 'changefreq' => 'monthly'],
+        '/dining/reserve' => ['priority' => '0.8', 'changefreq' => 'monthly'],
         '/our-team' => ['priority' => '0.6', 'changefreq' => 'monthly'],
         '/our-updates' => ['priority' => '0.7', 'changefreq' => 'weekly'],
         '/tours' => ['priority' => '0.8', 'changefreq' => 'weekly'],

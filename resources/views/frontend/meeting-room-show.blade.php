@@ -19,8 +19,6 @@
             <p class="meeting-room-detail__capacity mb-3"><strong>{{ $room->capacityLabel() }}</strong></p>
             @if(filled($room->description))
                 {!! $room->description !!}
-            @else
-                <p class="text-muted mb-0">Description for this room can be added in the admin.</p>
             @endif
         </div>
 

@@ -19,6 +19,7 @@ use App\Livewire\Public\HandoverPage;
 use App\Livewire\Public\HomePage;
 use App\Livewire\Public\PromotionsPage;
 use App\Livewire\Public\RestaurantPage;
+use App\Livewire\Public\RestaurantReservePage;
 use App\Livewire\Public\ReviewShowPage;
 use App\Livewire\Public\ReviewsPage;
 use App\Livewire\Public\RoomShowPage;
@@ -257,6 +258,21 @@ Route::middleware(['auth', 'admin'])->prefix('content-management')->name('conten
     });
 
     // Reservations — guest booking requests from the public book-now form
+    Route::get('/restaurant-menu', [App\Http\Controllers\RestaurantMenuController::class, 'index'])->name('restaurant-menu');
+    Route::get('/restaurant-menu/qr', [App\Http\Controllers\RestaurantMenuController::class, 'qrCard'])->name('restaurant-menu.qr');
+    Route::post('/restaurant-menu/settings', [App\Http\Controllers\RestaurantMenuController::class, 'updateSettings'])->name('restaurant-menu.settings');
+    Route::post('/restaurant-menu', [App\Http\Controllers\RestaurantMenuController::class, 'store'])->name('restaurant-menu.store');
+    Route::post('/restaurant-menu/{item}', [App\Http\Controllers\RestaurantMenuController::class, 'update'])->name('restaurant-menu.update');
+    Route::delete('/restaurant-menu/{item}', [App\Http\Controllers\RestaurantMenuController::class, 'destroy'])->name('restaurant-menu.destroy');
+
+    Route::get('/restaurant-reservations', [App\Http\Controllers\RestaurantReservationController::class, 'index'])->name('restaurant-reservations');
+    Route::get('/restaurant-reservations/{reservation}', [App\Http\Controllers\RestaurantReservationController::class, 'show'])->name('restaurant-reservations.show');
+    Route::post('/restaurant-reservations/{reservation}/status', [App\Http\Controllers\RestaurantReservationController::class, 'updateStatus'])->name('restaurant-reservations.status');
+    Route::post('/restaurant-reservations/{reservation}/payment', [App\Http\Controllers\RestaurantReservationController::class, 'updatePayment'])->name('restaurant-reservations.payment');
+    Route::post('/restaurant-reservations/{reservation}/items', [App\Http\Controllers\RestaurantReservationController::class, 'storeItem'])->name('restaurant-reservations.items.store');
+    Route::delete('/restaurant-reservations/{reservation}/items/{item}', [App\Http\Controllers\RestaurantReservationController::class, 'destroyItem'])->name('restaurant-reservations.items.destroy');
+    Route::post('/restaurant-reservations/{reservation}/share', [App\Http\Controllers\RestaurantReservationController::class, 'share'])->name('restaurant-reservations.share');
+
     Route::get('/reservations', [App\Http\Controllers\ContentManagementController::class, 'reservations'])->name('reservations');
     Route::get('/reservations/{id}', [App\Http\Controllers\ContentManagementController::class, 'showReservationPage'])->name('reservations.show');
     Route::post('/reservations/{id}/reply', [App\Http\Controllers\ContentManagementController::class, 'replyReservation'])->name('reservations.reply');
@@ -482,6 +498,12 @@ $registerPublicSiteRoutes = function (bool $nameRoutes = true): void {
     $named(Route::get('/our-rooms', RoomsPage::class), 'rooms');
     $named(Route::get('/our-rooms/{slug}', RoomShowPage::class), 'room');
     $named(Route::get('/dining', RestaurantPage::class), 'dining');
+    $named(Route::get('/dining/reserve', RestaurantReservePage::class), 'dining.reserve');
+    $named(
+        Route::get('/dining/pass/{token}', [App\Http\Controllers\RestaurantPassController::class, 'show'])
+            ->where('token', '[A-Za-z0-9]{20,}'),
+        'dining.pass'
+    );
     $named(Route::get('/our-team', OurTeamPage::class), 'our-team');
     $named(Route::get('/our-updates', UpdatesPage::class), 'updates');
     $named(Route::get('/our-updates/{slug}', BlogPostPage::class), 'update');

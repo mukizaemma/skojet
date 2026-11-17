@@ -58,8 +58,4 @@
             </div>
         @endif
     </div>
-@else
-    <div class="page-gallery-root page-gallery-root--empty mb-4 mb-lg-5 rounded-4 d-flex align-items-center justify-content-center">
-        <p class="text-muted mb-0 small">Gallery images can be added in the admin (e.g. Dining page or each meeting room).</p>
-    </div>
 @endif

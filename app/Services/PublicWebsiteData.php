@@ -21,6 +21,7 @@ use App\Models\PageHero;
 use App\Models\Program;
 use App\Models\Promotion;
 use App\Models\Restaurant;
+use App\Models\RestaurantMenuItem;
 use App\Models\Review;
 use App\Models\Room;
 use App\Models\Service;
@@ -471,6 +472,9 @@ class PublicWebsiteData
             'restaurant' => $restaurant,
             'images' => $images,
             'cuisines' => $cuisines,
+            'menu' => \Illuminate\Support\Facades\Schema::hasTable('restaurant_menu_items')
+                ? RestaurantMenuItem::publicGroups()
+                : [],
             'setting' => $setting,
             'about' => $about,
             'pageHero' => $pageHero,

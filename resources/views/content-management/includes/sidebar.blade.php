@@ -8,6 +8,8 @@ $isTeamAdmin = in_array($currentRoute, ['staff', 'saveStaff', 'editStaff', 'upda
 $isSlidesAdmin = str_contains($currentRoute, 'content-management.slideshow');
 $isSettingsAdmin = in_array($currentRoute, ['setting', 'saveSetting', 'homePage', 'saveHome', 'aboutPage', 'saveAbout'], true) || str_starts_with((string) $currentRoute, 'setting.');
 $isDiningAdmin = $currentRoute === 'resto' || str_contains(strtolower((string) $currentRoute), 'resto');
+$isRestaurantMenu = str_contains((string) $currentRoute, 'restaurant-menu');
+$isRestaurantBills = str_contains((string) $currentRoute, 'restaurant-reservations');
 @endphp
 
 <div class="sidebar pe-4 pb-3">
@@ -52,6 +54,12 @@ $isDiningAdmin = $currentRoute === 'resto' || str_contains(strtolower((string) $
 
             <a href="{{ route('resto') }}" class="nav-item nav-link {{ $isDiningAdmin ? 'active' : '' }}">
                 <i class="fas fa-utensils me-2"></i>Dining page
+            </a>
+            <a href="{{ route('content-management.restaurant-menu') }}" class="nav-item nav-link {{ $isRestaurantMenu ? 'active' : '' }}">
+                <i class="fas fa-book-open me-2"></i>Restaurant menu
+            </a>
+            <a href="{{ route('content-management.restaurant-reservations') }}" class="nav-item nav-link {{ $isRestaurantBills ? 'active' : '' }}">
+                <i class="fas fa-receipt me-2"></i>Restaurant bills
             </a>
             <a href="{{ route('content-management.amenities') }}" class="nav-item nav-link {{ str_contains($currentRoute, 'content-management.amenities') ? 'active' : '' }}">
                 <i class="fas fa-list me-2"></i>Amenities

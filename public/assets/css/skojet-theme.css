@@ -3711,3 +3711,278 @@ a.text-primary {
         columns: 1;
     }
 }
+
+.reserve-choice {
+    margin: 0 0 1.75rem;
+}
+
+.reserve-choice p {
+    margin: 0 0 0.7rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.reserve-choice div {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+    max-width: 34rem;
+}
+
+.reserve-choice a {
+    display: block;
+    padding: 0.9rem 1rem;
+    border: 1px solid #111;
+    color: #111;
+    text-align: center;
+    text-decoration: none;
+    background: #fff;
+}
+
+.reserve-choice a.is-current {
+    background: #111;
+    color: #fff;
+}
+
+.dining-menu + .dining-menu {
+    margin-top: 1.75rem;
+}
+
+.dining-menu h2,
+.dining-menu h3 {
+    margin: 0 0 0.35rem;
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 1.55rem;
+}
+
+.dining-menu ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.dining-menu li {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.95rem 0;
+    border-bottom: 1px solid rgba(17, 17, 17, 0.12);
+}
+
+.dining-menu li div {
+    min-width: 0;
+}
+
+.dining-menu strong {
+    display: block;
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 1.15rem;
+}
+
+.dining-menu span,
+.dining-reserve__note {
+    display: block;
+    margin-top: 0.2rem;
+    color: rgba(17, 17, 17, 0.68);
+    line-height: 1.5;
+}
+
+.dining-menu em {
+    font-style: normal;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.dining-menu__buy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.45rem;
+}
+
+.dining-menu__add,
+.dining-menu__qty button {
+    border: 1px solid #111;
+    background: #fff;
+    color: #111;
+    min-width: 4.5rem;
+    padding: 0.35rem 0.6rem;
+}
+
+.dining-menu__qty {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.dining-menu__qty button {
+    min-width: 2rem;
+}
+
+.dining-reserve__layout {
+    display: grid;
+    gap: 1.5rem;
+}
+
+@media (min-width: 992px) {
+    .dining-reserve__layout {
+        grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.8fr);
+        align-items: start;
+    }
+}
+
+.dining-reserve__card,
+.dining-reserve__success {
+    background: #fff;
+    border: 1px solid rgba(17, 17, 17, 0.1);
+    padding: 1.25rem;
+}
+
+.dining-reserve__card {
+    position: sticky;
+    top: 1rem;
+}
+
+.dining-reserve__tiers {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+    margin-bottom: 0.6rem;
+}
+
+.dining-reserve__tiers button {
+    border: 1px solid #111;
+    background: #fff;
+    padding: 0.55rem 0.4rem;
+}
+
+.dining-reserve__tiers button.is-current {
+    background: #111;
+    color: #fff;
+}
+
+.dining-reserve__card label {
+    display: block;
+    margin-top: 0.75rem;
+}
+
+.dining-reserve__card label span {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 0.82rem;
+}
+
+.dining-reserve__card input,
+.dining-reserve__card textarea {
+    width: 100%;
+    border: 1px solid rgba(17, 17, 17, 0.2);
+    padding: 0.55rem 0.7rem;
+    background: #fff;
+}
+
+.dining-reserve__when {
+    display: grid;
+    grid-template-columns: 1fr 1fr 5rem;
+    gap: 0.5rem;
+}
+
+.dining-reserve__lines,
+.dining-reserve__totals {
+    margin: 0.75rem 0 0;
+    padding: 0;
+}
+
+.dining-reserve__lines {
+    list-style: none;
+}
+
+.dining-reserve__lines li,
+.dining-reserve__totals div {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.35rem 0;
+}
+
+.dining-reserve__short,
+.dining-reserve__card small {
+    color: #8a3b2b;
+}
+
+.dining-reserve__ready {
+    color: #1d6b3a;
+}
+
+.dining-reserve__send {
+    display: grid;
+    gap: 0.55rem;
+    margin-top: 1rem;
+}
+
+.dining-reserve__send .theme-btn[disabled] {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+.dining-reserve__success {
+    text-align: center;
+    max-width: 38rem;
+    margin: 0 auto;
+}
+
+.dining-reserve__success i {
+    font-size: 2rem;
+}
+
+.dining-reserve__empty {
+    margin: 0;
+}
+
+.dining-reserve__pay {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #f7f4ef;
+    border: 1px solid rgba(17, 17, 17, 0.12);
+}
+
+.dining-reserve__momo {
+    display: block;
+    margin: 0.2rem 0 0.35rem;
+    font-family: var(--font-display);
+    font-size: 1.8rem;
+    letter-spacing: 0.08em;
+    font-weight: 500;
+}
+
+.dining-reserve__confirm {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+}
+
+.dining-reserve__confirm input {
+    width: auto;
+    margin-top: 0.2rem;
+}
+
+.dining-reserve__confirm span {
+    display: inline;
+    margin: 0;
+}
+
+.dining-reserve__bill {
+    margin-top: 1.5rem;
+}
+
+.dining-reserve__success {
+    text-align: center;
+    max-width: 40rem;
+    margin: 0 auto 1rem;
+    background: transparent;
+    border: 0;
+    padding: 0;
+}
