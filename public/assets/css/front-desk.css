@@ -278,6 +278,51 @@
 .desk-swatch--unallocated::before { background: #4aa3df; }
 .desk-swatch--incomplete::before { background: #f3c98b; }
 
+.desk-pos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: 1rem;
+}
+
+.desk-pos__card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-height: 9.5rem;
+    padding: 1.25rem;
+    background: #fff;
+    border: 1px solid #e6e8eb;
+    border-radius: 14px;
+    color: inherit;
+    text-decoration: none;
+}
+
+.desk-pos__card:hover,
+.desk-pos__card:focus-visible {
+    border-color: #1a1a1a;
+    color: inherit;
+}
+
+.desk-pos__card i {
+    font-size: 1.2rem;
+}
+
+.desk-pos__card span {
+    color: #666;
+    font-size: 0.92rem;
+}
+
+.desk-pos__back {
+    display: inline-block;
+    margin-bottom: 0.75rem;
+    color: #444;
+    text-decoration: none;
+}
+
+.desk-pos__back::before {
+    content: "‹ ";
+}
+
 .desk-book {
     display: grid;
     grid-template-columns: minmax(0, 3fr) minmax(17rem, 2fr);

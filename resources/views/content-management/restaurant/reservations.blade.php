@@ -12,7 +12,7 @@
                     <h4 class="mb-1">Dining reservations</h4>
                     <p class="text-muted mb-0">Open a bill to add items, confirm the payment, then print or download the PDF.</p>
                 </div>
-                <a class="btn btn-outline-dark" href="{{ route('content-management.front-office.home') }}#dining-access">Access settings</a>
+                <a class="btn btn-outline-dark" href="{{ route('content-management.front-office.pos') }}">POS</a>
             </div>
             <div class="table-responsive">
                 <table class="table align-middle mb-0">

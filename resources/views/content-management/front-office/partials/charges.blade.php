@@ -38,7 +38,7 @@
         </div>
     @endif
     @if($items->isEmpty())
-        <p class="text-muted small mb-0 mt-2">Add items on the <a href="{{ route('content-management.front-office.settings.extras.index') }}">POS Items</a> tab before they can be added to a bill.</p>
+        <p class="text-muted small mb-0 mt-2">Add items under <a href="{{ route('content-management.front-office.pos') }}">POS</a>, then Menu management, before they can be added to a bill.</p>
     @else
         <div class="desk-pos mt-3" data-pos data-currency="{{ $booking->currencyKey() }}" hidden>
             <p class="small text-muted mb-2">Choose items, then mark each one included in the room or charged. Charged items are added to the balance and can be paid together.</p>

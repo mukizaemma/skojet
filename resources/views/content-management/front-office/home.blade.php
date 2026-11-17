@@ -9,7 +9,7 @@
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
             <div>
                 <h4 class="mb-1">Front Office</h4>
-                <p class="text-muted mb-0">Stays, dining reservations, and restaurant access.</p>
+                <p class="text-muted mb-0">Stays, arrivals, and today’s dining.</p>
             </div>
             <a href="{{ route('content-management.front-office.create') }}" class="btn btn-dark">New reservation</a>
         </div>

@@ -9,6 +9,7 @@ use App\Models\ExtraItem;
 use App\Models\Restaurant;
 use App\Models\RestaurantMenuItem;
 use App\Models\RestaurantReservation;
+use App\Models\RestaurantReservationItem;
 use App\Models\Room;
 use App\Models\RoomClosure;
 use App\Models\RoomOverbook;
@@ -544,6 +545,93 @@ class FrontDeskController extends Controller
         ]);
     }
 
+    public function pos()
+    {
+        return view('content-management.front-office.pos');
+    }
+
+    public function posSales(Request $request)
+    {
+        [$start, $end] = $this->posPeriod($request);
+        $visits = $this->diningVisits($start, $end, false);
+        $roomCharges = BookingCharge::query()
+            ->with('booking')
+            ->where('category', 'restaurant')
+            ->where('included', false)
+            ->whereDate('created_at', '>=', $start)
+            ->whereDate('created_at', '<=', $end)
+            ->latest()
+            ->get();
+        $setting = Setting::query()->first();
+
+        return view('content-management.front-office.pos.sales', [
+            'start' => $start,
+            'end' => $end,
+            'visits' => $visits,
+            'roomCharges' => $roomCharges,
+            'tiers' => $this->diningTierTotals($visits),
+            'setting' => $setting,
+            'ready' => Schema::hasTable('restaurant_reservations'),
+        ]);
+    }
+
+    public function posReports(Request $request)
+    {
+        [$start, $end] = $this->posPeriod($request);
+        $ready = Schema::hasTable('restaurant_reservations');
+        $visits = $ready
+            ? RestaurantReservation::query()
+                ->whereDate('reserved_for', '>=', $start)
+                ->whereDate('reserved_for', '<=', $end)
+                ->get()
+            : collect();
+        $open = $visits->where('status', '!=', 'cancelled');
+        $items = $ready && Schema::hasTable('restaurant_reservation_items')
+            ? RestaurantReservationItem::query()
+                ->whereHas('reservation', function ($query) use ($start, $end) {
+                    $query->whereDate('reserved_for', '>=', $start)
+                        ->whereDate('reserved_for', '<=', $end)
+                        ->where('status', '!=', 'cancelled');
+                })
+                ->with('reservation:id,price_tier')
+                ->get()
+            : collect();
+        $categories = collect(RestaurantMenuItem::CATEGORIES)->map(function (string $label, string $key) use ($items) {
+            $rows = $items->where('category', $key);
+
+            return [
+                'label' => $label,
+                'international' => (float) $rows->filter(fn (RestaurantReservationItem $item) => ($item->reservation?->price_tier ?? 'international') !== 'local')->sum('line_total'),
+                'local' => (float) $rows->filter(fn (RestaurantReservationItem $item) => $item->reservation?->price_tier === 'local')->sum('line_total'),
+            ];
+        });
+
+        return view('content-management.front-office.pos.reports', [
+            'start' => $start,
+            'end' => $end,
+            'ready' => $ready,
+            'tiers' => $this->diningTierTotals($open),
+            'categories' => $categories,
+            'counts' => [
+                'reservations' => $open->count(),
+                'paid' => $open->where('payment_status', 'paid')->count(),
+                'unpaid' => $open->where('payment_status', '!=', 'paid')->count(),
+                'cancelled' => $visits->where('status', 'cancelled')->count(),
+            ],
+        ]);
+    }
+
+    public function posSettings()
+    {
+        $ready = Schema::hasTable('restaurants');
+
+        return view('content-management.front-office.pos.settings', [
+            'ready' => $ready,
+            'restaurant' => $ready ? Restaurant::access() : null,
+            'reserveUrl' => $ready ? localized_route('dining.reserve') : '',
+        ]);
+    }
+
     public function reports(Request $request)
     {
         $start = $request->input('start_date', now()->startOfMonth()->toDateString());
@@ -556,19 +644,19 @@ class FrontDeskController extends Controller
 
         $charges = BookingCharge::query()
             ->with('booking')
+            ->where('category', 'service')
             ->whereDate('created_at', '>=', $start)
             ->whereDate('created_at', '<=', $end)
             ->get();
         $setting = Setting::query()->first();
         $summaries = collect(['usd', 'rwf'])->map(function (string $currency) use ($bookings, $charges) {
             $rows = $bookings->filter(fn (Booking $booking) => $booking->currencyKey() === $currency);
-            $posted = $charges->filter(fn (BookingCharge $charge) => ($charge->booking?->currencyKey() ?? 'usd') === $currency);
+            $posted = $charges->filter(fn (BookingCharge $charge) => ($charge->booking?->currencyKey() ?? 'usd') === $currency && ! $charge->included);
 
             return [
                 'currency' => $currency,
                 'total' => (float) $rows->sum('total_amount'),
-                'restaurant' => (float) $posted->where('category', 'restaurant')->where('included', false)->sum('line_total'),
-                'services' => (float) $posted->where('category', 'service')->where('included', false)->sum('line_total'),
+                'services' => (float) $posted->sum('line_total'),
                 'paid' => (float) $rows->sum('paid_amount'),
                 'balance' => (float) $rows->sum('balance_amount'),
                 'visible' => $rows->isNotEmpty() || $posted->isNotEmpty(),
@@ -578,7 +666,6 @@ class FrontDeskController extends Controller
             $summaries = collect([[
                 'currency' => 'usd',
                 'total' => 0.0,
-                'restaurant' => 0.0,
                 'services' => 0.0,
                 'paid' => 0.0,
                 'balance' => 0.0,
@@ -790,6 +877,59 @@ class FrontDeskController extends Controller
         return redirect()
             ->to(url('/content-management/front-office/settings/rates').'#overbooks')
             ->with('success', 'Overbooking removed.');
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function posPeriod(Request $request): array
+    {
+        return [
+            (string) $request->input('start_date', now()->startOfMonth()->toDateString()),
+            (string) $request->input('end_date', now()->toDateString()),
+        ];
+    }
+
+    private function diningVisits(string $start, string $end, bool $includeCancelled = false)
+    {
+        if (! Schema::hasTable('restaurant_reservations')) {
+            return collect();
+        }
+
+        $query = RestaurantReservation::query()
+            ->whereDate('reserved_for', '>=', $start)
+            ->whereDate('reserved_for', '<=', $end)
+            ->orderByDesc('reserved_for');
+        if (! $includeCancelled) {
+            $query->where('status', '!=', 'cancelled');
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, RestaurantReservation>  $visits
+     * @return list<array{tier: string, label: string, total: float, paid: float, balance: float, count: int}>
+     */
+    private function diningTierTotals($visits): array
+    {
+        return collect(['international' => 'International (USD)', 'local' => 'Local (RWF)'])->map(function (string $label, string $tier) use ($visits) {
+            $rows = $visits->where('price_tier', $tier === 'local' ? 'local' : 'international');
+            if ($tier === 'international') {
+                $rows = $visits->filter(fn (RestaurantReservation $visit) => $visit->price_tier !== 'local');
+            }
+            $total = (float) $rows->sum('total_amount');
+            $paid = (float) $rows->sum('paid_amount');
+
+            return [
+                'tier' => $tier,
+                'label' => $label,
+                'total' => $total,
+                'paid' => $paid,
+                'balance' => max(0, round($total - $paid, 2)),
+                'count' => $rows->count(),
+            ];
+        })->filter(fn (array $row) => $row['count'] > 0)->values()->all();
     }
 
     private function roomBookings()

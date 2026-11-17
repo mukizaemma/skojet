@@ -242,6 +242,10 @@ Route::middleware(['auth', 'admin'])->prefix('content-management')->name('conten
         Route::get('/payments', [App\Http\Controllers\FrontDeskController::class, 'payments'])->name('payments');
         Route::get('/inventory', [App\Http\Controllers\FrontDeskController::class, 'inventory'])->name('inventory');
         Route::get('/reports', [App\Http\Controllers\FrontDeskController::class, 'reports'])->name('reports');
+        Route::get('/pos', [App\Http\Controllers\FrontDeskController::class, 'pos'])->name('pos');
+        Route::get('/pos/sales', [App\Http\Controllers\FrontDeskController::class, 'posSales'])->name('pos.sales');
+        Route::get('/pos/reports', [App\Http\Controllers\FrontDeskController::class, 'posReports'])->name('pos.reports');
+        Route::get('/pos/settings', [App\Http\Controllers\FrontDeskController::class, 'posSettings'])->name('pos.settings');
         Route::get('/settings', [App\Http\Controllers\FrontDeskController::class, 'settings'])->name('settings');
         Route::get('/settings/rates', [App\Http\Controllers\FrontDeskController::class, 'rates'])->name('settings.rates.index');
         Route::get('/settings/invoice', [App\Http\Controllers\FrontDeskController::class, 'invoiceSettings'])->name('settings.invoice.edit');

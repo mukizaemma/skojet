@@ -5,7 +5,8 @@
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
-        <h4 class="mb-3">Reports</h4>
+        <h4 class="mb-1">Room reports</h4>
+        <p class="text-muted mb-3">Room stays, payments, and services posted to a guest bill.</p>
         <form method="GET" class="row g-2 align-items-end mb-4">
             <div class="col-auto">
                 <label class="form-label mb-1">From</label>
@@ -20,9 +21,8 @@
         @foreach($summaries as $summary)
             <h6 class="mb-2">{{ $summary['currency'] === 'rwf' ? 'RWF' : 'USD' }}</h6>
             <div class="row g-3 mb-2">
-                <div class="col-md-4"><div class="bg-white border rounded p-3"><div class="text-muted small">Room sales</div><div class="fs-4">{{ hotel_price($summary['total'], $setting ?? null, $summary['currency']) }}</div><div class="text-muted small">Stays checking in during this period, after any arrival or departure change.</div></div></div>
-                <div class="col-md-4"><div class="bg-white border rounded p-3"><div class="text-muted small">Restaurant sales</div><div class="fs-4">{{ hotel_price($summary['restaurant'], $setting ?? null, $summary['currency']) }}</div><div class="text-muted small">Food, drink, and coffee posted in this period.</div></div></div>
-                <div class="col-md-4"><div class="bg-white border rounded p-3"><div class="text-muted small">Services sales</div><div class="fs-4">{{ hotel_price($summary['services'], $setting ?? null, $summary['currency']) }}</div><div class="text-muted small">Laundry, massage, transport, and tour guide posted in this period.</div></div></div>
+                <div class="col-md-6"><div class="bg-white border rounded p-3"><div class="text-muted small">Room sales</div><div class="fs-4">{{ hotel_price($summary['total'], $setting ?? null, $summary['currency']) }}</div><div class="text-muted small">Stays checking in during this period, after any arrival or departure change.</div></div></div>
+                <div class="col-md-6"><div class="bg-white border rounded p-3"><div class="text-muted small">Services sales</div><div class="fs-4">{{ hotel_price($summary['services'], $setting ?? null, $summary['currency']) }}</div><div class="text-muted small">Laundry, massage, transport, and tour guide posted in this period.</div></div></div>
             </div>
             <div class="row g-3 mb-4">
                 <div class="col-md-6"><div class="bg-white border rounded p-3"><div class="text-muted small">Received on these stays</div><div class="fs-4">{{ hotel_price($summary['paid'], $setting ?? null, $summary['currency']) }}</div></div></div>
@@ -53,7 +53,7 @@
                 </div>
             </div>
         </div>
-        <h6 class="mb-2">Extra charges posted in this period</h6>
+        <h6 class="mb-2">Service charges posted in this period</h6>
         <div class="bg-white border rounded mb-4">
             <table class="table mb-0">
                 <thead><tr><th>Guest</th><th>Item</th><th>Category</th><th class="text-end">Amount</th></tr></thead>

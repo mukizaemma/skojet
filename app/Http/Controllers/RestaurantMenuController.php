@@ -43,8 +43,7 @@ class RestaurantMenuController extends Controller
         $restaurant->save();
 
         return redirect()
-            ->route('content-management.front-office.home')
-            ->withFragment('dining-access')
+            ->route('content-management.front-office.pos.settings')
             ->with('success', 'Restaurant access settings saved.');
     }
 
