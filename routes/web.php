@@ -215,6 +215,8 @@ Route::middleware(['auth', 'admin'])->prefix('content-management')->name('conten
     Route::get('/page-heroes', ContentManagementPageHeroes::class)->name('page-heroes');
     Route::post('/page-heroes/{id}/update', [App\Http\Controllers\ContentManagementController::class, 'updatePageHero'])->name('page-heroes.update');
     
+    Route::get('/system-activities', [App\Http\Controllers\AuditLogController::class, 'activities'])->name('audit.activities');
+    Route::get('/archived-records', [App\Http\Controllers\AuditLogController::class, 'archived'])->name('audit.archived');
     Route::get('/reservations-manager', [App\Http\Controllers\FrontDeskController::class, 'grant'])->name('reservations-manager');
     Route::post('/reservations-manager', [App\Http\Controllers\FrontDeskController::class, 'updateGrant'])->name('reservations-manager.update');
 

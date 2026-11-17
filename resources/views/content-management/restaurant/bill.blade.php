@@ -1,7 +1,7 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-pos-nav">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-nav-clear">
 <style>
     @media print {
         .sidebar, .navbar, .desk-top, .no-print { display: none !important; }
@@ -31,7 +31,10 @@
 
         <div class="pos-invoice no-print">
             <div class="pos-head">
-                <h4>{{ $reservation->reference }}</h4>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    @include('content-management.front-office.partials.back', ['href' => route('content-management.front-office.pos.invoices'), 'label' => 'Restaurant invoices'])
+                    <h4>{{ $reservation->reference }}</h4>
+                </div>
                 @include('content-management.front-office.partials.pos-nav', ['current' => 'invoices'])
             </div>
             <div class="pos-invoice__bar">
@@ -69,11 +72,14 @@
                                     <td class="text-end">{{ $reservation->money((float) $item->unit_price) }}</td>
                                     <td class="text-end">{{ $reservation->money((float) $item->line_total) }}</td>
                                     <td class="text-end">
-                                        <form method="POST" action="{{ route('content-management.restaurant-reservations.items.destroy', [$reservation, $item]) }}">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button class="btn btn-link btn-sm text-danger p-0" type="submit">Remove</button>
-                                        </form>
+                                        @if(\App\Support\DeskAudit::canRemove($item->created_by))
+                                            <form method="POST" action="{{ route('content-management.restaurant-reservations.items.destroy', [$reservation, $item]) }}" onsubmit="return confirm('Remove this item from the bill?')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <input type="hidden" name="confirm_remove" value="1">
+                                                <button class="btn btn-link btn-sm text-danger p-0" type="submit">Remove</button>
+                                            </form>
+                                        @endif
                                     </td>
                                 </tr>
                             @empty
@@ -142,9 +148,10 @@
                                 <button class="btn btn-outline-dark" type="submit" name="received" value="no">Money not received</button>
                             </div>
                         </form>
-                        <form method="POST" action="{{ route('content-management.restaurant-reservations.status', $reservation) }}" class="pos-pay__visit">
+                        <form method="POST" action="{{ route('content-management.restaurant-reservations.status', $reservation) }}" class="pos-pay__visit" onsubmit="return this.status.value !== 'cancelled' || confirm('Cancel this dining reservation?')">
                             @csrf
                             <label class="form-label" for="bill-status">Visit</label>
+                            <input type="hidden" name="confirm_cancel" value="1">
                             <div class="pos-paid">
                                 <select class="form-select" id="bill-status" name="status">
                                     @foreach(['pending' => 'Pending', 'confirmed' => 'Confirmed', 'completed' => 'Completed', 'cancelled' => 'Cancelled'] as $key => $label)

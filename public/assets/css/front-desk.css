@@ -438,15 +438,44 @@
     }
 }
 
-.desk-pos__back {
-    display: inline-block;
-    margin-bottom: 0.75rem;
-    color: #444;
+.desk-pos__back,
+.desk-back,
+.desk-clear {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid #d9d9d9;
+    border-radius: 999px;
+    background: #fff;
+    color: #1a1a1a;
+    padding: 0.45rem 0.9rem;
     text-decoration: none;
+    line-height: 1.2;
+    white-space: nowrap;
 }
 
+.desk-back::before,
 .desk-pos__back::before {
-    content: "‹ ";
+    content: "‹";
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+.desk-back:hover,
+.desk-back:focus-visible,
+.desk-clear:hover,
+.desk-clear:focus-visible,
+.desk-pos__back:hover,
+.desk-pos__back:focus-visible {
+    border-color: #111;
+    color: #111;
+}
+
+@media print {
+    .desk-back,
+    .desk-clear {
+        display: none !important;
+    }
 }
 
 .reserve-form__block {

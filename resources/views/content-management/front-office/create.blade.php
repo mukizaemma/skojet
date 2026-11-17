@@ -1,12 +1,15 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-actions">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-nav-clear">
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
         @include('content-management.front-office.partials.alerts')
-        <h4 class="mb-3">New reservation</h4>
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            @include('content-management.front-office.partials.back', ['href' => route('content-management.front-office.reservations'), 'label' => 'Room reservations'])
+            <h4 class="mb-0">New room reservation</h4>
+        </div>
         <div class="desk-book">
             <form id="desk-stay" method="POST" action="{{ route('content-management.front-office.store') }}" class="desk-book__form bg-white border rounded p-4">
                 @csrf

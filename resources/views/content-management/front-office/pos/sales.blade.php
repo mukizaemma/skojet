@@ -1,13 +1,16 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-pos-nav">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-nav-clear">
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
         @include('content-management.front-office.partials.alerts')
         <div class="pos-head">
-            <h4>Sales</h4>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                @include('content-management.front-office.partials.back', ['href' => route('content-management.front-office.pos'), 'label' => 'POS'])
+                <h4>Restaurant sales</h4>
+            </div>
             @include('content-management.front-office.partials.pos-nav', ['current' => 'sales'])
         </div>
         @if($ready)
@@ -17,7 +20,10 @@
                 <div class="pos-sale mb-4" id="pos-sale">
                     <div class="pos-menu">
                         <div class="pos-bar">
-                            <input class="pos-search" id="pos-search" type="search" placeholder="Search the menu" autocomplete="off">
+                            <div class="d-flex gap-2">
+                                <input class="pos-search" id="pos-search" type="search" placeholder="Search the menu" autocomplete="off">
+                                <button class="desk-clear" id="pos-search-clear" type="button">Clear filters</button>
+                            </div>
                             <div class="pos-tabs" id="pos-tabs" role="tablist"></div>
                         </div>
                         <div class="pos-grid" id="pos-grid"></div>
@@ -258,6 +264,12 @@
                             }
                         });
                         search.addEventListener('input', renderGrid);
+                        document.getElementById('pos-search-clear')?.addEventListener('click', function () {
+                            search.value = '';
+                            category = 'all';
+                            renderTabs();
+                            renderGrid();
+                        });
                         form.addEventListener('submit', function (event) {
                             if (Object.keys(cart).length === 0) event.preventDefault();
                         });

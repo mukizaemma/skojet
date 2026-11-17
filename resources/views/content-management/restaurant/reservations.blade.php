@@ -1,13 +1,16 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-pos-nav">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-nav-clear">
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
         @include('content-management.front-office.partials.alerts')
         <div class="pos-head">
-            <h4>Reservations</h4>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                @include('content-management.front-office.partials.back', ['href' => route('content-management.front-office.pos'), 'label' => 'POS'])
+                <h4>Restaurant reservations</h4>
+            </div>
             <div class="d-flex flex-wrap align-items-center gap-2">
                 @include('content-management.front-office.partials.pos-nav', ['current' => 'reservations'])
                 <button class="btn btn-dark" type="button" id="open-reservation">New reservation</button>
@@ -31,9 +34,7 @@
                 <div class="col-lg-4 d-flex flex-wrap gap-2">
                     <a class="btn btn-outline-dark" href="{{ route('content-management.restaurant-reservations.export.pdf', request()->only(['q', 'start_date', 'end_date'])) }}">PDF</a>
                     <a class="btn btn-outline-dark" href="{{ route('content-management.restaurant-reservations.export.xls', request()->only(['q', 'start_date', 'end_date'])) }}">Excel</a>
-                    @if($filters['q'] !== '' || $filters['start_date'] !== '' || $filters['end_date'] !== '')
-                        <a class="btn btn-link" href="{{ route('content-management.restaurant-reservations') }}">Clear</a>
-                    @endif
+                    @include('content-management.front-office.partials.clear-filters', ['href' => route('content-management.restaurant-reservations')])
                 </div>
             </div>
         </form>

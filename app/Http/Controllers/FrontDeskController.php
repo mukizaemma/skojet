@@ -16,6 +16,7 @@ use App\Models\RoomOverbook;
 use App\Models\RoomDiscount;
 use App\Models\Setting;
 use App\Services\RoomDiscountService;
+use App\Support\DeskAudit;
 use App\Support\PdfFile;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -423,10 +424,34 @@ class FrontDeskController extends Controller
         return back()->with('success', 'The remaining balance was marked complimentary.');
     }
 
-    public function destroyCharge(Booking $booking, BookingCharge $charge)
+    public function destroyCharge(Request $request, Booking $booking, BookingCharge $charge)
     {
         $this->assertRoomBooking($booking);
         abort_unless((int) $charge->booking_id === (int) $booking->id, 404);
+        $request->validate([
+            'confirm_remove' => 'accepted',
+        ], [
+            'confirm_remove.accepted' => 'Confirm the removal before it can be saved.',
+        ]);
+        if (! DeskAudit::canRemove($charge->created_by)) {
+            return DeskAudit::denied();
+        }
+        if (! DeskAudit::ready()) {
+            return back()->with('error', 'The audit archive is not ready. Run the database migration, then try again.');
+        }
+
+        DeskAudit::record(
+            'room_charge_removed',
+            'Removed '.$charge->quantity.' × '.$charge->name.' from '.$booking->names.'.',
+            [
+                'guest' => $booking->names,
+                'item' => $charge->name,
+                'quantity' => (string) $charge->quantity,
+                'amount' => (string) $charge->line_total,
+            ],
+            BookingCharge::class,
+            (int) $charge->id
+        );
         $charge->delete();
         $this->refreshBalance($booking);
         $booking->save();
@@ -448,7 +473,26 @@ class FrontDeskController extends Controller
                 ->route('content-management.front-office.reservations')
                 ->with('error', 'This reservation is already cancelled.');
         }
+        if (! DeskAudit::canRemove($booking->created_by)) {
+            return DeskAudit::denied();
+        }
+        if (! DeskAudit::ready()) {
+            return back()->with('error', 'The audit archive is not ready. Run the database migration, then try again.');
+        }
 
+        DeskAudit::record(
+            'room_reservation_cancelled',
+            'Cancelled the room reservation for '.$booking->names.'.',
+            [
+                'guest' => $booking->names,
+                'suite' => $booking->stayRoom()?->title ?? 'Unallocated',
+                'check_in' => optional($booking->checkin_date)->toDateString(),
+                'check_out' => optional($booking->checkout_date)->toDateString(),
+                'total' => (string) $booking->total_amount,
+            ],
+            Booking::class,
+            (int) $booking->id
+        );
         $booking->status = 'cancelled';
         $booking->save();
 

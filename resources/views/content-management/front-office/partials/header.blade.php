@@ -2,12 +2,12 @@
     $deskRoute = (string) request()->route()?->getName();
     $deskNav = [
         ['content-management.front-office.calendar', 'fa-calendar-alt', 'Calendar', str_contains($deskRoute, 'front-office.calendar')],
-        ['content-management.front-office.reservations', 'fa-list', 'Reservations', str_contains($deskRoute, 'front-office.reservations') || str_contains($deskRoute, 'front-office.show') || str_contains($deskRoute, 'front-office.create') || str_contains($deskRoute, 'front-office.receipt') || str_contains($deskRoute, 'front-office.cancel') || str_contains($deskRoute, 'front-office.check-in') || str_contains($deskRoute, 'front-office.check-out')],
-        ['content-management.front-office.payments', 'fa-money-bill', 'Payments', str_contains($deskRoute, 'front-office.payments')],
+        ['content-management.front-office.reservations', 'fa-list', 'Room reservations', str_contains($deskRoute, 'front-office.reservations') || str_contains($deskRoute, 'front-office.show') || str_contains($deskRoute, 'front-office.create') || str_contains($deskRoute, 'front-office.receipt') || str_contains($deskRoute, 'front-office.cancel') || str_contains($deskRoute, 'front-office.check-in') || str_contains($deskRoute, 'front-office.check-out')],
+        ['content-management.front-office.payments', 'fa-money-bill', 'Room payments', str_contains($deskRoute, 'front-office.payments')],
         ['content-management.front-office.inventory', 'fa-th', 'Room inventory', str_contains($deskRoute, 'front-office.inventory')],
-        ['content-management.front-office.reports', 'fa-chart-bar', 'Reports', $deskRoute === 'content-management.front-office.reports'],
-        ['content-management.front-office.pos', 'fa-cash-register', 'POS', str_contains($deskRoute, 'front-office.pos') || str_contains($deskRoute, 'front-office.settings.extras') || str_contains($deskRoute, 'restaurant-reservations') || str_contains($deskRoute, 'restaurant-menu')],
+        ['content-management.front-office.pos', 'fa-cash-register', 'POS', (str_contains($deskRoute, 'front-office.pos') && ! str_contains($deskRoute, 'front-office.pos.reports')) || str_contains($deskRoute, 'front-office.settings.extras') || str_contains($deskRoute, 'restaurant-reservations') || str_contains($deskRoute, 'restaurant-menu')],
     ];
+    $reportsActive = $deskRoute === 'content-management.front-office.reports' || $deskRoute === 'content-management.front-office.pos.reports';
     $settingsActive = str_contains($deskRoute, 'front-office.settings') && ! str_contains($deskRoute, 'front-office.settings.extras');
     $ratesActive = $deskRoute === 'content-management.front-office.settings.rates.index';
     $invoiceActive = $deskRoute === 'content-management.front-office.settings.invoice.edit';
@@ -21,6 +21,18 @@
                 <span>{{ $label }}</span>
             </a>
         @endforeach
+        <div class="desk-top__menu">
+            <a class="desk-top__link {{ $reportsActive ? 'is-active' : '' }}" href="{{ route('content-management.front-office.reports') }}">
+                <i class="fas fa-chart-bar" aria-hidden="true"></i>
+                <span>Reports</span>
+            </a>
+            <div class="desk-top__sub">
+                <div class="desk-top__sub-panel" role="menu">
+                    <a class="desk-top__sublink {{ $deskRoute === 'content-management.front-office.reports' ? 'is-active' : '' }}" href="{{ route('content-management.front-office.reports') }}" role="menuitem">Accommodation Reports</a>
+                    <a class="desk-top__sublink {{ $deskRoute === 'content-management.front-office.pos.reports' ? 'is-active' : '' }}" href="{{ route('content-management.front-office.pos.reports') }}" role="menuitem">Restaurant Reports</a>
+                </div>
+            </div>
+        </div>
         <div class="desk-top__menu">
             <a class="desk-top__link {{ $settingsActive ? 'is-active' : '' }}" href="{{ route('content-management.front-office.settings.rates.index') }}">
                 <i class="fas fa-sliders-h" aria-hidden="true"></i>

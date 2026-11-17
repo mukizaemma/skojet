@@ -1,12 +1,15 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-pos-report">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-nav-clear">
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
         <div class="pos-head">
-            <h4>POS Reports</h4>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                @include('content-management.front-office.partials.back', ['href' => route('content-management.front-office.pos'), 'label' => 'POS'])
+                <h4>Restaurant reports</h4>
+            </div>
             @include('content-management.front-office.partials.pos-nav', ['current' => 'reports'])
         </div>
         @php
@@ -64,6 +67,7 @@
                 </div>
                 <div class="col-lg-3 d-flex flex-wrap gap-2">
                     <button class="btn btn-dark" type="submit">Update</button>
+                    @include('content-management.front-office.partials.clear-filters', ['href' => route('content-management.front-office.pos.reports')])
                     <button class="btn btn-outline-dark" type="button" onclick="window.print()">Print</button>
                 </div>
             </div>

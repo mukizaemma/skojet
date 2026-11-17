@@ -26,6 +26,7 @@ use App\Models\Facilityimage;
 use App\Models\PageHero;
 use App\Mail\BookingStatusUpdateGuestMail;
 use App\Models\Booking;
+use App\Support\DeskAudit;
 use App\Models\BookingTrash;
 use App\Services\SiteNotificationMail;
 use App\Support\BookingReplyDrafts;
@@ -198,9 +199,35 @@ class ContentManagementController extends Controller
             ->with('success', 'Reservation updated'.($emailGuest && filled($guestEmail) ? ' and guest notified by email.' : '.'));
     }
 
-    public function destroyReservation($id)
+    public function destroyReservation(Request $request, $id)
     {
         $booking = Booking::findOrFail($id);
+        $request->validate([
+            'confirm_remove' => 'accepted',
+        ], [
+            'confirm_remove.accepted' => 'Confirm the deletion before it can be saved.',
+        ]);
+        if (! DeskAudit::canRemove($booking->created_by)) {
+            return DeskAudit::denied();
+        }
+        if (! DeskAudit::ready()) {
+            return back()->with('error', 'The audit archive is not ready. Run the database migration, then try again.');
+        }
+
+        DeskAudit::record(
+            'reservation_deleted',
+            'Deleted the reservation for '.$booking->names.'.',
+            [
+                'guest' => $booking->names,
+                'email' => (string) $booking->email,
+                'phone' => (string) $booking->phone,
+                'check_in' => optional($booking->checkin_date)->toDateString(),
+                'check_out' => optional($booking->checkout_date)->toDateString(),
+                'total' => (string) $booking->total_amount,
+            ],
+            Booking::class,
+            (int) $booking->id
+        );
         $booking->delete();
 
         return redirect()

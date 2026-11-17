@@ -30,6 +30,7 @@ class RestaurantReservation extends Model
         'paid_amount',
         'momo_code',
         'momo_account_name',
+        'created_by',
     ];
 
     protected $casts = [

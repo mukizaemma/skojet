@@ -27,13 +27,13 @@
             @endforeach
             @if($restaurantReservations)
                 <a class="desk-stats__link bg-white border rounded p-3 h-100" href="{{ route('content-management.restaurant-reservations') }}">
-                    <div class="text-muted small">Dining</div>
+                    <div class="text-muted small">Restaurant</div>
                     <div class="fs-4">Reservations</div>
                 </a>
             @endif
         </div>
         <div class="bg-white border rounded p-3">
-            <h5 class="mb-3">Recent reservations</h5>
+            <h5 class="mb-3">Recent room reservations</h5>
             <div class="table-responsive">
                 <table class="table align-middle mb-0">
                     <thead>

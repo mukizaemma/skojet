@@ -1,7 +1,7 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-pos">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-nav-clear">
 @php
     $isCheckIn = $mode === 'checkin';
     $booked = $isCheckIn ? $booking->booked_checkin_date : $booking->booked_checkout_date;
@@ -13,7 +13,10 @@
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
         @include('content-management.front-office.partials.alerts')
-        <h4 class="mb-1">{{ $isCheckIn ? 'Check in' : 'Check out' }} {{ $booking->names }}</h4>
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            @include('content-management.front-office.partials.back', ['href' => route('content-management.front-office.show', $booking), 'label' => 'Room stay'])
+            <h4 class="mb-0">{{ $isCheckIn ? 'Check in' : 'Check out' }} {{ $booking->names }}</h4>
+        </div>
         <p class="text-muted mb-3">{{ $booking->stayRoom()?->title }} · Booked {{ optional($booking->booked_checkin_date)->format('d M Y') }} – {{ optional($booking->booked_checkout_date)->format('d M Y') }}</p>
         <div class="desk-book">
             <form id="desk-session" method="POST" action="{{ route($isCheckIn ? 'content-management.front-office.check-in' : 'content-management.front-office.check-out', $booking) }}" class="desk-book__form bg-white border rounded p-4">

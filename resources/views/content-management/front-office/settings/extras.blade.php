@@ -1,13 +1,16 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-pos-nav">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-nav-clear">
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
         @include('content-management.front-office.partials.alerts')
         <div class="pos-head">
-            <h4>Menu management</h4>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                @include('content-management.front-office.partials.back', ['href' => route('content-management.front-office.pos'), 'label' => 'POS'])
+                <h4>Menu management</h4>
+            </div>
             @include('content-management.front-office.partials.pos-nav')
         </div>
         <div class="d-flex flex-wrap gap-2 mb-3">

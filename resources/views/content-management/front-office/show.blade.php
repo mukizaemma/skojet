@@ -1,14 +1,15 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-pos">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-nav-clear">
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
         @include('content-management.front-office.partials.alerts')
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
             <div>
-                <h4 class="mb-1">{{ $booking->names }}</h4>
+                @include('content-management.front-office.partials.back', ['href' => route('content-management.front-office.reservations'), 'label' => 'Room reservations'])
+                <h4 class="mb-1 mt-2">{{ $booking->names }}</h4>
                 <div class="text-muted">{{ $booking->nights() }} nights · {{ ucfirst(str_replace('_', ' ', $booking->deskState())) }} · {{ (float) ($booking->waived_amount ?? 0) > 0 && (float) $booking->paid_amount <= 0 && (float) $booking->balance_amount <= 0 ? 'Complimentary' : ucfirst($booking->payment_status) }} · {{ $booking->channelLabel() }} · {{ $booking->sourceLabel() }}</div>
                 @if($booking->booked_checkin_date && optional($booking->booked_checkin_date)->toDateString() !== optional($booking->checkin_date)->toDateString())
                     <div class="text-muted">Arrival was {{ $booking->booked_checkin_date->format('d M Y') }} and is now {{ optional($booking->checkin_date)->format('d M Y') }}{{ $booking->checkin_note ? ' · '.$booking->checkin_note : '' }}</div>

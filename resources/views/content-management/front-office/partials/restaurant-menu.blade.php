@@ -33,7 +33,10 @@
         </div>
         <button class="btn btn-dark" type="button" data-menu-add>Add item</button>
     </div>
-    <input class="form-control mb-3" id="menu-search" type="search" placeholder="Search the menu" autocomplete="off">
+    <div class="d-flex gap-2 mb-3">
+        <input class="form-control" id="menu-search" type="search" placeholder="Search the menu" autocomplete="off">
+        <button class="desk-clear" id="menu-search-clear" type="button">Clear filters</button>
+    </div>
     <div class="bg-white border rounded" id="menu-list">
         @foreach($menuList as $item)
             <button class="menu-row" type="button" data-menu-open="{{ $item->id }}" data-menu-category="{{ $item->category }}" data-menu-text="{{ strtolower($item->name.' '.($menuCategories[$item->category] ?? '').' '.$item->description.' '.$item->price_international.' '.$item->price_local) }}">
@@ -277,6 +280,10 @@
         });
         search.addEventListener('input', function () {
             applyFilter(true);
+        });
+        document.getElementById('menu-search-clear')?.addEventListener('click', function () {
+            search.value = '';
+            document.querySelector('[data-menu-tab="all"]')?.click();
         });
         applyFilter(true);
 

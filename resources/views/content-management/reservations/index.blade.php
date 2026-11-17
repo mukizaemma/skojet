@@ -34,11 +34,9 @@
                     <label class="form-label mb-1" for="end_date">End Date:</label>
                     <input type="date" class="form-control" id="end_date" name="end_date" value="{{ $endDate }}">
                 </div>
-                <div class="col-sm-4 col-md-3 d-flex gap-2">
+                <div class="col-sm-4 col-md-3 d-flex flex-wrap gap-2">
                     <button type="submit" class="btn btn-warning text-dark px-4">Search</button>
-                    @if(filled($startDate) || filled($endDate))
-                        <a href="{{ route('content-management.reservations') }}" class="btn btn-outline-secondary">Clear</a>
-                    @endif
+                    <a href="{{ route('content-management.reservations') }}" class="btn btn-outline-dark">Clear filters</a>
                 </div>
             </form>
         </div>
@@ -122,13 +120,16 @@
                                         <a href="{{ route('content-management.reservations.show', $booking->id) }}" class="btn btn-sm btn-warning" title="View / respond">
                                             <i class="fa fa-eye"></i>
                                         </a>
-                                        <form action="{{ route('content-management.reservations.destroy', $booking->id) }}" method="POST" onsubmit="return confirm('Delete this reservation?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-danger w-100" title="Delete">
-                                                <i class="fa fa-trash"></i>
-                                            </button>
-                                        </form>
+                                        @if(\App\Support\DeskAudit::canRemove($booking->created_by))
+                                            <form action="{{ route('content-management.reservations.destroy', $booking->id) }}" method="POST" onsubmit="return confirm('Delete this reservation?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <input type="hidden" name="confirm_remove" value="1">
+                                                <button type="submit" class="btn btn-sm btn-danger w-100" title="Delete">
+                                                    <i class="fa fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>

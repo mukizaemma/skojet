@@ -1,25 +1,33 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-pos-nav">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-nav-clear">
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
         @include('content-management.front-office.partials.alerts')
         <div class="pos-head">
-            <h4>Invoices</h4>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                @include('content-management.front-office.partials.back', ['href' => route('content-management.front-office.pos'), 'label' => 'POS'])
+                <h4>Restaurant invoices</h4>
+            </div>
             @include('content-management.front-office.partials.pos-nav', ['current' => 'invoices'])
         </div>
-        <form method="GET" class="row g-2 align-items-end mb-4">
-            <div class="col-auto">
-                <label class="form-label mb-1">From</label>
-                <input type="date" name="start_date" value="{{ $start }}" class="form-control">
+        <form method="GET" class="bg-white border rounded p-3 mb-4">
+            <div class="row g-2 align-items-end">
+                <div class="col-auto">
+                    <label class="form-label mb-1">From</label>
+                    <input type="date" name="start_date" value="{{ $start }}" class="form-control">
+                </div>
+                <div class="col-auto">
+                    <label class="form-label mb-1">To</label>
+                    <input type="date" name="end_date" value="{{ $end }}" class="form-control">
+                </div>
+                <div class="col-auto d-flex flex-wrap gap-2">
+                    <button class="btn btn-dark" type="submit">Update</button>
+                    @include('content-management.front-office.partials.clear-filters', ['href' => route('content-management.front-office.pos.invoices')])
+                </div>
             </div>
-            <div class="col-auto">
-                <label class="form-label mb-1">To</label>
-                <input type="date" name="end_date" value="{{ $end }}" class="form-control">
-            </div>
-            <div class="col-auto"><button class="btn btn-dark">Update</button></div>
         </form>
         @if(! $ready)
             <div class="bg-white border rounded p-3 text-muted">Invoices appear after the dining tables are created. Run the database migration, then open this page again.</div>

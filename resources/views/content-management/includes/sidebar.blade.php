@@ -34,7 +34,7 @@ $isDiningAdmin = $currentRoute === 'resto' || str_contains(strtolower((string) $
             </a>
 
             <a href="{{ route('content-management.reservations') }}" class="nav-item nav-link {{ $currentRoute === 'content-management.reservations' || str_starts_with((string) $currentRoute, 'content-management.reservations.') ? 'active' : '' }}">
-                <i class="fas fa-calendar-check me-2"></i>Reservations
+                <i class="fas fa-calendar-check me-2"></i>Website bookings
             </a>
 
             @if(reservations_manager_enabled())
@@ -88,6 +88,12 @@ $isDiningAdmin = $currentRoute === 'resto' || str_contains(strtolower((string) $
             @if(auth()->user()->isSuperAdmin())
             <a href="{{ route('content-management.users') }}" class="nav-item nav-link {{ str_contains($currentRoute, 'content-management.users') ? 'active' : '' }}">
                 <i class="fas fa-users-cog me-2"></i>Users
+            </a>
+            <a href="{{ route('content-management.audit.activities') }}" class="nav-item nav-link {{ $currentRoute === 'content-management.audit.activities' ? 'active' : '' }}">
+                <i class="fas fa-clipboard-list me-2"></i>System activities
+            </a>
+            <a href="{{ route('content-management.audit.archived') }}" class="nav-item nav-link {{ $currentRoute === 'content-management.audit.archived' ? 'active' : '' }}">
+                <i class="fas fa-archive me-2"></i>Archived records
             </a>
             @endif
             <a href="{{ route('setting') }}" class="nav-item nav-link {{ $isSettingsAdmin ? 'active' : '' }}">

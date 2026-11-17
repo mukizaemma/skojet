@@ -20,11 +20,14 @@
             </div>
             <div class="text-end">
                 <div>{{ $charge->included ? 'Included' : hotel_price($charge->line_total, $setting ?? null, $booking->currencyKey()) }}</div>
-                <form method="POST" action="{{ route('content-management.front-office.charges.destroy', [$booking, $charge]) }}">
-                    @csrf
-                    @method('DELETE')
-                    <button class="btn btn-link btn-sm text-danger p-0" type="submit">Remove</button>
-                </form>
+                @if(\App\Support\DeskAudit::canRemove($charge->created_by))
+                    <form method="POST" action="{{ route('content-management.front-office.charges.destroy', [$booking, $charge]) }}" onsubmit="return confirm('Remove this charge from the bill?')">
+                        @csrf
+                        @method('DELETE')
+                        <input type="hidden" name="confirm_remove" value="1">
+                        <button class="btn btn-link btn-sm text-danger p-0" type="submit">Remove</button>
+                    </form>
+                @endif
             </div>
         </div>
     @empty

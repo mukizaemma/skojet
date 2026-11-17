@@ -17,6 +17,7 @@ class RestaurantReservationItem extends Model
         'quantity',
         'line_total',
         'source',
+        'created_by',
     ];
 
     protected $casts = [

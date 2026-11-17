@@ -1,22 +1,31 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-menu">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-nav-clear">
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
-        <h4 class="mb-1">Room reports</h4>
-        <p class="text-muted mb-3">Room stays, payments, and services posted to a guest bill.</p>
-        <form method="GET" class="row g-2 align-items-end mb-4">
-            <div class="col-auto">
-                <label class="form-label mb-1">From</label>
-                <input type="date" name="start_date" value="{{ $start }}" class="form-control">
+        <div class="pos-head">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                @include('content-management.front-office.partials.back', ['href' => route('content-management.front-office.home'), 'label' => 'Front Office'])
+                <h4>Accommodation reports</h4>
             </div>
-            <div class="col-auto">
-                <label class="form-label mb-1">To</label>
-                <input type="date" name="end_date" value="{{ $end }}" class="form-control">
+        </div>
+        <form method="GET" class="bg-white border rounded p-3 mb-4">
+            <div class="row g-2 align-items-end">
+                <div class="col-auto">
+                    <label class="form-label mb-1">From</label>
+                    <input type="date" name="start_date" value="{{ $start }}" class="form-control">
+                </div>
+                <div class="col-auto">
+                    <label class="form-label mb-1">To</label>
+                    <input type="date" name="end_date" value="{{ $end }}" class="form-control">
+                </div>
+                <div class="col-auto d-flex flex-wrap gap-2">
+                    <button class="btn btn-dark" type="submit">Update</button>
+                    @include('content-management.front-office.partials.clear-filters', ['href' => route('content-management.front-office.reports')])
+                </div>
             </div>
-            <div class="col-auto"><button class="btn btn-dark">Update</button></div>
         </form>
         @foreach($summaries as $summary)
             <h6 class="mb-2">{{ $summary['currency'] === 'rwf' ? 'RWF' : 'USD' }}</h6>

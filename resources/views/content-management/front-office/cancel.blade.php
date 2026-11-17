@@ -1,11 +1,14 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-menu">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-nav-clear">
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
         @include('content-management.front-office.partials.alerts')
+        <div class="mb-3">
+            @include('content-management.front-office.partials.back', ['href' => route('content-management.front-office.show', $booking), 'label' => 'Room stay'])
+        </div>
         <div class="bg-white border rounded p-4" style="max-width: 640px;">
             <h4 class="mb-1">Cancel this reservation?</h4>
             <p class="text-muted">Nothing is cancelled until you confirm below. This is a second check.</p>

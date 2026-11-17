@@ -1,7 +1,7 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-inventory">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-nav-clear">
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
@@ -11,6 +11,7 @@
                 <p class="text-muted mb-0">{{ $start->format('d M') }} – {{ $dates->last()->format('d M Y') }}</p>
             </div>
             <form method="GET" class="desk-inventory__nav">
+                <a class="btn btn-outline-dark btn-sm" href="{{ route('content-management.front-office.inventory') }}">Today</a>
                 <a class="btn btn-outline-dark btn-sm" href="{{ route('content-management.front-office.inventory', ['start' => $prev]) }}">Previous</a>
                 <input type="date" name="start" value="{{ $start->toDateString() }}" class="form-control form-control-sm">
                 <button class="btn btn-dark btn-sm" type="submit">View</button>

@@ -17,9 +17,9 @@
                         <label class="form-label">End Date</label>
                         <input type="date" class="form-control" name="end_date" value="{{ $endDate }}">
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label">&nbsp;</label>
-                        <button type="submit" class="btn btn-primary w-100">Filter</button>
+                    <div class="col-md-4 d-flex flex-wrap gap-2 align-items-end">
+                        <button type="submit" class="btn btn-primary">Filter</button>
+                        <a href="{{ route('front-office.reservations') }}" class="btn btn-outline-dark">Clear filters</a>
                     </div>
                 </div>
             </form>

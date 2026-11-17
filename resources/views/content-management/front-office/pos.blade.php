@@ -9,19 +9,19 @@
         <div class="desk-pos">
             <a class="desk-pos__card desk-pos__card--sales" href="{{ route('content-management.front-office.pos.sales') }}">
                 <span class="desk-pos__icon" aria-hidden="true"><i class="fas fa-receipt"></i></span>
-                <strong>Sales</strong>
+                <strong>Restaurant sales</strong>
             </a>
             <a class="desk-pos__card desk-pos__card--invoices" href="{{ route('content-management.front-office.pos.invoices') }}">
                 <span class="desk-pos__icon" aria-hidden="true"><i class="fas fa-file-invoice"></i></span>
-                <strong>Invoices</strong>
+                <strong>Restaurant invoices</strong>
             </a>
             <a class="desk-pos__card desk-pos__card--reservations" href="{{ route('content-management.restaurant-reservations') }}">
                 <span class="desk-pos__icon" aria-hidden="true"><i class="fas fa-utensils"></i></span>
-                <strong>Reservations</strong>
+                <strong>Restaurant reservations</strong>
             </a>
             <a class="desk-pos__card desk-pos__card--reports" href="{{ route('content-management.front-office.pos.reports') }}">
                 <span class="desk-pos__icon" aria-hidden="true"><i class="fas fa-chart-bar"></i></span>
-                <strong>POS Reports</strong>
+                <strong>Restaurant reports</strong>
             </a>
             <a class="desk-pos__card desk-pos__card--menu" href="{{ route('content-management.front-office.settings.extras.index', ['section' => 'menu']) }}">
                 <span class="desk-pos__icon" aria-hidden="true"><i class="fas fa-book-open"></i></span>

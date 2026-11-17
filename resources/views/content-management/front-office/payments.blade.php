@@ -6,7 +6,7 @@
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
-            <h4 class="mb-0">Payments</h4>
+            <h4 class="mb-0">Room payments</h4>
             <a href="{{ route('content-management.front-office.create') }}" class="btn btn-dark">New reservation</a>
         </div>
         <div class="bg-white border rounded">

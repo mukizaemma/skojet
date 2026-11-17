@@ -1,13 +1,16 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-stay-search">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-nav-clear">
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
         @include('content-management.front-office.partials.alerts')
-        <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
-            <h4 class="mb-0">Reservations</h4>
+        <div class="pos-head">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                @include('content-management.front-office.partials.back', ['href' => route('content-management.front-office.home'), 'label' => 'Front Office'])
+                <h4>Room reservations</h4>
+            </div>
             <a href="{{ route('content-management.front-office.create') }}" class="btn btn-dark">New reservation</a>
         </div>
         <form id="stay-search" method="GET" class="bg-white border rounded p-3 mb-3">
@@ -27,9 +30,7 @@
                 <div class="col-lg-4 d-flex flex-wrap gap-2">
                     <a class="btn btn-outline-dark" href="{{ route('content-management.front-office.reservations.export.pdf', request()->only(['q', 'start_date', 'end_date'])) }}">PDF</a>
                     <a class="btn btn-outline-dark" href="{{ route('content-management.front-office.reservations.export.xls', request()->only(['q', 'start_date', 'end_date'])) }}">Excel</a>
-                    @if($filters['q'] !== '' || $filters['start_date'] !== '' || $filters['end_date'] !== '')
-                        <a class="btn btn-link" href="{{ route('content-management.front-office.reservations') }}">Clear</a>
-                    @endif
+                    @include('content-management.front-office.partials.clear-filters', ['href' => route('content-management.front-office.reservations')])
                 </div>
             </div>
         </form>

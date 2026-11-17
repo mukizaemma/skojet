@@ -8,6 +8,7 @@ use App\Models\RestaurantMenuItem;
 use App\Models\RestaurantReservation;
 use App\Models\RestaurantReservationItem;
 use App\Services\SiteNotificationMail;
+use App\Support\DeskAudit;
 use App\Support\PdfFile;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -99,7 +100,7 @@ class RestaurantReservationController extends Controller
                 'momo_code' => $restaurant->momoCode() !== '' ? $restaurant->momoCode() : null,
                 'momo_account_name' => $restaurant->momoAccountName() !== '' ? $restaurant->momoAccountName() : null,
                 'access_token' => Str::random(48),
-            ]);
+            ] + DeskAudit::owner('restaurant_reservations'));
             $reservation->reference = 'R-'.str_pad((string) $reservation->id, 5, '0', STR_PAD_LEFT);
             $reservation->save();
 
@@ -120,7 +121,7 @@ class RestaurantReservationController extends Controller
                         'quantity' => $qty,
                         'line_total' => round($unit * $qty, 2),
                         'source' => 'staff',
-                    ]);
+                    ] + DeskAudit::owner('restaurant_reservation_items'));
                 }
                 $reservation->recalculate();
             }
@@ -240,7 +241,7 @@ class RestaurantReservationController extends Controller
                 'momo_code' => $restaurant->momoCode() !== '' ? $restaurant->momoCode() : null,
                 'momo_account_name' => $restaurant->momoAccountName() !== '' ? $restaurant->momoAccountName() : null,
                 'access_token' => Str::random(48),
-            ]);
+            ] + DeskAudit::owner('restaurant_reservations'));
             $reservation->reference = 'R-'.str_pad((string) $reservation->id, 5, '0', STR_PAD_LEFT);
             $reservation->save();
 
@@ -260,7 +261,7 @@ class RestaurantReservationController extends Controller
                     'quantity' => $qty,
                     'line_total' => round($unit * $qty, 2),
                     'source' => 'staff',
-                ]);
+                ] + DeskAudit::owner('restaurant_reservation_items'));
             }
             $reservation->recalculate();
 
@@ -328,7 +329,32 @@ class RestaurantReservationController extends Controller
     {
         $data = $request->validate([
             'status' => 'required|in:pending,confirmed,completed,cancelled',
+            'confirm_cancel' => 'nullable|accepted',
         ]);
+        if ($data['status'] === 'cancelled' && $reservation->status !== 'cancelled') {
+            if (($data['confirm_cancel'] ?? null) !== '1') {
+                return back()->with('error', 'Confirm the cancellation before it can be saved.');
+            }
+            if (! DeskAudit::canRemove($reservation->created_by)) {
+                return DeskAudit::denied();
+            }
+            if (! DeskAudit::ready()) {
+                return back()->with('error', 'The audit archive is not ready. Run the database migration, then try again.');
+            }
+            DeskAudit::record(
+                'dining_reservation_cancelled',
+                'Cancelled dining reservation '.$reservation->reference.' for '.$reservation->names.'.',
+                [
+                    'reference' => $reservation->reference,
+                    'guest' => $reservation->names,
+                    'when' => optional($reservation->reserved_for)->format('Y-m-d H:i'),
+                    'total' => (string) $reservation->total_amount,
+                    'paid' => (string) $reservation->paid_amount,
+                ],
+                RestaurantReservation::class,
+                (int) $reservation->id
+            );
+        }
         $reservation->status = $data['status'];
         $reservation->save();
 
@@ -409,7 +435,7 @@ class RestaurantReservationController extends Controller
                     'quantity' => $quantity,
                     'line_total' => round($unit * $quantity, 2),
                     'source' => 'staff',
-                ]);
+                ] + DeskAudit::owner('restaurant_reservation_items'));
             }
         } else {
             $name = trim((string) ($data['custom_name'] ?? ''));
@@ -427,7 +453,7 @@ class RestaurantReservationController extends Controller
                 'quantity' => $quantity,
                 'line_total' => round($unit * $quantity, 2),
                 'source' => 'staff',
-            ]);
+            ] + DeskAudit::owner('restaurant_reservation_items'));
         }
 
         $reservation->recalculate();
@@ -435,9 +461,34 @@ class RestaurantReservationController extends Controller
         return back()->with('success', 'Item added to the bill.');
     }
 
-    public function destroyItem(RestaurantReservation $reservation, RestaurantReservationItem $item)
+    public function destroyItem(Request $request, RestaurantReservation $reservation, RestaurantReservationItem $item)
     {
         abort_unless((int) $item->restaurant_reservation_id === (int) $reservation->id, 404);
+        $request->validate([
+            'confirm_remove' => 'accepted',
+        ], [
+            'confirm_remove.accepted' => 'Confirm the removal before it can be saved.',
+        ]);
+        if (! DeskAudit::canRemove($item->created_by)) {
+            return DeskAudit::denied();
+        }
+        if (! DeskAudit::ready()) {
+            return back()->with('error', 'The audit archive is not ready. Run the database migration, then try again.');
+        }
+
+        DeskAudit::record(
+            'bill_item_removed',
+            'Removed '.$item->quantity.' × '.$item->name.' from '.$reservation->reference.'.',
+            [
+                'bill' => $reservation->reference,
+                'guest' => $reservation->names,
+                'item' => $item->name,
+                'quantity' => (string) $item->quantity,
+                'amount' => (string) $item->line_total,
+            ],
+            RestaurantReservationItem::class,
+            (int) $item->id
+        );
         $item->delete();
         $reservation->recalculate();
 
