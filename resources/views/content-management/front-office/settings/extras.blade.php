@@ -1,7 +1,7 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-session">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-menu-modal">
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">

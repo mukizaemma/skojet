@@ -51,21 +51,33 @@ class RestaurantMenuController extends Controller
     {
         RestaurantMenuItem::query()->create($this->validatedItem($request));
 
-        return redirect()->route('content-management.front-office.settings.extras.index', ['section' => 'menu'])->with('success', 'Menu item added.');
+        return $this->backToMenu($data['category'], 'Menu item added.');
     }
 
     public function update(Request $request, RestaurantMenuItem $item)
     {
-        $item->update($this->validatedItem($request));
+        $data = $this->validatedItem($request);
+        $item->update($data);
 
-        return redirect()->route('content-management.front-office.settings.extras.index', ['section' => 'menu'])->with('success', 'Menu item saved.');
+        return $this->backToMenu($data['category'], 'Menu item saved.');
     }
 
     public function destroy(RestaurantMenuItem $item)
     {
+        $category = $item->category;
         $item->delete();
 
-        return redirect()->route('content-management.front-office.settings.extras.index', ['section' => 'menu'])->with('success', 'Menu item removed.');
+        return $this->backToMenu($category, 'Menu item removed.');
+    }
+
+    private function backToMenu(string $category, string $message)
+    {
+        return redirect()
+            ->route('content-management.front-office.settings.extras.index', [
+                'section' => 'menu',
+                'category' => $category,
+            ])
+            ->with('success', $message);
     }
 
     /**

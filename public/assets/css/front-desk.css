@@ -384,6 +384,91 @@
     margin-bottom: 0.35rem;
 }
 
+.menu-tabs {
+    display: flex;
+    gap: 0.4rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.menu-tabs__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex: 0 0 auto;
+    padding: 0.55rem 0.85rem;
+    border: 0;
+    border-radius: 999px;
+    background: #fff;
+    color: #1a1a1a;
+    box-shadow: 0 4px 14px rgba(26, 26, 26, 0.06);
+}
+
+.menu-tabs__btn span {
+    min-width: 1.3rem;
+    padding: 0.05rem 0.35rem;
+    border-radius: 999px;
+    background: #f1f2f4;
+    font-size: 0.75rem;
+}
+
+.menu-tabs__btn.is-active {
+    background: #1a1a1a;
+    color: #fff;
+}
+
+.menu-tabs__btn.is-active span {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+}
+
+.menu-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+    padding: 0.9rem 1rem;
+    border: 0;
+    border-bottom: 1px solid #f0f0f0;
+    background: transparent;
+    text-align: left;
+}
+
+.menu-row:last-child {
+    border-bottom: 0;
+}
+
+.menu-row strong,
+.menu-row small,
+.menu-row em {
+    display: block;
+}
+
+.menu-row small {
+    color: #666;
+}
+
+.menu-row em {
+    color: #8a5a00;
+    font-size: 0.75rem;
+    font-style: normal;
+}
+
+.menu-row__prices {
+    flex: 0 0 auto;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+    .menu-row {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+}
+
 .desk-reserve-menu__item input {
     width: 4.5rem;
     padding: 0.35rem 0.4rem;
