@@ -571,12 +571,30 @@ class FrontDeskController extends Controller
                 ->limit(12)
                 ->get()
             : collect();
+        $menuItems = [];
+        if ($ready && Schema::hasTable('restaurant_menu_items')) {
+            foreach (RestaurantMenuItem::publicGroups() as $category => $rows) {
+                foreach ($rows as $item) {
+                    $menuItems[] = [
+                        'id' => $item->id,
+                        'category' => $category,
+                        'category_label' => $item->categoryLabel(),
+                        'name' => $item->name,
+                        'description' => (string) $item->description,
+                        'usd' => (float) $item->price_international,
+                        'rwf' => (float) $item->price_local,
+                    ];
+                }
+            }
+        }
 
         return view('content-management.front-office.pos.sales', [
             'start' => $start,
             'end' => $end,
             'visits' => $visits,
             'recent' => $recent,
+            'menuItems' => $menuItems,
+            'oldCart' => collect(old('items', []))->map(fn ($qty) => (int) $qty)->filter(fn ($qty) => $qty > 0),
             'roomCharges' => $roomCharges,
             'tiers' => $this->diningTierTotals($visits),
             'setting' => $setting,

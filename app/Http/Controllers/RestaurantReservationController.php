@@ -201,42 +201,96 @@ class RestaurantReservationController extends Controller
     public function storeDesk(Request $request)
     {
         $data = $request->validate([
-            'names' => 'required|string|max:255',
+            'names' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:30',
-            'email' => 'nullable|email|max:255',
             'guests' => 'nullable|integer|min:1|max:40',
             'price_tier' => 'required|in:international,local',
+            'paid_amount' => 'nullable|numeric|min:0',
+            'items' => 'required|array',
+            'items.*' => 'nullable|integer|min:0|max:99',
         ]);
+
+        $selected = collect($data['items'] ?? [])
+            ->map(fn ($qty) => (int) $qty)
+            ->filter(fn ($qty) => $qty > 0);
+        if ($selected->isEmpty()) {
+            return back()->withErrors(['items' => 'Add at least one item to the cart.'])->withInput();
+        }
 
         $restaurant = Restaurant::access();
         $tier = $data['price_tier'] === 'local' ? 'local' : 'international';
-        $reservation = RestaurantReservation::query()->create([
-            'reference' => 'TMP-'.Str::uuid(),
-            'names' => trim($data['names']),
-            'phone' => trim((string) ($data['phone'] ?? '')),
-            'email' => trim((string) ($data['email'] ?? '')),
-            'guests' => max(1, (int) ($data['guests'] ?? 1)),
-            'reserved_for' => now(),
-            'submit_via' => 'desk',
-            'price_tier' => $tier,
-            'locale' => 'en',
-            'status' => 'pending',
-            'payment_status' => 'unpaid',
-            'minimum_amount' => $restaurant->minimumFor($tier),
-            'total_amount' => 0,
-            'paid_amount' => 0,
-            'payment_choice' => 'full',
-            'claimed_amount' => 0,
-            'momo_code' => $restaurant->momoCode() !== '' ? $restaurant->momoCode() : null,
-            'momo_account_name' => $restaurant->momoAccountName() !== '' ? $restaurant->momoAccountName() : null,
-            'access_token' => Str::random(48),
-        ]);
-        $reservation->reference = 'R-'.str_pad((string) $reservation->id, 5, '0', STR_PAD_LEFT);
-        $reservation->save();
+        $reservation = DB::transaction(function () use ($data, $restaurant, $tier, $selected) {
+            $reservation = RestaurantReservation::query()->create([
+                'reference' => 'TMP-'.Str::uuid(),
+                'names' => trim((string) ($data['names'] ?? '')) !== '' ? trim((string) $data['names']) : 'Walk-in',
+                'phone' => trim((string) ($data['phone'] ?? '')),
+                'email' => '',
+                'guests' => max(1, (int) ($data['guests'] ?? 1)),
+                'reserved_for' => now(),
+                'submit_via' => 'desk',
+                'price_tier' => $tier,
+                'locale' => 'en',
+                'status' => 'confirmed',
+                'payment_status' => 'unpaid',
+                'minimum_amount' => $restaurant->minimumFor($tier),
+                'total_amount' => 0,
+                'paid_amount' => 0,
+                'payment_choice' => 'full',
+                'claimed_amount' => 0,
+                'momo_code' => $restaurant->momoCode() !== '' ? $restaurant->momoCode() : null,
+                'momo_account_name' => $restaurant->momoAccountName() !== '' ? $restaurant->momoAccountName() : null,
+                'access_token' => Str::random(48),
+            ]);
+            $reservation->reference = 'R-'.str_pad((string) $reservation->id, 5, '0', STR_PAD_LEFT);
+            $reservation->save();
+
+            $menu = RestaurantMenuItem::query()->whereIn('id', $selected->keys())->where('is_active', true)->get()->keyBy('id');
+            foreach ($selected as $id => $qty) {
+                $item = $menu->get((int) $id);
+                if (! $item) {
+                    continue;
+                }
+                $unit = round($item->priceFor($tier), 2);
+                $reservation->items()->create([
+                    'menu_item_id' => $item->id,
+                    'category' => $item->category,
+                    'name' => $item->name,
+                    'description' => $item->description,
+                    'unit_price' => $unit,
+                    'quantity' => $qty,
+                    'line_total' => round($unit * $qty, 2),
+                    'source' => 'staff',
+                ]);
+            }
+            $reservation->recalculate();
+
+            $paid = round((float) ($data['paid_amount'] ?? 0), 2);
+            $total = round((float) $reservation->total_amount, 2);
+            if ($paid > $total) {
+                $paid = $total;
+            }
+            $reservation->paid_amount = $paid;
+            $reservation->claimed_amount = $paid;
+            $reservation->payment_status = $paid > 0 ? 'paid' : 'unpaid';
+            $reservation->paid_at = $paid > 0 ? now() : null;
+            $reservation->save();
+
+            return $reservation;
+        });
+
+        if ($reservation->items()->count() === 0) {
+            $reservation->delete();
+
+            return back()->withErrors(['items' => 'Add at least one item to the cart.'])->withInput();
+        }
+
+        $paidNote = (float) $reservation->paid_amount > 0
+            ? ' '.$reservation->money((float) $reservation->paid_amount).' is marked as paid.'
+            : ' Nothing is marked as paid yet.';
 
         return redirect()
             ->route('content-management.restaurant-reservations.show', $reservation)
-            ->with('success', 'Bill '.$reservation->reference.' is open. Add the items, confirm the payment, then print it.');
+            ->with('success', 'Bill '.$reservation->reference.' is open for '.$reservation->names.'.'.$paidNote);
     }
 
     public function show(RestaurantReservation $reservation)
