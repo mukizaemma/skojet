@@ -3,10 +3,11 @@
     $deskNav = [
         ['content-management.front-office.calendar', 'fa-calendar-alt', 'Calendar', str_contains($deskRoute, 'front-office.calendar')],
         ['content-management.front-office.reservations', 'fa-list', 'Reservations', str_contains($deskRoute, 'front-office.reservations') || str_contains($deskRoute, 'front-office.show') || str_contains($deskRoute, 'front-office.create') || str_contains($deskRoute, 'front-office.receipt') || str_contains($deskRoute, 'front-office.cancel') || str_contains($deskRoute, 'front-office.check-in') || str_contains($deskRoute, 'front-office.check-out')],
+        ['content-management.restaurant-reservations', 'fa-utensils', 'Dining', str_contains($deskRoute, 'restaurant-reservations')],
         ['content-management.front-office.payments', 'fa-money-bill', 'Payments', str_contains($deskRoute, 'front-office.payments')],
         ['content-management.front-office.inventory', 'fa-th', 'Room inventory', str_contains($deskRoute, 'front-office.inventory')],
         ['content-management.front-office.reports', 'fa-chart-bar', 'Reports', str_contains($deskRoute, 'front-office.reports')],
-        ['content-management.front-office.settings.extras.index', 'fa-cash-register', 'POS Items', str_contains($deskRoute, 'front-office.settings.extras')],
+        ['content-management.front-office.settings.extras.index', 'fa-cash-register', 'POS', str_contains($deskRoute, 'front-office.settings.extras') || str_contains($deskRoute, 'restaurant-menu')],
     ];
     $settingsActive = str_contains($deskRoute, 'front-office.settings') && ! str_contains($deskRoute, 'front-office.settings.extras');
     $ratesActive = $deskRoute === 'content-management.front-office.settings.rates.index';
@@ -31,7 +32,7 @@
                 <div class="desk-top__sub-panel" role="menu">
                     <a class="desk-top__sublink {{ $ratesActive ? 'is-active' : '' }}" href="{{ route('content-management.front-office.settings.rates.index') }}" role="menuitem">Rates management</a>
                     <a class="desk-top__sublink {{ $invoiceActive ? 'is-active' : '' }}" href="{{ route('content-management.front-office.settings.invoice.edit') }}" role="menuitem">Invoice details</a>
-                    <a class="desk-top__sublink {{ $extrasActive ? 'is-active' : '' }}" href="{{ route('content-management.front-office.settings.extras.index') }}" role="menuitem">POS Items</a>
+                    <a class="desk-top__sublink {{ $extrasActive ? 'is-active' : '' }}" href="{{ route('content-management.front-office.settings.extras.index') }}" role="menuitem">POS</a>
                 </div>
             </div>
         </div>

@@ -238,6 +238,7 @@ Route::middleware(['auth', 'admin'])->prefix('content-management')->name('conten
         Route::post('/reservations/{booking}/cancel', [App\Http\Controllers\FrontDeskController::class, 'cancel'])->name('cancel');
         Route::post('/reservations/{booking}/payments', [App\Http\Controllers\FrontDeskController::class, 'pay'])->name('pay');
         Route::get('/reservations/{booking}/receipt', [App\Http\Controllers\FrontDeskController::class, 'receipt'])->name('receipt');
+        Route::get('/reservations/{booking}/receipt.pdf', [App\Http\Controllers\FrontDeskController::class, 'receiptPdf'])->name('receipt.pdf');
         Route::get('/payments', [App\Http\Controllers\FrontDeskController::class, 'payments'])->name('payments');
         Route::get('/inventory', [App\Http\Controllers\FrontDeskController::class, 'inventory'])->name('inventory');
         Route::get('/reports', [App\Http\Controllers\FrontDeskController::class, 'reports'])->name('reports');
@@ -255,6 +256,9 @@ Route::middleware(['auth', 'admin'])->prefix('content-management')->name('conten
         Route::delete('/settings/discounts/{discount}', [App\Http\Controllers\FrontDeskController::class, 'destroyDiscount'])->name('settings.discounts.destroy');
         Route::post('/closures', [App\Http\Controllers\FrontDeskController::class, 'storeClosure'])->name('closures.store');
         Route::delete('/closures/{closure}', [App\Http\Controllers\FrontDeskController::class, 'destroyClosure'])->name('closures.destroy');
+        Route::post('/overbooks', [App\Http\Controllers\FrontDeskController::class, 'storeOverbook'])->name('overbooks.store');
+        Route::post('/overbooks/{overbook}', [App\Http\Controllers\FrontDeskController::class, 'updateOverbook'])->name('overbooks.update');
+        Route::delete('/overbooks/{overbook}', [App\Http\Controllers\FrontDeskController::class, 'destroyOverbook'])->name('overbooks.destroy');
     });
 
     // Reservations — guest booking requests from the public book-now form
@@ -266,6 +270,7 @@ Route::middleware(['auth', 'admin'])->prefix('content-management')->name('conten
     Route::delete('/restaurant-menu/{item}', [App\Http\Controllers\RestaurantMenuController::class, 'destroy'])->name('restaurant-menu.destroy');
 
     Route::get('/restaurant-reservations', [App\Http\Controllers\RestaurantReservationController::class, 'index'])->name('restaurant-reservations');
+    Route::get('/restaurant-reservations/{reservation}/pdf', [App\Http\Controllers\RestaurantReservationController::class, 'pdf'])->name('restaurant-reservations.pdf');
     Route::get('/restaurant-reservations/{reservation}', [App\Http\Controllers\RestaurantReservationController::class, 'show'])->name('restaurant-reservations.show');
     Route::post('/restaurant-reservations/{reservation}/status', [App\Http\Controllers\RestaurantReservationController::class, 'updateStatus'])->name('restaurant-reservations.status');
     Route::post('/restaurant-reservations/{reservation}/payment', [App\Http\Controllers\RestaurantReservationController::class, 'updatePayment'])->name('restaurant-reservations.payment');
@@ -499,6 +504,11 @@ $registerPublicSiteRoutes = function (bool $nameRoutes = true): void {
     $named(Route::get('/our-rooms/{slug}', RoomShowPage::class), 'room');
     $named(Route::get('/dining', RestaurantPage::class), 'dining');
     $named(Route::get('/dining/reserve', RestaurantReservePage::class), 'dining.reserve');
+    $named(
+        Route::get('/dining/pass/{token}/pdf', [App\Http\Controllers\RestaurantPassController::class, 'pdf'])
+            ->where('token', '[A-Za-z0-9]{20,}'),
+        'dining.pass.pdf'
+    );
     $named(
         Route::get('/dining/pass/{token}', [App\Http\Controllers\RestaurantPassController::class, 'show'])
             ->where('token', '[A-Za-z0-9]{20,}'),

@@ -7,6 +7,7 @@ use App\Models\RestaurantMenuItem;
 use App\Models\RestaurantReservation;
 use App\Models\RestaurantReservationItem;
 use App\Services\SiteNotificationMail;
+use App\Support\PdfFile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 
@@ -41,6 +42,19 @@ class RestaurantReservationController extends Controller
             'billText' => $reservation->billText(),
             'guestBillText' => $this->textInGuestLocale($reservation),
         ]);
+    }
+
+    public function pdf(RestaurantReservation $reservation)
+    {
+        $reservation->load('items');
+
+        return PdfFile::download(
+            view('bills.pdf', [
+                'title' => $reservation->reference,
+                'body' => view('restaurant.bill-document', ['reservation' => $reservation])->render(),
+            ])->render(),
+            $reservation->reference.'.pdf'
+        );
     }
 
     public function updateStatus(Request $request, RestaurantReservation $reservation)

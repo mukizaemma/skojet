@@ -8,7 +8,7 @@
 <div class="desk-app__body">
         @include('content-management.front-office.partials.alerts')
         <h4 class="mb-2">Rates management</h4>
-        <p class="text-muted">Set each suite’s nightly rate, board prices, and date discounts. Close a suite when it cannot be sold.</p>
+        <p class="text-muted">Set each suite’s nightly rate, board prices, and date discounts. Close a suite when it cannot be sold, or allow extra bookings on selected dates.</p>
 
         <section id="prices" class="mb-4">
             <h5 class="mb-1">Room prices</h5>
@@ -264,6 +264,88 @@
                             </tr>
                         @empty
                             <tr><td colspan="5" class="text-muted p-3">No room closures.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="overbooks" class="mt-4">
+            <h5 class="mb-1">Overbooking</h5>
+            <p class="text-muted small">Allow extra reservations on a suite for selected dates. The number is how many bookings can sit on top of the one suite. Change the dates or the number whenever the plan changes.</p>
+            <form method="POST" action="{{ route('content-management.front-office.overbooks.store') }}" class="bg-white border rounded p-3 mb-4">
+                @csrf
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label">Suite</label>
+                        <select name="room_id" class="form-select" required>
+                            @foreach($rooms->where('status', 'Active') as $room)
+                                <option value="{{ $room->id }}">{{ $room->title }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">From</label>
+                        <input type="date" name="starts_on" class="form-control" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">To</label>
+                        <input type="date" name="ends_on" class="form-control" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Extra bookings</label>
+                        <input type="number" name="extra" min="1" max="20" value="1" class="form-control" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Note</label>
+                        <input type="text" name="note" class="form-control" maxlength="255" placeholder="Expected cancellations">
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-dark w-100" type="submit">Add overbooking</button>
+                    </div>
+                </div>
+            </form>
+            <div class="bg-white border rounded">
+                <table class="table align-middle mb-0">
+                    <thead><tr><th>Suite</th><th>From</th><th>To</th><th>Extra</th><th>Note</th><th></th></tr></thead>
+                    <tbody>
+                        @forelse($overbooks as $overbook)
+                            <tr>
+                                <td colspan="6" class="p-2">
+                                    <form method="POST" action="{{ route('content-management.front-office.overbooks.update', $overbook) }}" class="row g-2 align-items-center">
+                                        @csrf
+                                        <div class="col-md-3">
+                                            <select name="room_id" class="form-select form-select-sm" required>
+                                                @foreach($rooms as $room)
+                                                    <option value="{{ $room->id }}" @selected((int) $overbook->room_id === (int) $room->id)>{{ $room->title }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <input type="date" name="starts_on" class="form-control form-control-sm" value="{{ optional($overbook->starts_on)->format('Y-m-d') }}" required>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <input type="date" name="ends_on" class="form-control form-control-sm" value="{{ optional($overbook->ends_on)->format('Y-m-d') }}" required>
+                                        </div>
+                                        <div class="col-md-1">
+                                            <input type="number" name="extra" min="1" max="20" class="form-control form-control-sm" value="{{ $overbook->extra }}" required>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <input type="text" name="note" class="form-control form-control-sm" maxlength="255" value="{{ $overbook->note }}">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button class="btn btn-dark btn-sm" type="submit">Save</button>
+                                        </div>
+                                    </form>
+                                    <form method="POST" action="{{ route('content-management.front-office.overbooks.destroy', $overbook) }}" class="mt-1" onsubmit="return confirm('Remove this overbooking?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button class="btn btn-link btn-sm text-danger p-0" type="submit">Remove</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="6" class="text-muted p-3">No suites are set to take extra bookings.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

@@ -1,21 +1,33 @@
 @php
-    $taken = [];
-    foreach ($bars as $bar) {
-        for ($offset = 0; $offset < (int) $bar['span']; $offset++) {
-            $taken[(int) $bar['column'] + $offset] = true;
-        }
-    }
+    $overbooks = $overbooks ?? collect();
     $lanes = max(1, (int) collect($bars)->max('lane') + 1);
 @endphp
 <div class="desk-cal__track" style="--lanes: {{ $lanes }}">
     @foreach($dates as $index => $date)
         @php
             $column = $index + 1;
-            $open = empty($taken[$column]) && ! empty($room);
+            $occupied = 0;
+            $closed = false;
+            foreach ($bars as $bar) {
+                $covers = $column >= (int) $bar['column'] && $column < (int) $bar['column'] + (int) $bar['span'];
+                if (! $covers) {
+                    continue;
+                }
+                if (($bar['state'] ?? '') === 'closure') {
+                    $closed = true;
+                } else {
+                    $occupied++;
+                }
+            }
+            $extra = (int) $overbooks->filter(function ($overbook) use ($date) {
+                return $date->gte($overbook->starts_on) && $date->lte($overbook->ends_on);
+            })->sum('extra');
+            $open = ! $closed && $occupied < (1 + $extra) && ! empty($room);
             $checkout = $date->copy()->addDay()->toDateString();
             $cellClass = 'desk-cal__cell'
                 .($date->isToday() ? ' is-today' : '')
                 .($date->isWeekend() ? ' is-weekend' : '')
+                .($extra > 0 ? ' is-overbook' : '')
                 .($open ? '' : ' is-taken');
         @endphp
         @if($open)

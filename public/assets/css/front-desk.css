@@ -274,6 +274,7 @@
 .desk-swatch--checked_in::before { background: #3c9a4e; }
 .desk-swatch--checked_out::before { background: #9aa0a6; }
 .desk-swatch--closure::before { background: #e35d5d; }
+.desk-swatch--overbook::before { background: #f3e3a1; }
 .desk-swatch--unallocated::before { background: #4aa3df; }
 .desk-swatch--incomplete::before { background: #f3c98b; }
 
@@ -510,6 +511,10 @@
     background: #f4f7f2;
 }
 
+.desk-cal__cell.is-overbook {
+    background: #fbf6e4;
+}
+
 .desk-cal__plus {
     font-size: 1.15rem;
     font-weight: 500;
@@ -595,6 +600,7 @@
 .desk-swatch--open { background: #d9ecd4; }
 .desk-swatch--booked { background: #f6c7a8; }
 .desk-swatch--closed { background: #f0b4b4; }
+.desk-swatch--overbook { background: #f3e3a1; }
 
 .desk-suite {
     background: #fff;
@@ -647,6 +653,11 @@
 .desk-day--closed {
     background: #f0b4b4;
     color: #7d2424;
+}
+
+.desk-day--overbook {
+    background: #f3e3a1;
+    color: #6b5410;
 }
 
 .desk-day.is-today {

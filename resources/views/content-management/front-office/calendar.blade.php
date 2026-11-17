@@ -26,6 +26,7 @@
             <span class="desk-swatch--checked_in">Checked in</span>
             <span class="desk-swatch--checked_out">Checked out</span>
             <span class="desk-swatch--closure">Room closure</span>
+            <span class="desk-swatch--overbook">Overbooked</span>
             <span class="desk-swatch--unallocated">Unallocated</span>
             <span class="desk-swatch--incomplete">Incomplete payment</span>
         </div>
@@ -43,7 +44,7 @@
             @foreach($rows as $row)
                 <div class="desk-cal__row">
                     <div class="desk-cal__name">{{ $row['room']->title }}</div>
-                    @include('content-management.front-office.partials.calendar-track', ['bars' => $row['bars'], 'room' => $row['room']])
+                    @include('content-management.front-office.partials.calendar-track', ['bars' => $row['bars'], 'room' => $row['room'], 'overbooks' => $row['overbooks']])
                 </div>
             @endforeach
             @if(count($unallocated))

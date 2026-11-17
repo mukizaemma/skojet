@@ -674,6 +674,7 @@ return [
         'bill_choice' => 'Confirmation payment: :choice',
         'bill_open_link' => 'Open this bill',
         'bill_print' => 'Print',
+        'bill_pdf' => 'Download PDF',
         'bill_thanks' => 'Thank you for dining with us. We look forward to welcoming you.',
         'bill_guests' => ':count guests',
     ],

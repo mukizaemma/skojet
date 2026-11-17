@@ -9,7 +9,7 @@
     }
     $contacts = collect([$invoice['phone'], $invoice['email']])->filter()->implode(' · ');
 @endphp
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e4ddd2;border-collapse:collapse;font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e4ddd2;border-collapse:collapse;font-family:DejaVu Sans, Georgia, 'Times New Roman', serif;color:#1a1a1a;">
     <tr>
         <td style="padding:28px 28px 18px;text-align:center;border-bottom:1px solid #e4ddd2;">
             <div style="font-size:24px;line-height:1.2;">{{ $invoice['name'] }}</div>

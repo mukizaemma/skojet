@@ -76,6 +76,10 @@
                 </div>
             </form>
             <div class="desk-book__side">
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    <a class="btn btn-outline-dark btn-sm" target="_blank" rel="noopener" href="{{ route('content-management.front-office.receipt', $booking) }}?print=1">Print bill</a>
+                    <a class="btn btn-dark btn-sm" href="{{ route('content-management.front-office.receipt.pdf', $booking) }}">Download PDF</a>
+                </div>
                 @include('content-management.front-office.partials.charges')
                 @include('content-management.front-office.partials.payment-box', ['sessionForm' => 'desk-session', 'mode' => $mode])
             </div>

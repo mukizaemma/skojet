@@ -21,12 +21,14 @@
             <span><i class="desk-swatch desk-swatch--open"></i> Open</span>
             <span><i class="desk-swatch desk-swatch--booked"></i> Booked</span>
             <span><i class="desk-swatch desk-swatch--closed"></i> Closed</span>
+            <span><i class="desk-swatch desk-swatch--overbook"></i> Overbooked</span>
         </div>
         @forelse($blocks as $block)
             @php
                 $openCount = $block['availability']->filter(fn ($state) => $state === 'open')->count();
                 $bookedCount = $block['availability']->filter(fn ($state) => $state === 'booked')->count();
                 $closedCount = $block['availability']->filter(fn ($state) => $state === 'closed')->count();
+                $overbookCount = $block['availability']->filter(fn ($state) => $state === 'overbook')->count();
             @endphp
             <article class="desk-suite">
                 <header class="desk-suite__head">
@@ -35,12 +37,14 @@
                         <span>{{ $openCount }} open</span>
                         @if($bookedCount > 0)<span>{{ $bookedCount }} booked</span>@endif
                         @if($closedCount > 0)<span>{{ $closedCount }} closed</span>@endif
+                        @if($overbookCount > 0)<span>{{ $overbookCount }} overbooked</span>@endif
                     </p>
                 </header>
                 <div class="desk-suite__days">
                     @foreach($dates as $index => $date)
                         @php $state = $block['availability'][$index]; @endphp
-                        <div class="desk-day desk-day--{{ $state }} {{ $date->isToday() ? 'is-today' : '' }} {{ $date->isWeekend() ? 'is-weekend' : '' }}" title="{{ $date->format('D, d M Y') }} · {{ ucfirst($state) }}">
+                        @php $stateLabel = ['open' => 'Open', 'booked' => 'Booked', 'closed' => 'Closed', 'overbook' => 'Overbooked'][$state] ?? ucfirst($state); @endphp
+                        <div class="desk-day desk-day--{{ $state }} {{ $date->isToday() ? 'is-today' : '' }} {{ $date->isWeekend() ? 'is-weekend' : '' }}" title="{{ $date->format('D, d M Y') }} · {{ $stateLabel }}">
                             @if($loop->first || $date->day === 1)
                                 <span class="desk-day__month">{{ $date->format('M') }}</span>
                             @else

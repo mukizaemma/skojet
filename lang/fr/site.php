@@ -633,6 +633,7 @@ return [
         'bill_choice' => 'Paiement de confirmation : :choice',
         'bill_open_link' => 'Ouvrir cette addition',
         'bill_print' => 'Imprimer',
+        'bill_pdf' => 'Télécharger le PDF',
         'bill_thanks' => 'Merci d’avoir choisi notre table. Nous serons heureux de vous accueillir.',
         'bill_guests' => ':count convives',
     ],

@@ -11,19 +11,7 @@ class RestaurantMenuController extends Controller
 {
     public function index()
     {
-        $restaurant = Restaurant::access();
-        $items = RestaurantMenuItem::query()
-            ->orderBy('category')
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get()
-            ->groupBy('category');
-
-        return view('content-management.restaurant.menu', [
-            'restaurant' => $restaurant,
-            'items' => $items,
-            'reserveUrl' => localized_route('dining.reserve'),
-        ]);
+        return redirect()->route('content-management.front-office.settings.extras.index', ['section' => 'menu']);
     }
 
     public function qrCard()
@@ -54,28 +42,31 @@ class RestaurantMenuController extends Controller
         $restaurant->momo_account_name = filled($data['momo_account_name'] ?? null) ? trim($data['momo_account_name']) : null;
         $restaurant->save();
 
-        return redirect()->route('content-management.restaurant-menu')->with('success', 'Restaurant access settings saved.');
+        return redirect()
+            ->route('content-management.front-office.home')
+            ->withFragment('dining-access')
+            ->with('success', 'Restaurant access settings saved.');
     }
 
     public function store(Request $request)
     {
         RestaurantMenuItem::query()->create($this->validatedItem($request));
 
-        return redirect()->route('content-management.restaurant-menu')->with('success', 'Menu item added.');
+        return redirect()->route('content-management.front-office.settings.extras.index', ['section' => 'menu'])->with('success', 'Menu item added.');
     }
 
     public function update(Request $request, RestaurantMenuItem $item)
     {
         $item->update($this->validatedItem($request));
 
-        return redirect()->route('content-management.restaurant-menu')->with('success', 'Menu item saved.');
+        return redirect()->route('content-management.front-office.settings.extras.index', ['section' => 'menu'])->with('success', 'Menu item saved.');
     }
 
     public function destroy(RestaurantMenuItem $item)
     {
         $item->delete();
 
-        return redirect()->route('content-management.restaurant-menu')->with('success', 'Menu item removed.');
+        return redirect()->route('content-management.front-office.settings.extras.index', ['section' => 'menu'])->with('success', 'Menu item removed.');
     }
 
     /**

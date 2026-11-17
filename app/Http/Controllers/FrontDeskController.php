@@ -6,13 +6,19 @@ use App\Models\Booking;
 use App\Models\BookingCharge;
 use App\Models\BookingPayment;
 use App\Models\ExtraItem;
+use App\Models\Restaurant;
+use App\Models\RestaurantMenuItem;
+use App\Models\RestaurantReservation;
 use App\Models\Room;
 use App\Models\RoomClosure;
+use App\Models\RoomOverbook;
 use App\Models\RoomDiscount;
 use App\Models\Setting;
 use App\Services\RoomDiscountService;
+use App\Support\PdfFile;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -40,6 +46,38 @@ class FrontDeskController extends Controller
                 : 'Reservations Manager is off. Website management and guest reservations stay available.');
     }
 
+    private function diningDesk(): ?array
+    {
+        if (! Schema::hasTable('restaurant_reservations') || ! Schema::hasTable('restaurants')) {
+            return null;
+        }
+
+        $today = RestaurantReservation::query()
+            ->whereDate('reserved_for', now()->toDateString())
+            ->orderBy('reserved_for')
+            ->limit(8)
+            ->get();
+        $visits = $today->isNotEmpty()
+            ? $today
+            : RestaurantReservation::query()
+                ->where('reserved_for', '>=', now()->startOfDay())
+                ->orderBy('reserved_for')
+                ->limit(6)
+                ->get();
+
+        return [
+            'restaurant' => Restaurant::access(),
+            'visits' => $visits,
+            'showingToday' => $today->isNotEmpty(),
+            'todayCount' => RestaurantReservation::query()->whereDate('reserved_for', now()->toDateString())->count(),
+            'unpaid' => RestaurantReservation::query()
+                ->where('status', '!=', 'cancelled')
+                ->where('payment_status', '!=', 'paid')
+                ->count(),
+            'reserveUrl' => localized_route('dining.reserve'),
+        ];
+    }
+
     private function assertReservationsManagerOwner(): void
     {
         $email = strtolower((string) auth()->user()?->email);
@@ -63,7 +101,9 @@ class FrontDeskController extends Controller
                 ->implode(' · ') ?: hotel_price(0, $setting),
         ];
 
-        return view('content-management.front-office.home', compact('recent', 'stats', 'setting'));
+        $dining = $this->diningDesk();
+
+        return view('content-management.front-office.home', compact('recent', 'stats', 'setting', 'dining'));
     }
 
     public function calendar(Request $request)
@@ -79,8 +119,15 @@ class FrontDeskController extends Controller
             ->whereDate('ends_on', '>=', $start->toDateString())
             ->get()
             ->groupBy('room_id');
+        $overbooks = Schema::hasTable('room_overbooks')
+            ? RoomOverbook::query()
+                ->whereDate('starts_on', '<=', $dates->last()->toDateString())
+                ->whereDate('ends_on', '>=', $start->toDateString())
+                ->get()
+                ->groupBy('room_id')
+            : collect();
 
-        $rows = $rooms->map(function (Room $room) use ($bookings, $closures, $start, $days) {
+        $rows = $rooms->map(function (Room $room) use ($bookings, $closures, $overbooks, $start, $days) {
             $stays = $bookings->filter(function (Booking $booking) use ($room) {
                 $roomId = $booking->assigned_room_id ?: $booking->room_id;
 
@@ -90,6 +137,7 @@ class FrontDeskController extends Controller
             return [
                 'room' => $room,
                 'bars' => $this->bars($stays, $closures->get($room->id, collect()), $start, $days),
+                'overbooks' => $overbooks->get($room->id, collect()),
             ];
         });
 
@@ -181,6 +229,8 @@ class FrontDeskController extends Controller
             'adults' => 'required|integer|min:1|max:6',
             'children' => 'nullable|integer|min:0|max:4',
             'booking_id' => 'nullable|integer|exists:bookings,id',
+            'manual_discount_type' => 'nullable|in:percent,amount',
+            'manual_discount_value' => 'nullable|numeric|min:0',
         ]);
         $paid = 0.0;
         if (! empty($data['booking_id'])) {
@@ -203,6 +253,11 @@ class FrontDeskController extends Controller
         $booking->payment_status = 'pending';
         $booking->paid_amount = 0;
         $booking->reservation_type = 'room';
+        $booking->room_id = $data['room_id'];
+        $conflict = $this->stayConflict($booking, $data['checkin_date'], $data['checkout_date'], (int) $data['room_id']);
+        if ($conflict) {
+            return back()->withInput()->with('error', $conflict);
+        }
         $this->fillStay($booking, $data, true);
         $booking->created_by = auth()->id();
         $booking->save();
@@ -233,6 +288,10 @@ class FrontDeskController extends Controller
         $this->assertRoomBooking($booking);
         $data = $this->validateStay($request, $booking);
         $this->guardCurrency($booking, $data);
+        $conflict = $this->stayConflict($booking, $data['checkin_date'], $data['checkout_date'], (int) $data['room_id']);
+        if ($conflict) {
+            return back()->withInput()->with('error', $conflict);
+        }
         $changed = $this->rateChanged($booking, $data);
         $this->fillStay($booking, $data, $changed || (float) $booking->total_amount <= 0);
         $booking->save();
@@ -397,6 +456,21 @@ class FrontDeskController extends Controller
         return view('content-management.front-office.receipt', compact('booking', 'setting'));
     }
 
+    public function receiptPdf(Booking $booking)
+    {
+        $this->assertRoomBooking($booking);
+        $booking->load(['room', 'assignedRoom', 'payments.receiver', 'charges']);
+        $setting = Setting::query()->first();
+
+        return PdfFile::download(
+            view('bills.pdf', [
+                'title' => 'Invoice '.$booking->id,
+                'body' => view('bills.stay-document', compact('booking', 'setting'))->render(),
+            ])->render(),
+            'invoice-'.$booking->id.'.pdf'
+        );
+    }
+
     public function payments()
     {
         $payments = BookingPayment::query()->with(['booking.room', 'receiver'])->latest()->paginate(25);
@@ -416,28 +490,41 @@ class FrontDeskController extends Controller
             ->whereDate('starts_on', '<', $end->toDateString())
             ->whereDate('ends_on', '>=', $start->toDateString())
             ->get();
+        $overbooks = Schema::hasTable('room_overbooks')
+            ? RoomOverbook::query()
+                ->whereDate('starts_on', '<=', $dates->last()->toDateString())
+                ->whereDate('ends_on', '>=', $start->toDateString())
+                ->get()
+            : collect();
 
-        $blocks = $rooms->map(function (Room $room) use ($dates, $bookings, $closures) {
-            $availability = $dates->map(function (Carbon $date) use ($room, $bookings, $closures) {
-                $booked = $bookings->contains(function (Booking $booking) use ($room, $date) {
+        $blocks = $rooms->map(function (Room $room) use ($dates, $bookings, $closures, $overbooks) {
+            $availability = $dates->map(function (Carbon $date) use ($room, $bookings, $closures, $overbooks) {
+                $occupied = $bookings->filter(function (Booking $booking) use ($room, $date) {
                     $roomId = $booking->assigned_room_id ?: $booking->room_id;
                     if ((int) $roomId !== (int) $room->id || ! $booking->checkin_date || ! $booking->checkout_date) {
                         return false;
                     }
 
                     return $date->gte($booking->checkin_date) && $date->lt($booking->checkout_date);
-                });
-                if ($booked) {
-                    return 'booked';
-                }
-
+                })->count();
                 $closed = $closures->contains(function (RoomClosure $closure) use ($room, $date) {
                     return (int) $closure->room_id === (int) $room->id
                         && $date->gte($closure->starts_on)
                         && $date->lte($closure->ends_on);
                 });
+                if ($closed) {
+                    return 'closed';
+                }
+                $extra = (int) $overbooks
+                    ->filter(fn (RoomOverbook $overbook) => (int) $overbook->room_id === (int) $room->id
+                        && $date->gte($overbook->starts_on)
+                        && $date->lte($overbook->ends_on))
+                    ->sum('extra');
+                if ($extra > 0) {
+                    return 'overbook';
+                }
 
-                return $closed ? 'closed' : 'open';
+                return $occupied > 0 ? 'booked' : 'open';
             });
 
             return [
@@ -513,8 +600,22 @@ class FrontDeskController extends Controller
     public function extras()
     {
         $items = ExtraItem::query()->orderBy('category')->orderBy('name')->get();
+        $menuItems = collect();
+        if (Schema::hasTable('restaurant_menu_items')) {
+            $menuItems = RestaurantMenuItem::query()
+                ->orderBy('category')
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get()
+                ->groupBy('category');
+        }
 
-        return view('content-management.front-office.settings.extras', compact('items'));
+        return view('content-management.front-office.settings.extras', [
+            'items' => $items,
+            'menuItems' => $menuItems,
+            'menuReady' => Schema::hasTable('restaurant_menu_items'),
+            'section' => request('section') === 'menu' ? 'menu' : 'extras',
+        ]);
     }
 
     public function storeExtra(Request $request)
@@ -555,9 +656,12 @@ class FrontDeskController extends Controller
         $rooms = Room::query()->orderBy('title')->get();
         $closures = RoomClosure::query()->with('room')->orderByDesc('starts_on')->get();
         $discounts = RoomDiscount::query()->with('room')->orderByDesc('starts_on')->get();
+        $overbooks = Schema::hasTable('room_overbooks')
+            ? RoomOverbook::query()->with('room')->orderByDesc('starts_on')->get()
+            : collect();
         $setting = Setting::query()->first();
 
-        return view('content-management.front-office.settings.rates', compact('rooms', 'closures', 'discounts', 'setting'));
+        return view('content-management.front-office.settings.rates', compact('rooms', 'closures', 'discounts', 'overbooks', 'setting'));
     }
 
     public function invoiceSettings()
@@ -659,6 +763,33 @@ class FrontDeskController extends Controller
         $closure->delete();
 
         return back()->with('success', 'Room closure removed.');
+    }
+
+    public function storeOverbook(Request $request)
+    {
+        RoomOverbook::query()->create($this->validatedOverbook($request));
+
+        return redirect()
+            ->to(url('/content-management/front-office/settings/rates').'#overbooks')
+            ->with('success', 'Overbooking saved.');
+    }
+
+    public function updateOverbook(Request $request, RoomOverbook $overbook)
+    {
+        $overbook->update($this->validatedOverbook($request));
+
+        return redirect()
+            ->to(url('/content-management/front-office/settings/rates').'#overbooks')
+            ->with('success', 'Overbooking updated.');
+    }
+
+    public function destroyOverbook(RoomOverbook $overbook)
+    {
+        $overbook->delete();
+
+        return redirect()
+            ->to(url('/content-management/front-office/settings/rates').'#overbooks')
+            ->with('success', 'Overbooking removed.');
     }
 
     private function roomBookings()
@@ -805,18 +936,16 @@ class FrontDeskController extends Controller
 
             return;
         }
-        $quote = app(RoomDiscountService::class)->quote(
-            $room,
-            Carbon::parse($booking->checkin_date)->toDateString(),
-            Carbon::parse($booking->checkout_date)->toDateString(),
-            (int) $booking->adults,
-            (int) ($booking->children ?? 0),
-            1,
-            0,
-            $booking->board,
-            $booking->occupancy,
-            $booking->currencyKey()
-        );
+        $quote = $this->quoteStay($room, [
+            'checkin_date' => Carbon::parse($booking->checkin_date)->toDateString(),
+            'checkout_date' => Carbon::parse($booking->checkout_date)->toDateString(),
+            'adults' => (int) $booking->adults,
+            'children' => (int) ($booking->children ?? 0),
+            'board' => $booking->board,
+            'occupancy' => $booking->occupancy,
+            'manual_discount_type' => $booking->manual_discount_type,
+            'manual_discount_value' => $booking->manual_discount_value,
+        ], $booking->currencyKey());
         $booking->total_amount = round($quote['total'], 2);
         $booking->list_amount = round($quote['list_total'], 2);
         $booking->discount_amount = round($quote['discount_total'], 2);
@@ -843,28 +972,84 @@ class FrontDeskController extends Controller
         }
     }
 
-    private function stayConflict(Booking $booking, string $checkin, string $checkout): ?string
+    private function stayConflict(Booking $booking, string $checkin, string $checkout, ?int $roomId = null): ?string
     {
-        $roomId = (int) ($booking->assigned_room_id ?: $booking->room_id);
+        $roomId = $roomId ?: (int) ($booking->assigned_room_id ?: $booking->room_id);
         if (! $roomId) {
             return 'Choose a suite before changing these dates.';
-        }
-        $overlap = $this->overlapping(Carbon::parse($checkin), Carbon::parse($checkout))
-            ->where('id', '!=', $booking->id)
-            ->get()
-            ->first(function (Booking $other) use ($roomId) {
-                return (int) ($other->assigned_room_id ?: $other->room_id) === $roomId;
-            });
-        if ($overlap) {
-            return $overlap->names.' already has this suite for those nights.';
         }
         $closed = RoomClosure::query()
             ->where('room_id', $roomId)
             ->whereDate('starts_on', '<', $checkout)
             ->whereDate('ends_on', '>=', $checkin)
             ->exists();
+        if ($closed) {
+            return 'The suite is closed for one of these nights.';
+        }
 
-        return $closed ? 'The suite is closed for one of these nights.' : null;
+        $others = $this->overlapping(Carbon::parse($checkin), Carbon::parse($checkout));
+        if ($booking->exists) {
+            $others->where('id', '!=', $booking->id);
+        }
+        $others = $others->get()->filter(function (Booking $other) use ($roomId) {
+            return (int) ($other->assigned_room_id ?: $other->room_id) === $roomId;
+        })->values();
+        if ($others->isEmpty()) {
+            return null;
+        }
+
+        $cursor = Carbon::parse($checkin)->startOfDay();
+        $end = Carbon::parse($checkout)->startOfDay();
+        while ($cursor->lt($end)) {
+            $night = $cursor->toDateString();
+            $occupied = $others->filter(function (Booking $other) use ($cursor) {
+                return $other->checkin_date && $other->checkout_date
+                    && $cursor->gte($other->checkin_date->copy()->startOfDay())
+                    && $cursor->lt($other->checkout_date->copy()->startOfDay());
+            })->count();
+            $capacity = 1 + $this->overbookExtra($roomId, $night);
+            if ($occupied >= $capacity) {
+                $name = $others->first()->names;
+
+                return $capacity > 1
+                    ? $name.' already has this suite, and the overbook limit is full for '.$cursor->format('d M Y').'. Raise the extra bookings if another reservation should be taken.'
+                    : $name.' already has this suite for those nights. Set the suite as overbooked for these dates if another reservation should be taken.';
+            }
+            $cursor->addDay();
+        }
+
+        return null;
+    }
+
+    private function overbookExtra(int $roomId, string $night): int
+    {
+        if (! Schema::hasTable('room_overbooks')) {
+            return 0;
+        }
+
+        return (int) RoomOverbook::query()
+            ->where('room_id', $roomId)
+            ->whereDate('starts_on', '<=', $night)
+            ->whereDate('ends_on', '>=', $night)
+            ->sum('extra');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validatedOverbook(Request $request): array
+    {
+        $data = $request->validate([
+            'room_id' => 'required|exists:rooms,id',
+            'starts_on' => 'required|date',
+            'ends_on' => 'required|date|after_or_equal:starts_on',
+            'extra' => 'required|integer|min:1|max:20',
+            'note' => 'nullable|string|max:255',
+        ]);
+        $data['extra'] = (int) $data['extra'];
+        $data['note'] = filled($data['note'] ?? null) ? trim($data['note']) : null;
+
+        return $data;
     }
 
     private function validatedExtra(Request $request): array
@@ -1002,8 +1187,67 @@ class FrontDeskController extends Controller
             'reservation_channel' => ['required', Rule::in(array_keys(Booking::CHANNELS))],
             'guest_source' => ['required', Rule::in(array_keys(Booking::SOURCES))],
             'currency' => 'required|in:usd,rwf',
+            'manual_discount_type' => 'nullable|in:percent,amount',
+            'manual_discount_value' => 'nullable|numeric|min:0',
             'message' => 'nullable|string|max:1000',
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function quoteStay(Room $room, array $data, string $currency): array
+    {
+        $quote = app(RoomDiscountService::class)->quote(
+            $room,
+            $data['checkin_date'],
+            $data['checkout_date'],
+            (int) $data['adults'],
+            (int) ($data['children'] ?? 0),
+            1,
+            0,
+            $data['board'] ?? null,
+            $data['occupancy'] ?? null,
+            $currency
+        );
+
+        return $this->applyDeskDiscount($quote, $data['manual_discount_type'] ?? null, $data['manual_discount_value'] ?? null);
+    }
+
+    /**
+     * @param  array<string, mixed>  $quote
+     * @return array<string, mixed>
+     */
+    private function applyDeskDiscount(array $quote, mixed $type, mixed $value): array
+    {
+        $type = in_array($type, ['percent', 'amount'], true) ? $type : '';
+        $amount = is_numeric($value) ? round((float) $value, 2) : 0.0;
+        $nights = (int) ($quote['nights'] ?? 0);
+        if ($type === '' || $amount <= 0 || $nights < 1) {
+            return $quote;
+        }
+        $rackNightly = (float) ($quote['rack_nightly'] ?? $quote['nightly'] ?? 0);
+        $rackTotal = round($rackNightly * $nights, 2);
+        if ($type === 'percent') {
+            $percent = min(100, $amount);
+            $cut = round($rackTotal * ($percent / 100), 2);
+            $label = rtrim(rtrim(number_format($percent, 2, '.', ''), '0'), '.').'% off';
+        } else {
+            $cut = min($rackTotal, $amount);
+            $label = 'Amount off';
+        }
+        $total = max(0, round($rackTotal - $cut, 2));
+        $quote['list_total'] = $rackTotal;
+        $quote['discount_total'] = $cut;
+        $quote['total'] = $total;
+        $quote['nightly'] = $total / $nights;
+        $quote['sale_nightly'] = $quote['nightly'];
+        $quote['label'] = $label;
+        $quote['has_discount'] = $cut >= 0.5;
+        $quote['rack_nightly'] = $rackNightly;
+
+        return $quote;
     }
 
     private function redirectAfterStay(Request $request, Booking $booking, bool $created)
@@ -1042,18 +1286,7 @@ class FrontDeskController extends Controller
     {
         $room = Room::query()->findOrFail($data['room_id']);
         $currency = ($data['currency'] ?? hotel_currency()) === 'rwf' ? 'rwf' : 'usd';
-        $quote = app(RoomDiscountService::class)->quote(
-            $room,
-            $data['checkin_date'],
-            $data['checkout_date'],
-            (int) $data['adults'],
-            (int) ($data['children'] ?? 0),
-            1,
-            0,
-            $data['board'] ?? null,
-            $data['occupancy'] ?? null,
-            $currency
-        );
+        $quote = $this->quoteStay($room, $data, $currency);
         $setting = Setting::query()->first();
         $total = round((float) $quote['total'], 2);
         $discount = round((float) $quote['discount_total'], 2);
@@ -1110,6 +1343,9 @@ class FrontDeskController extends Controller
         $booking->board = $data['board'] ?: null;
         $booking->occupancy = $data['occupancy'] ?: null;
         $booking->currency = ($data['currency'] ?? 'usd') === 'rwf' ? 'rwf' : 'usd';
+        $deskDiscount = $this->deskDiscount($data);
+        $booking->manual_discount_type = $deskDiscount['type'];
+        $booking->manual_discount_value = $deskDiscount['value'];
         $booking->message = $data['message'] ?? $booking->message;
 
         if (! $reprice) {
@@ -1119,18 +1355,7 @@ class FrontDeskController extends Controller
         }
 
         $room = Room::query()->findOrFail($data['room_id']);
-        $quote = app(RoomDiscountService::class)->quote(
-            $room,
-            $data['checkin_date'],
-            $data['checkout_date'],
-            (int) $data['adults'],
-            (int) ($data['children'] ?? 0),
-            1,
-            0,
-            $data['board'] ?? null,
-            $data['occupancy'] ?? null,
-            $booking->currency
-        );
+        $quote = $this->quoteStay($room, $data, $booking->currency);
         $booking->board = $quote['board'] ?: $booking->board;
         $booking->occupancy = $quote['occupancy'] ?: $booking->occupancy;
         $booking->total_amount = round($quote['total'], 2);
@@ -1167,7 +1392,31 @@ class FrontDeskController extends Controller
             || (int) $booking->adults !== (int) $data['adults']
             || (int) $booking->children !== (int) ($data['children'] ?? 0)
             || (int) ($booking->rooms ?? 1) !== 1
-            || $booking->currencyKey() !== (($data['currency'] ?? 'usd') === 'rwf' ? 'rwf' : 'usd');
+            || $booking->currencyKey() !== (($data['currency'] ?? 'usd') === 'rwf' ? 'rwf' : 'usd')
+            || (string) ($booking->manual_discount_type ?? '') !== (string) ($this->deskDiscount($data)['type'] ?? '')
+            || round((float) ($booking->manual_discount_value ?? 0), 2) !== round((float) ($this->deskDiscount($data)['value'] ?? 0), 2);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array{type: ?string, value: ?float}
+     */
+    private function deskDiscount(array $data): array
+    {
+        $type = in_array($data['manual_discount_type'] ?? '', ['percent', 'amount'], true)
+            ? $data['manual_discount_type']
+            : null;
+        $value = is_numeric($data['manual_discount_value'] ?? null)
+            ? round((float) $data['manual_discount_value'], 2)
+            : null;
+        if ($type === null || $value === null || $value <= 0) {
+            return ['type' => null, 'value' => null];
+        }
+        if ($type === 'percent') {
+            $value = min(100, $value);
+        }
+
+        return ['type' => $type, 'value' => $value];
     }
 
     private function roomRateMap($rooms): array

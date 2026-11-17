@@ -12,4 +12,7 @@
     @endif
     <button class="btn btn-outline-dark" type="submit" form="desk-stay" name="after" value="payment">Confirm payment</button>
     <button class="btn btn-outline-dark" type="submit" form="desk-stay" name="after" value="invoice">Print invoice</button>
+    @if($booking->exists)
+        <a class="btn btn-outline-dark" href="{{ route('content-management.front-office.receipt.pdf', $booking) }}">Download PDF</a>
+    @endif
 </div>

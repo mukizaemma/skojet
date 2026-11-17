@@ -1,13 +1,19 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<div class="admin-livewire-page d-flex w-100 align-items-stretch">
-@include('content-management.includes.sidebar')
-<div class="content">
-    @include('admin.includes.navbar')
-    <div class="container-fluid pt-4 px-4">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-menu">
+<div class="desk-app">
+@include('content-management.front-office.partials.header')
+<div class="desk-app__body">
+        @include('content-management.front-office.partials.alerts')
         <div class="bg-white border rounded p-4">
-            <h4 class="mb-3">Restaurant reservations</h4>
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div>
+                    <h4 class="mb-1">Dining reservations</h4>
+                    <p class="text-muted mb-0">Open a bill to add items, confirm the payment, then print or download the PDF.</p>
+                </div>
+                <a class="btn btn-outline-dark" href="{{ route('content-management.front-office.home') }}#dining-access">Access settings</a>
+            </div>
             <div class="table-responsive">
                 <table class="table align-middle mb-0">
                     <thead>
@@ -50,6 +56,5 @@
             <div class="mt-3">{{ $reservations->links() }}</div>
         </div>
     </div>
-</div>
 </div>
 @endsection

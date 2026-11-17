@@ -74,6 +74,23 @@
         <label class="form-label">Nightly</label>
         <input type="text" id="desk-nightly" class="form-control" value="" readonly>
     </div>
+    @php
+        $deskDiscountType = old('manual_discount_type', $booking->manual_discount_type);
+        $deskDiscountValue = old('manual_discount_value', $booking->manual_discount_value);
+    @endphp
+    <div class="col-md-6">
+        <label class="form-label" for="desk-discount-type">Discount</label>
+        <select name="manual_discount_type" id="desk-discount-type" class="form-select">
+            <option value="" @selected(! in_array($deskDiscountType, ['percent', 'amount'], true))>Use the preset discounts</option>
+            <option value="percent" @selected($deskDiscountType === 'percent')>Percent off</option>
+            <option value="amount" @selected($deskDiscountType === 'amount')>Amount off</option>
+        </select>
+    </div>
+    <div class="col-md-6">
+        <label class="form-label" for="desk-discount-value">Discount value</label>
+        <input type="number" name="manual_discount_value" id="desk-discount-value" min="0" step="0.01" class="form-control" value="{{ $deskDiscountValue }}" placeholder="Percent or amount">
+        <p class="text-muted small mb-0 mt-1">Percent, or an exact amount in this reservation’s currency. Either one replaces the rate and date discounts for this stay.</p>
+    </div>
     <div class="col-md-6">
         <label class="form-label">Adults</label>
         <input type="number" name="adults" min="1" max="6" class="form-control" value="{{ old('adults', $booking->adults ?? 2) }}" required>

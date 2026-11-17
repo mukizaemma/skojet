@@ -6,7 +6,21 @@
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
         @include('content-management.front-office.partials.alerts')
-        <h4 class="mb-1">POS Items</h4>
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <div>
+                <h4 class="mb-1">POS</h4>
+                <p class="text-muted mb-0">Room extras go on a guest bill. The restaurant menu is what guests order when they reserve a table.</p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-sm {{ $section === 'extras' ? 'btn-dark' : 'btn-outline-dark' }}" href="{{ route('content-management.front-office.settings.extras.index') }}">Room extras</a>
+                @if($menuReady)
+                    <a class="btn btn-sm {{ $section === 'menu' ? 'btn-dark' : 'btn-outline-dark' }}" href="{{ route('content-management.front-office.settings.extras.index', ['section' => 'menu']) }}">Restaurant menu</a>
+                @endif
+            </div>
+        </div>
+        @if($section === 'menu' && $menuReady)
+            @include('content-management.front-office.partials.restaurant-menu')
+        @else
         <p class="text-muted mb-3">Each item has a dollar price and a franc price. A guest bill uses the currency chosen on the reservation, so the room and these items stay in the same currency. Food, drinks, and coffee post to restaurant sales. Laundry, massage, transport, and tour guide post to services sales.</p>
         <form method="POST" action="{{ route('content-management.front-office.settings.extras.store') }}" class="bg-white border rounded p-3 mb-4">
             @csrf
@@ -88,6 +102,7 @@
                 </table>
             </div>
         @endforeach
+        @endif
     </div>
 </div>
 @endsection

@@ -15,6 +15,12 @@
                     @endif
                 </div>
                 @if($submittedReservation)
+                    @if($submittedReservation->access_token)
+                        <p class="dining-reserve__tools">
+                            <a class="theme-btn btn-style fill" target="_blank" rel="noopener" href="{{ localized_route('dining.pass', ['token' => $submittedReservation->access_token]) }}?print=1"><span>{{ site_trans('dining.bill_print') }}</span></a>
+                            <a class="theme-btn btn-style" href="{{ localized_route('dining.pass.pdf', ['token' => $submittedReservation->access_token]) }}"><span>{{ site_trans('dining.bill_pdf') }}</span></a>
+                        </p>
+                    @endif
                     <div class="dining-reserve__bill">
                         @include('restaurant.bill-document', ['reservation' => $submittedReservation])
                     </div>

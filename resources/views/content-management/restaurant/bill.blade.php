@@ -1,34 +1,25 @@
 @extends('layouts.adminBase')
 
 @section('content')
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-menu">
 <style>
     @media print {
-        .sidebar, .navbar, .no-print { display: none !important; }
-        .content { margin: 0 !important; width: 100% !important; min-height: 0 !important; }
+        .sidebar, .navbar, .desk-top, .no-print { display: none !important; }
+        .desk-app__body { padding: 0 !important; }
         #restaurant-bill { border: 0 !important; max-width: none !important; }
     }
 </style>
-<div class="admin-livewire-page d-flex w-100 align-items-stretch">
-@include('content-management.includes.sidebar')
-<div class="content">
-    @include('admin.includes.navbar')
-    <div class="container-fluid pt-4 px-4">
-        @if (session('success'))
-            <div class="alert alert-success no-print">{{ session('success') }}</div>
-        @endif
-        @if (session('warning'))
-            <div class="alert alert-warning no-print">{{ session('warning') }}</div>
-        @endif
-        @if (session('error'))
-            <div class="alert alert-danger no-print">{{ session('error') }}</div>
-        @endif
-        @if ($errors->any())
-            <div class="alert alert-danger no-print">{{ $errors->first() }}</div>
-        @endif
+<div class="desk-app">
+@include('content-management.front-office.partials.header')
+<div class="desk-app__body">
+        <div class="no-print">
+            @include('content-management.front-office.partials.alerts')
+        </div>
 
         <div class="d-flex flex-wrap gap-2 mb-3 no-print">
-            <a class="btn btn-outline-dark" href="{{ route('content-management.restaurant-reservations') }}">All restaurant reservations</a>
+            <a class="btn btn-outline-dark" href="{{ route('content-management.restaurant-reservations') }}">All dining reservations</a>
             <button class="btn btn-dark" type="button" onclick="window.print()">Print</button>
+            <a class="btn btn-outline-dark" href="{{ route('content-management.restaurant-reservations.pdf', $reservation) }}">Download PDF</a>
             <button class="btn btn-outline-dark" type="button" id="save-bill-image">Save image</button>
         </div>
 
@@ -141,7 +132,6 @@
             </div>
         </div>
     </div>
-</div>
 </div>
 <script type="application/json" id="bill-lines">@json($reservation->billLines())</script>
 <script type="application/json" id="guest-bill-text">@json($guestBillText)</script>

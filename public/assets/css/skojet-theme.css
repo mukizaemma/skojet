@@ -3974,6 +3974,14 @@ a.text-primary {
     margin: 0;
 }
 
+.dining-reserve__tools {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+    margin: 1.25rem 0 0;
+}
+
 .dining-reserve__bill {
     margin-top: 1.5rem;
 }
