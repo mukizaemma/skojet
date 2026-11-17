@@ -275,6 +275,7 @@ Route::middleware(['auth', 'admin'])->prefix('content-management')->name('conten
     Route::delete('/restaurant-menu/{item}', [App\Http\Controllers\RestaurantMenuController::class, 'destroy'])->name('restaurant-menu.destroy');
 
     Route::get('/restaurant-reservations', [App\Http\Controllers\RestaurantReservationController::class, 'index'])->name('restaurant-reservations');
+    Route::get('/restaurant-reservations/menu', [App\Http\Controllers\RestaurantReservationController::class, 'menu'])->name('restaurant-reservations.menu');
     Route::post('/restaurant-reservations', [App\Http\Controllers\RestaurantReservationController::class, 'storeStaff'])->name('restaurant-reservations.store');
     Route::get('/restaurant-reservations/export.pdf', [App\Http\Controllers\RestaurantReservationController::class, 'exportPdf'])->name('restaurant-reservations.export.pdf');
     Route::get('/restaurant-reservations/export.xls', [App\Http\Controllers\RestaurantReservationController::class, 'exportExcel'])->name('restaurant-reservations.export.xls');

@@ -28,7 +28,28 @@ class RestaurantReservationController extends Controller
         return view('content-management.restaurant.reservations', [
             'reservations' => $reservations,
             'filters' => $filters,
-            'menuGroups' => RestaurantMenuItem::publicGroups(),
+        ]);
+    }
+
+    public function menu()
+    {
+        $items = [];
+        foreach (RestaurantMenuItem::publicGroups() as $category => $rows) {
+            foreach ($rows as $item) {
+                $items[] = [
+                    'id' => $item->id,
+                    'category' => $category,
+                    'name' => $item->name,
+                    'description' => $item->description,
+                    'usd' => $item->price_international,
+                    'rwf' => $item->price_local,
+                ];
+            }
+        }
+
+        return response()->json([
+            'categories' => RestaurantMenuItem::CATEGORIES,
+            'items' => $items,
         ]);
     }
 

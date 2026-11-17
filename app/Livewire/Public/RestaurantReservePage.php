@@ -17,6 +17,10 @@ class RestaurantReservePage extends Component
 {
     public string $price_tier = 'international';
 
+    public string $menuQuery = '';
+
+    public string $menuCategory = 'all';
+
     /** @var array<int, int> */
     public array $quantities = [];
 
@@ -59,6 +63,11 @@ class RestaurantReservePage extends Component
     public function setTier(string $tier): void
     {
         $this->price_tier = $tier === 'local' ? 'local' : 'international';
+    }
+
+    public function setMenuCategory(string $category): void
+    {
+        $this->menuCategory = array_key_exists($category, RestaurantMenuItem::CATEGORIES) ? $category : 'all';
     }
 
     public function setPayment(string $choice): void
@@ -138,6 +147,23 @@ class RestaurantReservePage extends Component
     {
         $restaurant = Restaurant::access();
         $menu = RestaurantMenuItem::publicGroups();
+        $query = mb_strtolower(trim($this->menuQuery));
+        $visible = [];
+        foreach ($menu as $category => $items) {
+            if ($this->menuCategory !== 'all' && $this->menuCategory !== $category) {
+                continue;
+            }
+            $rows = $items->filter(function (RestaurantMenuItem $item) use ($query) {
+                if ($query === '') {
+                    return true;
+                }
+
+                return str_contains(mb_strtolower($item->name.' '.$item->description), $query);
+            })->values();
+            if ($rows->isNotEmpty()) {
+                $visible[$category] = $rows;
+            }
+        }
         $order = $this->orderSummary();
         $minimum = $restaurant->minimumFor($this->price_tier);
         $shortfall = max(0, round($minimum - $order['total'], 2));
@@ -151,6 +177,7 @@ class RestaurantReservePage extends Component
         return view('frontend.restaurant-reserve', [
             'restaurant' => $restaurant,
             'menu' => $menu,
+            'visibleMenu' => $visible,
             'orderLines' => $order['lines'],
             'orderTotal' => $order['total'],
             'minimum' => $minimum,

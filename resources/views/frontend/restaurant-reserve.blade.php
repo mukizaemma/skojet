@@ -41,27 +41,37 @@
                 @else
                     <div class="dining-reserve__layout">
                         <div class="dining-reserve__menu">
-                            <div class="dining-reserve__tiers" role="radiogroup" aria-label="{{ site_trans('dining.reserve_price_note') }}">
-                                <button type="button" wire:click="setTier('international')" class="{{ $price_tier === 'international' ? 'is-current' : '' }}">{{ site_trans('dining.reserve_international') }}</button>
-                                <button type="button" wire:click="setTier('local')" class="{{ $price_tier === 'local' ? 'is-current' : '' }}">{{ site_trans('dining.reserve_local') }}</button>
+                            <div class="dining-reserve__toolbar">
+                                <div class="dining-reserve__tiers" role="radiogroup" aria-label="{{ site_trans('dining.reserve_price_note') }}">
+                                    <button type="button" wire:click="setTier('international')" class="{{ $price_tier === 'international' ? 'is-current' : '' }}">{{ site_trans('dining.reserve_international') }}</button>
+                                    <button type="button" wire:click="setTier('local')" class="{{ $price_tier === 'local' ? 'is-current' : '' }}">{{ site_trans('dining.reserve_local') }}</button>
+                                </div>
+                                <input class="dining-reserve__search" type="search" wire:model.live.debounce.250ms="menuQuery" placeholder="{{ site_trans('dining.reserve_search') }}" autocomplete="off">
                             </div>
-                            <p class="dining-reserve__note">{{ site_trans('dining.reserve_price_note') }}</p>
+                            <div class="dining-reserve__cats" role="tablist">
+                                <button type="button" wire:click="setMenuCategory('all')" class="{{ $menuCategory === 'all' ? 'is-current' : '' }}">{{ site_trans('dining.reserve_all') }}</button>
+                                @foreach($menu as $category => $items)
+                                    <button type="button" wire:click="setMenuCategory('{{ $category }}')" class="{{ $menuCategory === $category ? 'is-current' : '' }}">{{ site_trans('dining.menu_'.$category) }}</button>
+                                @endforeach
+                            </div>
 
-                            @foreach($menu as $category => $items)
-                                <section class="dining-menu" aria-labelledby="reserve-{{ $category }}">
-                                    <h2 id="reserve-{{ $category }}">{{ site_trans('dining.menu_'.$category) }}</h2>
-                                    <ul>
+                            @if($visibleMenu === [])
+                                <p class="dining-reserve__note">{{ site_trans('dining.reserve_no_match') }}</p>
+                            @else
+                                <div class="dining-cards">
+                                    @foreach($visibleMenu as $category => $items)
                                         @foreach($items as $item)
                                             @php $qty = (int) ($quantities[$item->id] ?? 0); @endphp
-                                            <li>
-                                                <div>
-                                                    <strong>{{ $item->name }}</strong>
-                                                    @if(filled($item->description))
-                                                        <span>{{ $item->description }}</span>
-                                                    @endif
-                                                </div>
-                                                <div class="dining-menu__buy">
-                                                    <em>{{ restaurant_money($item->priceFor($price_tier), $price_tier) }}</em>
+                                            <article class="dining-card {{ $qty > 0 ? 'is-in' : '' }}">
+                                                @if($menuCategory === 'all')
+                                                    <span class="dining-card__cat">{{ site_trans('dining.menu_'.$category) }}</span>
+                                                @endif
+                                                <h2>{{ $item->name }}</h2>
+                                                @if(filled($item->description))
+                                                    <p>{{ $item->description }}</p>
+                                                @endif
+                                                <div class="dining-card__foot">
+                                                    <strong>{{ restaurant_money($item->priceFor($price_tier), $price_tier) }}</strong>
                                                     @if($qty > 0)
                                                         <div class="dining-menu__qty">
                                                             <button type="button" wire:click="removeItem({{ $item->id }})" aria-label="{{ site_trans('dining.reserve_less', ['name' => $item->name]) }}">−</button>
@@ -69,14 +79,14 @@
                                                             <button type="button" wire:click="addItem({{ $item->id }})" aria-label="{{ site_trans('dining.reserve_more', ['name' => $item->name]) }}">+</button>
                                                         </div>
                                                     @else
-                                                        <button type="button" class="dining-menu__add" wire:click="addItem({{ $item->id }})">{{ site_trans('dining.reserve_add') }}</button>
+                                                        <button type="button" class="dining-card__add" wire:click="addItem({{ $item->id }})">{{ site_trans('dining.reserve_add') }}</button>
                                                     @endif
                                                 </div>
-                                            </li>
+                                            </article>
                                         @endforeach
-                                    </ul>
-                                </section>
-                            @endforeach
+                                    @endforeach
+                                </div>
+                            @endif
                         </div>
 
                         <form class="dining-reserve__card" wire:submit.prevent="submit('email')">
@@ -105,6 +115,9 @@
                                 </div>
                             </dl>
 
+                            @if($minimum > 0)
+                                <div class="dining-reserve__meter" aria-hidden="true"><span style="width: {{ min(100, $minimum > 0 ? round(($orderTotal / $minimum) * 100) : 0) }}%"></span></div>
+                            @endif
                             @if($shortfall >= 0.01)
                                 <p class="dining-reserve__short">{{ site_trans('dining.reserve_short', ['amount' => restaurant_money($shortfall, $price_tier)]) }}</p>
                             @elseif($orderLines !== [])

@@ -3746,6 +3746,131 @@ a.text-primary {
     color: #fff;
 }
 
+.dining-reserve__toolbar {
+    display: grid;
+    gap: 0.65rem;
+    margin-bottom: 0.85rem;
+}
+
+.dining-reserve__search {
+    width: 100%;
+    border: 1px solid rgba(17, 17, 17, 0.2);
+    border-radius: 999px;
+    padding: 0.7rem 1rem;
+    background: #fff;
+}
+
+.dining-reserve__cats {
+    display: flex;
+    gap: 0.4rem;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+    padding-bottom: 0.15rem;
+}
+
+.dining-reserve__cats button {
+    flex: 0 0 auto;
+    border: 0;
+    border-radius: 999px;
+    padding: 0.45rem 0.85rem;
+    background: #fff;
+    box-shadow: 0 4px 14px rgba(17, 17, 17, 0.06);
+}
+
+.dining-reserve__cats button.is-current {
+    background: #111;
+    color: #fff;
+}
+
+.dining-cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+}
+
+.dining-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-height: 8.5rem;
+    padding: 1rem;
+    background: #fff;
+    border: 1px solid rgba(17, 17, 17, 0.08);
+    border-radius: 18px;
+    box-shadow: 0 8px 24px rgba(17, 17, 17, 0.04);
+}
+
+.dining-card.is-in {
+    border-color: #111;
+}
+
+.dining-card__cat {
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(17, 17, 17, 0.55);
+}
+
+.dining-card h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 500;
+}
+
+.dining-card p {
+    margin: 0;
+    color: rgba(17, 17, 17, 0.68);
+    line-height: 1.45;
+}
+
+.dining-card__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: auto;
+    padding-top: 0.65rem;
+}
+
+.dining-card__add,
+.dining-menu__qty button {
+    border: 0;
+    border-radius: 999px;
+    background: #111;
+    color: #fff;
+    min-width: 4.4rem;
+    min-height: 2.4rem;
+    padding: 0.4rem 0.85rem;
+}
+
+.dining-menu__qty button {
+    min-width: 2.2rem;
+    background: #fff;
+    color: #111;
+    border: 1px solid #111;
+}
+
+.dining-reserve__meter {
+    height: 0.4rem;
+    margin-top: 0.75rem;
+    border-radius: 999px;
+    background: rgba(17, 17, 17, 0.08);
+    overflow: hidden;
+}
+
+.dining-reserve__meter span {
+    display: block;
+    height: 100%;
+    background: #1f7a3a;
+}
+
+@media (min-width: 700px) {
+    .dining-cards {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
 .dining-menu + .dining-menu {
     margin-top: 1.75rem;
 }

@@ -1,10 +1,12 @@
 @php
     $menuCategories = \App\Models\RestaurantMenuItem::CATEGORIES;
-    $activeCategory = request('category', old('category', 'food'));
-    if (! array_key_exists($activeCategory, $menuCategories)) {
-        $activeCategory = 'food';
+    $requestedCategory = (string) request('category', '');
+    $activeCategory = $requestedCategory === '' ? 'all' : $requestedCategory;
+    if ($activeCategory !== 'all' && ! array_key_exists($activeCategory, $menuCategories)) {
+        $activeCategory = 'all';
     }
-    $menuPayload = $menuItems->flatten(1)->map(fn ($item) => [
+    $menuList = collect($menuCategories)->flatMap(fn ($label, $key) => $menuItems->get($key, collect()));
+    $menuPayload = $menuList->map(fn ($item) => [
         'id' => $item->id,
         'category' => $item->category,
         'name' => $item->name,
@@ -18,6 +20,10 @@
 <div id="restaurant-menu">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <div class="menu-tabs" role="tablist">
+            <button class="menu-tabs__btn {{ $activeCategory === 'all' ? 'is-active' : '' }}" type="button" role="tab" data-menu-tab="all" aria-selected="{{ $activeCategory === 'all' ? 'true' : 'false' }}">
+                All
+                <span data-menu-count="all">{{ $menuList->count() }}</span>
+            </button>
             @foreach($menuCategories as $key => $label)
                 <button class="menu-tabs__btn {{ $activeCategory === $key ? 'is-active' : '' }}" type="button" role="tab" data-menu-tab="{{ $key }}" aria-selected="{{ $activeCategory === $key ? 'true' : 'false' }}">
                     {{ $label }}
@@ -28,25 +34,20 @@
         <button class="btn btn-dark" type="button" data-menu-add>Add item</button>
     </div>
     <input class="form-control mb-3" id="menu-search" type="search" placeholder="Search the menu" autocomplete="off">
-    <div class="bg-white border rounded">
-        @foreach($menuCategories as $category => $label)
-            <div data-menu-panel="{{ $category }}" @if($activeCategory !== $category) hidden @endif>
-                @forelse($menuItems->get($category, collect()) as $item)
-                    <button class="menu-row" type="button" data-menu-open="{{ $item->id }}" data-menu-category="{{ $item->category }}" data-menu-text="{{ strtolower($item->name.' '.$item->description.' '.$item->price_international.' '.$item->price_local) }}">
-                        <span>
-                            <strong>{{ $item->name }}</strong>
-                            @unless($item->is_active)<em>Hidden</em>@endunless
-                            @if(filled($item->description))<small>{{ $item->description }}</small>@endif
-                        </span>
-                        <span class="menu-row__prices">{{ restaurant_money($item->price_international, 'international') }} · {{ restaurant_money($item->price_local, 'local') }}</span>
-                    </button>
-                @empty
-                    <p class="text-muted p-3 mb-0" data-menu-empty>No {{ strtolower($label) }} yet.</p>
-                @endforelse
-                <p class="text-muted p-3 mb-0" data-menu-none hidden>No items match this search.</p>
-            </div>
+    <div class="bg-white border rounded" id="menu-list">
+        @foreach($menuList as $item)
+            <button class="menu-row" type="button" data-menu-open="{{ $item->id }}" data-menu-category="{{ $item->category }}" data-menu-text="{{ strtolower($item->name.' '.($menuCategories[$item->category] ?? '').' '.$item->description.' '.$item->price_international.' '.$item->price_local) }}">
+                <span>
+                    <strong>{{ $item->name }}</strong>
+                    <small>{{ $menuCategories[$item->category] ?? '' }}@unless($item->is_active) · Hidden @endunless @if(filled($item->description)) · {{ $item->description }} @endif</small>
+                </span>
+                <span class="menu-row__prices">{{ restaurant_money($item->price_international, 'international') }} · {{ restaurant_money($item->price_local, 'local') }}</span>
+            </button>
         @endforeach
+        <p class="text-muted p-3 mb-0" data-menu-empty @if($menuList->isNotEmpty()) hidden @endif>No menu items yet.</p>
+        <p class="text-muted p-3 mb-0" data-menu-none hidden>No items match this search.</p>
     </div>
+    <nav class="menu-pager" id="menu-pager" aria-label="Menu pages" hidden></nav>
 </div>
 
 <div class="modal fade" id="menu-item-modal" tabindex="-1" aria-labelledby="menu-item-title" aria-hidden="true">
@@ -127,7 +128,10 @@
         const updateUrl = @json(route('content-management.restaurant-menu.update', ['item' => '__ID__']));
         const destroyUrl = @json(route('content-management.restaurant-menu.destroy', ['item' => '__ID__']));
         const search = document.getElementById('menu-search');
+        const pager = document.getElementById('menu-pager');
+        const pageSize = 25;
         let active = @json($activeCategory);
+        let page = 1;
 
         function showModal() {
             if (window.bootstrap && bootstrap.Modal) {
@@ -145,7 +149,7 @@
             form.action = editing ? updateUrl.replace('__ID__', item.id) : storeUrl;
             removeForm.action = editing ? destroyUrl.replace('__ID__', item.id) : '';
             removeButton.hidden = !editing;
-            document.getElementById('menu-category').value = item ? item.category : active;
+            document.getElementById('menu-category').value = item ? item.category : (active === 'all' ? 'food' : active);
             document.getElementById('menu-name').value = item ? item.name : '';
             document.getElementById('menu-description').value = item && item.description ? item.description : '';
             document.getElementById('menu-usd').value = item ? item.price_international : '0';
@@ -164,57 +168,102 @@
             });
         });
 
-        function applyFilter() {
+        function matching(query) {
+            return Array.prototype.filter.call(document.querySelectorAll('[data-menu-open]'), function (row) {
+                const category = row.getAttribute('data-menu-category');
+                const text = row.getAttribute('data-menu-text') || '';
+                const inTab = active === 'all' || category === active;
+                return inTab && (query === '' || text.indexOf(query) !== -1);
+            });
+        }
+
+        function renderPager(pages) {
+            pager.innerHTML = '';
+            if (pages < 2) {
+                pager.hidden = true;
+                return;
+            }
+            pager.hidden = false;
+            function add(label, target, disabled, current) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'menu-pager__btn' + (current ? ' is-active' : '');
+                button.textContent = label;
+                button.disabled = disabled;
+                if (!disabled && !current) {
+                    button.addEventListener('click', function () {
+                        page = target;
+                        applyFilter(false);
+                        document.getElementById('menu-list').scrollIntoView({ block: 'nearest' });
+                    });
+                }
+                pager.appendChild(button);
+            }
+            add('Previous', page - 1, page <= 1, false);
+            for (let number = 1; number <= pages; number += 1) {
+                add(String(number), number, false, number === page);
+            }
+            add('Next', page + 1, page >= pages, false);
+        }
+
+        function applyFilter(resetPage) {
             const query = search.value.trim().toLowerCase();
-            document.querySelectorAll('[data-menu-panel]').forEach(function (panel) {
-                const category = panel.getAttribute('data-menu-panel');
-                const showPanel = query !== '' || category === active;
-                panel.hidden = !showPanel;
-                let visible = 0;
-                panel.querySelectorAll('[data-menu-open]').forEach(function (row) {
-                    const match = query === '' || row.getAttribute('data-menu-text').indexOf(query) !== -1;
-                    const inTab = query !== '' || row.getAttribute('data-menu-category') === active;
-                    const on = match && (query !== '' || inTab);
-                    row.hidden = !on;
-                    if (on) {
-                        visible += 1;
+            if (resetPage !== false) {
+                page = 1;
+            }
+            const rows = matching(query);
+            const pages = Math.max(1, Math.ceil(rows.length / pageSize));
+            if (page > pages) {
+                page = pages;
+            }
+            const start = (page - 1) * pageSize;
+            const visible = {};
+            rows.forEach(function (row, index) {
+                visible[row.getAttribute('data-menu-open')] = index >= start && index < start + pageSize;
+            });
+            document.querySelectorAll('[data-menu-open]').forEach(function (row) {
+                row.hidden = !visible[row.getAttribute('data-menu-open')];
+            });
+            const empty = document.querySelector('[data-menu-empty]');
+            const none = document.querySelector('[data-menu-none]');
+            const totalRows = document.querySelectorAll('[data-menu-open]').length;
+            if (empty) {
+                empty.hidden = totalRows !== 0;
+            }
+            if (none) {
+                none.hidden = rows.length !== 0 || totalRows === 0;
+            }
+            document.querySelectorAll('[data-menu-count]').forEach(function (count) {
+                const key = count.getAttribute('data-menu-count');
+                let matches = 0;
+                document.querySelectorAll('[data-menu-open]').forEach(function (row) {
+                    const text = row.getAttribute('data-menu-text') || '';
+                    const category = row.getAttribute('data-menu-category');
+                    const inBucket = key === 'all' || category === key;
+                    if (inBucket && (query === '' || text.indexOf(query) !== -1)) {
+                        matches += 1;
                     }
                 });
-                const empty = panel.querySelector('[data-menu-empty]');
-                const none = panel.querySelector('[data-menu-none]');
-                if (empty) {
-                    empty.hidden = query !== '' || visible !== 0 || panel.querySelector('[data-menu-open]');
-                }
-                if (none) {
-                    none.hidden = query === '' || visible !== 0;
-                }
-                const count = document.querySelector('[data-menu-count="' + category + '"]');
-                if (count) {
-                    const total = panel.querySelectorAll('[data-menu-open]').length;
-                    let matches = 0;
-                    panel.querySelectorAll('[data-menu-open]').forEach(function (row) {
-                        if (query === '' || row.getAttribute('data-menu-text').indexOf(query) !== -1) {
-                            matches += 1;
-                        }
-                    });
-                    count.textContent = query === '' ? total : matches;
-                }
+                count.textContent = matches;
             });
             document.querySelectorAll('[data-menu-tab]').forEach(function (tab) {
-                const on = query === '' && tab.getAttribute('data-menu-tab') === active;
+                const on = tab.getAttribute('data-menu-tab') === active;
                 tab.classList.toggle('is-active', on);
                 tab.setAttribute('aria-selected', on ? 'true' : 'false');
             });
+            renderPager(rows.length === 0 ? 0 : pages);
         }
 
         document.querySelectorAll('[data-menu-tab]').forEach(function (tab) {
             tab.addEventListener('click', function () {
                 active = tab.getAttribute('data-menu-tab');
-                search.value = '';
-                applyFilter();
+                applyFilter(true);
             });
         });
-        search.addEventListener('input', applyFilter);
+        search.addEventListener('input', function () {
+            applyFilter(true);
+        });
+        applyFilter(true);
 
         @if($errors->any())
             fill({
