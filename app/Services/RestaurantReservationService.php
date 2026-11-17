@@ -121,13 +121,14 @@ class RestaurantReservationService
                 ]);
             }
 
+            $paying = filter_var($guest['pay_now'] ?? false, FILTER_VALIDATE_BOOLEAN);
             $choice = ($guest['payment_choice'] ?? '') === 'full' ? 'full' : 'minimum';
             $restaurant = Restaurant::access();
-            $reservation->payment_choice = $choice;
-            $reservation->payer_name = trim((string) ($guest['payer_name'] ?? ''));
-            $reservation->claimed_amount = $choice === 'full'
-                ? round((float) $reservation->total_amount, 2)
-                : $minimum;
+            $reservation->payment_choice = $paying ? $choice : 'later';
+            $reservation->payer_name = $paying ? trim((string) ($guest['payer_name'] ?? '')) : null;
+            $reservation->claimed_amount = ! $paying
+                ? 0
+                : ($choice === 'full' ? round((float) $reservation->total_amount, 2) : $minimum);
             $reservation->paid_amount = 0;
             $reservation->payment_status = 'unpaid';
             $reservation->momo_code = $restaurant->momoCode();

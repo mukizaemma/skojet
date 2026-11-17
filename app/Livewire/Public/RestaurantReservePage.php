@@ -38,6 +38,8 @@ class RestaurantReservePage extends Component
 
     public string $notes = '';
 
+    public bool $pay_now = false;
+
     public string $payment_choice = 'minimum';
 
     public bool $payment_confirmed = false;
@@ -70,6 +72,15 @@ class RestaurantReservePage extends Component
         $this->menuCategory = array_key_exists($category, RestaurantMenuItem::CATEGORIES) ? $category : 'all';
     }
 
+    public function setPayNow(bool $pay): void
+    {
+        $this->pay_now = $pay;
+        if (! $pay) {
+            $this->payment_confirmed = false;
+            $this->payer_name = '';
+        }
+    }
+
     public function setPayment(string $choice): void
     {
         $this->payment_choice = $choice === 'full' ? 'full' : 'minimum';
@@ -98,7 +109,11 @@ class RestaurantReservePage extends Component
     public function submit(string $via, RestaurantReservationService $reservations): void
     {
         $via = $via === 'whatsapp' ? 'whatsapp' : 'email';
-        $this->validate(RestaurantReservationService::guestRules(), [
+        $rules = RestaurantReservationService::guestRules();
+        if (! $this->pay_now) {
+            unset($rules['payment_choice'], $rules['payment_confirmed'], $rules['payer_name']);
+        }
+        $this->validate($rules, [
             'payment_confirmed.accepted' => site_trans('dining.pay_confirm_error'),
             'payer_name.required' => site_trans('dining.pay_name_error'),
         ]);
@@ -117,7 +132,7 @@ class RestaurantReservePage extends Component
             ]);
         }
 
-        if (Restaurant::access()->momoCode() === '') {
+        if ($this->pay_now && Restaurant::access()->momoCode() === '') {
             throw ValidationException::withMessages([
                 'order' => site_trans('dining.momo_missing'),
             ]);
@@ -132,6 +147,7 @@ class RestaurantReservePage extends Component
             'notes' => $this->notes,
             'price_tier' => $this->price_tier,
             'submit_via' => $via,
+            'pay_now' => $this->pay_now,
             'payment_choice' => $this->payment_choice,
             'payer_name' => $this->payer_name,
         ], $this->quantities);
@@ -169,7 +185,7 @@ class RestaurantReservePage extends Component
         $shortfall = max(0, round($minimum - $order['total'], 2));
         $contactReady = $this->contactReady();
         $minimumReached = $order['count'] > 0 && $shortfall < 0.001;
-        $paymentReady = $this->payment_confirmed && filled($this->payer_name) && $restaurant->momoCode() !== '';
+        $paymentReady = ! $this->pay_now || ($this->payment_confirmed && filled($this->payer_name) && $restaurant->momoCode() !== '');
         $submittedReservation = $this->submittedReservationId
             ? RestaurantReservation::query()->with('items')->find($this->submittedReservationId)
             : null;

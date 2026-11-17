@@ -69,8 +69,10 @@
             @if(filled($reservation->momo_account_name))
                 <div>{{ $reservation->momo_account_name }}</div>
             @endif
-            <div>{{ site_trans('dining.bill_choice', ['choice' => $reservation->payment_choice === 'full' ? site_trans('dining.pay_full') : site_trans('dining.pay_minimum')]) }}</div>
-            <div>{{ site_trans('dining.bill_claimed', ['amount' => $reservation->money((float) $reservation->claimed_amount)]) }}</div>
+            @if($reservation->payment_choice !== 'later')
+                <div>{{ site_trans('dining.bill_choice', ['choice' => $reservation->payment_choice === 'full' ? site_trans('dining.pay_full') : site_trans('dining.pay_minimum')]) }}</div>
+                <div>{{ site_trans('dining.bill_claimed', ['amount' => $reservation->money((float) $reservation->claimed_amount)]) }}</div>
+            @endif
             @if(filled($reservation->payer_name))
                 <div>{{ site_trans('dining.bill_payer', ['name' => $reservation->payer_name]) }}</div>
             @endif

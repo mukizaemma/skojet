@@ -9,7 +9,7 @@
         <div class="desk-pos">
             <a class="desk-pos__card desk-pos__card--sales" href="{{ route('content-management.front-office.pos.sales') }}">
                 <span class="desk-pos__icon" aria-hidden="true"><i class="fas fa-receipt"></i></span>
-                <strong>Restaurant sales</strong>
+                <strong>New POS Sale</strong>
             </a>
             <a class="desk-pos__card desk-pos__card--invoices" href="{{ route('content-management.front-office.pos.invoices') }}">
                 <span class="desk-pos__icon" aria-hidden="true"><i class="fas fa-file-invoice"></i></span>

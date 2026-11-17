@@ -4067,8 +4067,12 @@ a.text-primary {
     margin: 0;
 }
 
-.dining-reserve__pay {
+.dining-reserve__card > .dining-reserve__tiers {
     margin-top: 1rem;
+}
+
+.dining-reserve__pay {
+    margin-top: 0.75rem;
     padding: 1rem;
     background: #f7f4ef;
     border: 1px solid rgba(17, 17, 17, 0.12);

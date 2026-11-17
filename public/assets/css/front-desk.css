@@ -1262,6 +1262,37 @@
     margin-bottom: 0.85rem;
 }
 
+.pos-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.pos-toolbar .pos-search {
+    flex: 1 1 12rem;
+    min-width: 0;
+}
+
+.pos-toolbar .pos-tiers {
+    margin: 0;
+}
+
+.pos-cart__label {
+    margin: 0 0 0.45rem;
+    color: #777;
+    font-size: 0.72rem;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.pos-cart__section {
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid #f0f0f0;
+}
+
 .pos-search {
     width: 100%;
     border: 1px solid #ddd;

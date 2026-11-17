@@ -162,6 +162,12 @@
                                 <textarea wire:model="notes" rows="3" maxlength="1000"></textarea>
                             </label>
 
+                            <div class="dining-reserve__tiers" role="radiogroup" aria-label="{{ site_trans('dining.pay_now') }}">
+                                <button type="button" wire:click="setPayNow(false)" class="{{ $pay_now ? '' : 'is-current' }}">{{ site_trans('dining.pay_later') }}</button>
+                                <button type="button" wire:click="setPayNow(true)" class="{{ $pay_now ? 'is-current' : '' }}">{{ site_trans('dining.pay_now') }}</button>
+                            </div>
+
+                            @if($pay_now)
                             <div class="dining-reserve__pay">
                                 <p>{{ site_trans('dining.momo_title') }}</p>
                                 @if($restaurant->momoCode() !== '')
@@ -192,6 +198,7 @@
                                     <p class="dining-reserve__short">{{ site_trans('dining.momo_missing') }}</p>
                                 @endif
                             </div>
+                            @endif
 
                             <div class="dining-reserve__send">
                                 <button type="submit" class="theme-btn btn-style fill" wire:loading.attr="disabled" @disabled(! $canSend)>

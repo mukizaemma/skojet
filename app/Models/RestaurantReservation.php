@@ -134,7 +134,9 @@ class RestaurantReservation extends Model
         if (filled($this->payer_name)) {
             $lines[] = site_trans('dining.bill_payer', ['name' => $this->payer_name]);
         }
-        $lines[] = site_trans('dining.bill_claimed', ['amount' => $this->money((float) $this->claimed_amount)]);
+        if ($this->payment_choice !== 'later') {
+            $lines[] = site_trans('dining.bill_claimed', ['amount' => $this->money((float) $this->claimed_amount)]);
+        }
         if ($this->passUrl()) {
             $lines[] = '';
             $lines[] = $this->passUrl();

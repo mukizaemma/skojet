@@ -658,6 +658,8 @@ return [
         'momo_title' => 'MoMo payment',
         'momo_missing' => 'The hotel has not published a MoMo code yet. Please contact the hotel before sending this reservation.',
         'momo_pay' => 'Pay this MoMo code before you send the reservation. Confirm either the minimum or the full bill.',
+        'pay_later' => 'Pay later',
+        'pay_now' => 'Pay now',
         'pay_minimum' => 'Minimum',
         'pay_full' => 'Full bill',
         'pay_confirm' => 'I have paid this amount',

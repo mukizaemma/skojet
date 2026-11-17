@@ -1,7 +1,7 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-nav-clear">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-pos-sale">
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
@@ -9,7 +9,7 @@
         <div class="pos-head">
             <div class="d-flex flex-wrap align-items-center gap-2">
                 @include('content-management.front-office.partials.back', ['href' => route('content-management.front-office.pos'), 'label' => 'POS'])
-                <h4>Restaurant sales</h4>
+                <h4>New POS Sale</h4>
             </div>
             @include('content-management.front-office.partials.pos-nav', ['current' => 'sales'])
         </div>
@@ -20,8 +20,12 @@
                 <div class="pos-sale mb-4" id="pos-sale">
                     <div class="pos-menu">
                         <div class="pos-bar">
-                            <div class="d-flex gap-2">
+                            <div class="pos-toolbar">
                                 <input class="pos-search" id="pos-search" type="search" placeholder="Search the menu" autocomplete="off">
+                                <div class="pos-tiers" role="radiogroup" aria-label="Prices">
+                                    <button type="button" data-tier="international">USD</button>
+                                    <button type="button" data-tier="local">RWF</button>
+                                </div>
                                 <button class="desk-clear" id="pos-search-clear" type="button">Clear filters</button>
                             </div>
                             <div class="pos-tabs" id="pos-tabs" role="tablist"></div>
@@ -32,37 +36,41 @@
                     <form class="pos-cart" id="pos-cart" method="POST" action="{{ route('content-management.front-office.pos.sales.store') }}">
                         @csrf
                         <button class="pos-cart__head" id="pos-cart-toggle" type="button">
-                            <span>Cart <span id="pos-count">0</span></span>
+                            <span>Sale <span id="pos-count">0</span></span>
                             <strong id="pos-head-total">$0</strong>
                         </button>
                         <div class="pos-cart__body" id="pos-cart-body">
+                            <p class="pos-cart__label">Items</p>
                             <div id="pos-lines"></div>
                             <p class="text-muted mb-2" id="pos-empty">Tap an item to add it.</p>
                             <div class="pos-total"><span>Total</span><strong id="pos-total">$0</strong></div>
                             <div id="pos-fields"></div>
-                            <label class="form-label mt-2" for="bill-names">Guest</label>
-                            <input class="form-control" id="bill-names" name="names" value="{{ old('names') }}" maxlength="255" placeholder="Walk-in">
-                            <div class="row g-2 mt-1">
-                                <div class="col-7">
-                                    <label class="form-label" for="bill-phone">Phone</label>
-                                    <input class="form-control" id="bill-phone" name="phone" value="{{ old('phone') }}" maxlength="30">
-                                </div>
-                                <div class="col-5">
-                                    <label class="form-label" for="bill-guests">Guests</label>
-                                    <input class="form-control" id="bill-guests" type="number" name="guests" min="1" max="40" value="{{ old('guests', 1) }}">
-                                </div>
-                            </div>
-                            <div class="pos-tiers" role="radiogroup" aria-label="Prices">
-                                <button type="button" data-tier="international">USD</button>
-                                <button type="button" data-tier="local">RWF</button>
-                            </div>
                             <input type="hidden" name="price_tier" id="pos-tier" value="{{ old('price_tier', 'international') }}">
-                            <label class="form-label" for="bill-paid">Paid now</label>
-                            <div class="pos-paid">
-                                <input class="form-control" id="bill-paid" type="number" name="paid_amount" min="0" step="0.01" value="{{ old('paid_amount', '0') }}">
-                                <button class="btn btn-outline-dark" id="pos-paid-full" type="button">Full</button>
+                            <div class="pos-cart__section">
+                                <p class="pos-cart__label">Guest</p>
+                                <label class="form-label" for="bill-names">Name</label>
+                                <input class="form-control" id="bill-names" name="names" value="{{ old('names') }}" maxlength="255" placeholder="Walk-in">
+                                <div class="row g-2 mt-1">
+                                    <div class="col-7">
+                                        <label class="form-label" for="bill-phone">Phone</label>
+                                        <input class="form-control" id="bill-phone" name="phone" value="{{ old('phone') }}" maxlength="30">
+                                    </div>
+                                    <div class="col-5">
+                                        <label class="form-label" for="bill-guests">Guests</label>
+                                        <input class="form-control" id="bill-guests" type="number" name="guests" min="1" max="40" value="{{ old('guests', 1) }}">
+                                    </div>
+                                </div>
                             </div>
-                            <button class="btn btn-dark w-100 mt-3" id="pos-place" type="submit" disabled>Place order</button>
+                            <div class="pos-cart__section">
+                                <p class="pos-cart__label">Payment</p>
+                                <label class="form-label" for="bill-paid">Paid now</label>
+                                <div class="pos-paid">
+                                    <input class="form-control" id="bill-paid" type="number" name="paid_amount" min="0" step="0.01" value="{{ old('paid_amount', '0') }}">
+                                    <button class="btn btn-outline-dark" id="pos-paid-full" type="button">Full</button>
+                                </div>
+                                <p class="text-muted small mb-0 mt-1">Use 0 when nothing has been paid yet.</p>
+                                <button class="btn btn-dark w-100 mt-3" id="pos-place" type="submit" disabled>Create sale</button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -282,7 +290,7 @@
                 </script>
             @endif
         @else
-            <div class="bg-white border rounded p-3 text-muted">Restaurant sales appear after the dining tables are created. Run the database migration, then open this page again.</div>
+            <div class="bg-white border rounded p-3 text-muted">New POS sales appear after the dining tables are created. Run the database migration, then open this page again.</div>
         @endif
     </div>
 </div>
