@@ -1,7 +1,7 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-menu">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-home-dining">
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
@@ -13,20 +13,24 @@
             </div>
             <a href="{{ route('content-management.front-office.create') }}" class="btn btn-dark">New reservation</a>
         </div>
-        <div class="row g-3 mb-4">
+        <div class="desk-stats mb-4 {{ $restaurantReservations ? 'desk-stats--dining' : '' }}">
             @foreach ([
                 ['Arriving today', $stats['arriving']],
                 ['In house', $stats['in_house']],
                 ['Departing today', $stats['departing']],
                 ['Outstanding', hotel_price($stats['balance'], $setting ?? null)],
             ] as [$label, $value])
-                <div class="col-sm-6 col-xl-3">
-                    <div class="bg-white border rounded p-3 h-100">
-                        <div class="text-muted small">{{ $label }}</div>
-                        <div class="fs-4">{{ $value }}</div>
-                    </div>
+                <div class="bg-white border rounded p-3 h-100">
+                    <div class="text-muted small">{{ $label }}</div>
+                    <div class="fs-4">{{ $value }}</div>
                 </div>
             @endforeach
+            @if($restaurantReservations)
+                <a class="desk-stats__link bg-white border rounded p-3 h-100" href="{{ route('content-management.restaurant-reservations') }}">
+                    <div class="text-muted small">Dining</div>
+                    <div class="fs-4">Reservations</div>
+                </a>
+            @endif
         </div>
         <div class="bg-white border rounded p-3">
             <h5 class="mb-3">Recent reservations</h5>
@@ -63,11 +67,6 @@
                 </table>
             </div>
         </div>
-        @if($dining)
-            <div class="row g-3 mt-1">
-                @include('content-management.front-office.partials.dining-desk')
-            </div>
-        @endif
     </div>
 </div>
 @endsection

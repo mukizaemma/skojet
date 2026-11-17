@@ -47,38 +47,6 @@ class FrontDeskController extends Controller
                 : 'Reservations Manager is off. Website management and guest reservations stay available.');
     }
 
-    private function diningDesk(): ?array
-    {
-        if (! Schema::hasTable('restaurant_reservations') || ! Schema::hasTable('restaurants')) {
-            return null;
-        }
-
-        $today = RestaurantReservation::query()
-            ->whereDate('reserved_for', now()->toDateString())
-            ->orderBy('reserved_for')
-            ->limit(8)
-            ->get();
-        $visits = $today->isNotEmpty()
-            ? $today
-            : RestaurantReservation::query()
-                ->where('reserved_for', '>=', now()->startOfDay())
-                ->orderBy('reserved_for')
-                ->limit(6)
-                ->get();
-
-        return [
-            'restaurant' => Restaurant::access(),
-            'visits' => $visits,
-            'showingToday' => $today->isNotEmpty(),
-            'todayCount' => RestaurantReservation::query()->whereDate('reserved_for', now()->toDateString())->count(),
-            'unpaid' => RestaurantReservation::query()
-                ->where('status', '!=', 'cancelled')
-                ->where('payment_status', '!=', 'paid')
-                ->count(),
-            'reserveUrl' => localized_route('dining.reserve'),
-        ];
-    }
-
     private function assertReservationsManagerOwner(): void
     {
         $email = strtolower((string) auth()->user()?->email);
@@ -102,9 +70,12 @@ class FrontDeskController extends Controller
                 ->implode(' · ') ?: hotel_price(0, $setting),
         ];
 
-        $dining = $this->diningDesk();
-
-        return view('content-management.front-office.home', compact('recent', 'stats', 'setting', 'dining'));
+        return view('content-management.front-office.home', [
+            'recent' => $recent,
+            'stats' => $stats,
+            'setting' => $setting,
+            'restaurantReservations' => Schema::hasTable('restaurant_reservations'),
+        ]);
     }
 
     public function calendar(Request $request)
