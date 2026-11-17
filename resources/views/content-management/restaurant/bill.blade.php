@@ -17,6 +17,7 @@
         </div>
 
         <div class="d-flex flex-wrap gap-2 mb-3 no-print">
+            <a class="btn btn-outline-dark" href="{{ route('content-management.front-office.pos.sales') }}">Sales</a>
             <a class="btn btn-outline-dark" href="{{ route('content-management.restaurant-reservations') }}">All dining reservations</a>
             <button class="btn btn-dark" type="button" onclick="window.print()">Print</button>
             <a class="btn btn-outline-dark" href="{{ route('content-management.restaurant-reservations.pdf', $reservation) }}">Download PDF</a>
@@ -39,7 +40,12 @@
                     <form method="POST" action="{{ route('content-management.restaurant-reservations.payment', $reservation) }}">
                         @csrf
                         <label class="form-label" for="paid_amount">Amount received</label>
-                        <input class="form-control mb-2" id="paid_amount" type="number" name="paid_amount" min="0" step="0.01" value="{{ old('paid_amount', number_format((float) ($reservation->paid_amount > 0 ? $reservation->paid_amount : $reservation->claimed_amount), 2, '.', '')) }}">
+                        @php
+                            $suggestedPaid = (float) $reservation->paid_amount > 0
+                                ? (float) $reservation->paid_amount
+                                : ((float) $reservation->claimed_amount > 0 ? (float) $reservation->claimed_amount : (float) $reservation->total_amount);
+                        @endphp
+                        <input class="form-control mb-2" id="paid_amount" type="number" name="paid_amount" min="0" step="0.01" value="{{ old('paid_amount', number_format($suggestedPaid, 2, '.', '')) }}">
                         <div class="d-flex flex-wrap gap-2">
                             <button class="btn btn-dark" type="submit" name="received" value="yes">Money received</button>
                             <button class="btn btn-outline-dark" type="submit" name="received" value="no">Money not received</button>
@@ -125,6 +131,8 @@
                         @else
                             <a class="btn btn-outline-dark" id="share-guest" href="#">Send the paid bill on the guest’s WhatsApp</a>
                         @endif
+                    @elseif($reservation->submit_via === 'desk')
+                        <p class="text-muted mb-0">Confirm the payment, then use Print. An email goes out only when this bill has a guest email.</p>
                     @else
                         <p class="text-muted mb-0">The guest asked for {{ $reservation->submit_via === 'whatsapp' ? 'WhatsApp' : 'email' }}. That send is available after you mark the bill as paid.</p>
                     @endif
@@ -176,4 +184,7 @@
         openWhatsapp(@json(whatsapp_digits($reservation->phone)), text);
     });
 </script>
+@if(request()->boolean('print'))
+<script>window.addEventListener('load', function () { window.print(); });</script>
+@endif
 @endsection

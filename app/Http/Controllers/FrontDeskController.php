@@ -563,15 +563,24 @@ class FrontDeskController extends Controller
             ->latest()
             ->get();
         $setting = Setting::query()->first();
+        $ready = Schema::hasTable('restaurant_reservations');
+        $recent = $ready
+            ? RestaurantReservation::query()
+                ->where('status', '!=', 'cancelled')
+                ->orderByDesc('id')
+                ->limit(12)
+                ->get()
+            : collect();
 
         return view('content-management.front-office.pos.sales', [
             'start' => $start,
             'end' => $end,
             'visits' => $visits,
+            'recent' => $recent,
             'roomCharges' => $roomCharges,
             'tiers' => $this->diningTierTotals($visits),
             'setting' => $setting,
-            'ready' => Schema::hasTable('restaurant_reservations'),
+            'ready' => $ready,
         ]);
     }
 

@@ -3,27 +3,219 @@
 namespace App\Http\Controllers;
 
 use App\Mail\RestaurantBillGuestMail;
+use App\Models\Restaurant;
 use App\Models\RestaurantMenuItem;
 use App\Models\RestaurantReservation;
 use App\Models\RestaurantReservationItem;
 use App\Services\SiteNotificationMail;
 use App\Support\PdfFile;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class RestaurantReservationController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $reservations = RestaurantReservation::query()
-            ->withCount('items')
-            ->orderByDesc('reserved_for')
-            ->orderByDesc('id')
-            ->paginate(20);
+        $filters = $this->reservationFilters($request);
+        $reservations = $this->reservationQuery($filters)
+            ->paginate(20)
+            ->withQueryString();
 
         return view('content-management.restaurant.reservations', [
             'reservations' => $reservations,
+            'filters' => $filters,
+            'menuGroups' => RestaurantMenuItem::publicGroups(),
         ]);
+    }
+
+    public function storeStaff(Request $request)
+    {
+        $data = $request->validate([
+            'names' => 'required|string|max:255',
+            'phone' => 'nullable|string|max:30',
+            'email' => 'nullable|email|max:255',
+            'guests' => 'nullable|integer|min:1|max:40',
+            'reserved_date' => 'required|date',
+            'reserved_time' => ['required', 'regex:/^\d{2}:\d{2}(:\d{2})?$/'],
+            'price_tier' => 'required|in:international,local',
+            'submit_via' => 'required|in:phone,desk',
+            'paid_amount' => 'nullable|numeric|min:0',
+            'items' => 'nullable|array',
+            'items.*' => 'nullable|integer|min:0|max:99',
+        ]);
+
+        $restaurant = Restaurant::access();
+        $tier = $data['price_tier'] === 'local' ? 'local' : 'international';
+        $paid = round((float) ($data['paid_amount'] ?? 0), 2);
+        $when = Carbon::parse($data['reserved_date'].' '.substr($data['reserved_time'], 0, 5));
+        $selected = collect($data['items'] ?? [])
+            ->map(fn ($qty) => (int) $qty)
+            ->filter(fn ($qty) => $qty > 0);
+
+        $reservation = DB::transaction(function () use ($data, $restaurant, $tier, $paid, $when, $selected) {
+            $reservation = RestaurantReservation::query()->create([
+                'reference' => 'TMP-'.Str::uuid(),
+                'names' => trim($data['names']),
+                'phone' => trim((string) ($data['phone'] ?? '')),
+                'email' => trim((string) ($data['email'] ?? '')),
+                'guests' => max(1, (int) ($data['guests'] ?? 1)),
+                'reserved_for' => $when,
+                'submit_via' => $data['submit_via'],
+                'price_tier' => $tier,
+                'locale' => 'en',
+                'status' => 'confirmed',
+                'payment_status' => $paid > 0 ? 'paid' : 'unpaid',
+                'paid_at' => $paid > 0 ? now() : null,
+                'minimum_amount' => $restaurant->minimumFor($tier),
+                'total_amount' => 0,
+                'paid_amount' => $paid,
+                'payment_choice' => 'full',
+                'claimed_amount' => $paid,
+                'momo_code' => $restaurant->momoCode() !== '' ? $restaurant->momoCode() : null,
+                'momo_account_name' => $restaurant->momoAccountName() !== '' ? $restaurant->momoAccountName() : null,
+                'access_token' => Str::random(48),
+            ]);
+            $reservation->reference = 'R-'.str_pad((string) $reservation->id, 5, '0', STR_PAD_LEFT);
+            $reservation->save();
+
+            if ($selected->isNotEmpty()) {
+                $menu = RestaurantMenuItem::query()->whereIn('id', $selected->keys())->where('is_active', true)->get()->keyBy('id');
+                foreach ($selected as $id => $qty) {
+                    $item = $menu->get((int) $id);
+                    if (! $item) {
+                        continue;
+                    }
+                    $unit = round($item->priceFor($tier), 2);
+                    $reservation->items()->create([
+                        'menu_item_id' => $item->id,
+                        'category' => $item->category,
+                        'name' => $item->name,
+                        'description' => $item->description,
+                        'unit_price' => $unit,
+                        'quantity' => $qty,
+                        'line_total' => round($unit * $qty, 2),
+                        'source' => 'staff',
+                    ]);
+                }
+                $reservation->recalculate();
+            }
+
+            return $reservation;
+        });
+
+        $paidNote = $paid > 0
+            ? ' '.$reservation->money($paid).' is marked as paid.'
+            : ' Nothing is marked as paid yet.';
+
+        return redirect()
+            ->route('content-management.restaurant-reservations')
+            ->with('success', $reservation->reference.' is saved for '.$reservation->names.'.'.$paidNote);
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $filters = $this->reservationFilters($request);
+        $reservations = $this->reservationQuery($filters)->limit(2000)->get();
+
+        return PdfFile::download(
+            view('bills.pdf', [
+                'title' => 'Restaurant reservations',
+                'body' => view('content-management.restaurant.reservations-export', [
+                    'reservations' => $reservations,
+                    'filters' => $filters,
+                ])->render(),
+            ])->render(),
+            'restaurant-reservations.pdf',
+            'landscape'
+        );
+    }
+
+    public function exportExcel(Request $request)
+    {
+        $filters = $this->reservationFilters($request);
+        $reservations = $this->reservationQuery($filters)->limit(2000)->get();
+        $rows = [
+            ['Reference', 'Guest', 'Phone', 'Email', 'When', 'Guests', 'Items', 'Total', 'Paid', 'Payment', 'Booked by', 'Currency'],
+        ];
+        foreach ($reservations as $reservation) {
+            $rows[] = [
+                $reservation->reference,
+                $reservation->names,
+                $reservation->phone,
+                $reservation->email,
+                optional($reservation->reserved_for)->format('Y-m-d H:i'),
+                (string) $reservation->guests,
+                (string) $reservation->items_count,
+                number_format((float) $reservation->total_amount, 2, '.', ''),
+                number_format((float) $reservation->paid_amount, 2, '.', ''),
+                $reservation->accessGranted() ? 'Paid' : 'Not paid',
+                $this->bookedByLabel($reservation->submit_via),
+                $reservation->usesLocalPrices() ? 'RWF' : 'USD',
+            ];
+        }
+
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>'
+            .'<?mso-application progid="Excel.Sheet"?>'
+            .'<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'
+            .'<Worksheet ss:Name="Reservations"><Table>';
+        foreach ($rows as $row) {
+            $xml .= '<Row>';
+            foreach ($row as $cell) {
+                $xml .= '<Cell><Data ss:Type="String">'.htmlspecialchars((string) $cell, ENT_XML1).'</Data></Cell>';
+            }
+            $xml .= '</Row>';
+        }
+        $xml .= '</Table></Worksheet></Workbook>';
+
+        return response($xml, 200, [
+            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="restaurant-reservations.xls"',
+        ]);
+    }
+
+    public function storeDesk(Request $request)
+    {
+        $data = $request->validate([
+            'names' => 'required|string|max:255',
+            'phone' => 'nullable|string|max:30',
+            'email' => 'nullable|email|max:255',
+            'guests' => 'nullable|integer|min:1|max:40',
+            'price_tier' => 'required|in:international,local',
+        ]);
+
+        $restaurant = Restaurant::access();
+        $tier = $data['price_tier'] === 'local' ? 'local' : 'international';
+        $reservation = RestaurantReservation::query()->create([
+            'reference' => 'TMP-'.Str::uuid(),
+            'names' => trim($data['names']),
+            'phone' => trim((string) ($data['phone'] ?? '')),
+            'email' => trim((string) ($data['email'] ?? '')),
+            'guests' => max(1, (int) ($data['guests'] ?? 1)),
+            'reserved_for' => now(),
+            'submit_via' => 'desk',
+            'price_tier' => $tier,
+            'locale' => 'en',
+            'status' => 'pending',
+            'payment_status' => 'unpaid',
+            'minimum_amount' => $restaurant->minimumFor($tier),
+            'total_amount' => 0,
+            'paid_amount' => 0,
+            'payment_choice' => 'full',
+            'claimed_amount' => 0,
+            'momo_code' => $restaurant->momoCode() !== '' ? $restaurant->momoCode() : null,
+            'momo_account_name' => $restaurant->momoAccountName() !== '' ? $restaurant->momoAccountName() : null,
+            'access_token' => Str::random(48),
+        ]);
+        $reservation->reference = 'R-'.str_pad((string) $reservation->id, 5, '0', STR_PAD_LEFT);
+        $reservation->save();
+
+        return redirect()
+            ->route('content-management.restaurant-reservations.show', $reservation)
+            ->with('success', 'Bill '.$reservation->reference.' is open. Add the items, confirm the payment, then print it.');
     }
 
     public function show(RestaurantReservation $reservation)
@@ -92,17 +284,23 @@ class RestaurantReservationController extends Controller
 
         $reservation->save();
         $reservation->load('items');
-        $sent = $this->emailGuest($reservation);
 
         if ($reservation->accessGranted()) {
-            $message = 'Payment received. Access is green. The guest was emailed the updated paid amount.';
+            $message = 'Payment received. Access is green.';
         } else {
             $message = 'Marked as not received. The paid amount is zero and access stays yellow.';
         }
 
+        if (! filled($reservation->email)) {
+            return back()->with('success', $message);
+        }
+
+        $sent = $this->emailGuest($reservation);
         if (! $sent) {
             return back()->with('warning', $message.' The email could not be sent. Check the mail settings and use Email the bill.');
         }
+
+        $message .= ' The guest was emailed the updated paid amount.';
 
         return back()->with('success', $message);
     }
@@ -221,5 +419,65 @@ class RestaurantReservationController extends Controller
         } finally {
             App::setLocale($previous);
         }
+    }
+
+    /**
+     * @return array{q: string, start_date: string, end_date: string}
+     */
+    private function reservationFilters(Request $request): array
+    {
+        return [
+            'q' => trim((string) $request->input('q', '')),
+            'start_date' => $this->filterDate($request->input('start_date')),
+            'end_date' => $this->filterDate($request->input('end_date')),
+        ];
+    }
+
+    private function filterDate(mixed $value): string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return '';
+        }
+
+        try {
+            return Carbon::parse($value)->toDateString();
+        } catch (\Throwable) {
+            return '';
+        }
+    }
+
+    /**
+     * @param  array{q: string, start_date: string, end_date: string}  $filters
+     */
+    private function reservationQuery(array $filters): Builder
+    {
+        $query = RestaurantReservation::query()->withCount('items');
+        if ($filters['q'] !== '') {
+            $term = '%'.$filters['q'].'%';
+            $query->where(function (Builder $inner) use ($term) {
+                $inner->where('names', 'like', $term)
+                    ->orWhere('phone', 'like', $term)
+                    ->orWhere('email', 'like', $term)
+                    ->orWhere('reference', 'like', $term);
+            });
+        }
+        if ($filters['start_date'] !== '') {
+            $query->whereDate('reserved_for', '>=', $filters['start_date']);
+        }
+        if ($filters['end_date'] !== '') {
+            $query->whereDate('reserved_for', '<=', $filters['end_date']);
+        }
+
+        return $query->orderByDesc('reserved_for')->orderByDesc('id');
+    }
+
+    private function bookedByLabel(?string $via): string
+    {
+        return match ($via) {
+            'whatsapp' => 'WhatsApp',
+            'phone' => 'Phone',
+            'desk' => 'At the desk',
+            default => 'Email',
+        };
     }
 }

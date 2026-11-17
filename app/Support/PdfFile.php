@@ -8,7 +8,7 @@ use Illuminate\Http\Response;
 
 class PdfFile
 {
-    public static function download(string $html, string $filename): Response
+    public static function download(string $html, string $filename, string $orientation = 'portrait'): Response
     {
         $options = new Options();
         $options->set('isRemoteEnabled', false);
@@ -17,7 +17,7 @@ class PdfFile
 
         $pdf = new Dompdf($options);
         $pdf->loadHtml($html, 'UTF-8');
-        $pdf->setPaper('A4');
+        $pdf->setPaper('A4', $orientation === 'landscape' ? 'landscape' : 'portrait');
         $pdf->render();
 
         $name = preg_replace('/[^A-Za-z0-9._-]+/', '-', $filename) ?: 'bill';

@@ -244,6 +244,7 @@ Route::middleware(['auth', 'admin'])->prefix('content-management')->name('conten
         Route::get('/reports', [App\Http\Controllers\FrontDeskController::class, 'reports'])->name('reports');
         Route::get('/pos', [App\Http\Controllers\FrontDeskController::class, 'pos'])->name('pos');
         Route::get('/pos/sales', [App\Http\Controllers\FrontDeskController::class, 'posSales'])->name('pos.sales');
+        Route::post('/pos/sales', [App\Http\Controllers\RestaurantReservationController::class, 'storeDesk'])->name('pos.sales.store');
         Route::get('/pos/reports', [App\Http\Controllers\FrontDeskController::class, 'posReports'])->name('pos.reports');
         Route::get('/pos/settings', [App\Http\Controllers\FrontDeskController::class, 'posSettings'])->name('pos.settings');
         Route::get('/settings', [App\Http\Controllers\FrontDeskController::class, 'settings'])->name('settings');
@@ -274,6 +275,9 @@ Route::middleware(['auth', 'admin'])->prefix('content-management')->name('conten
     Route::delete('/restaurant-menu/{item}', [App\Http\Controllers\RestaurantMenuController::class, 'destroy'])->name('restaurant-menu.destroy');
 
     Route::get('/restaurant-reservations', [App\Http\Controllers\RestaurantReservationController::class, 'index'])->name('restaurant-reservations');
+    Route::post('/restaurant-reservations', [App\Http\Controllers\RestaurantReservationController::class, 'storeStaff'])->name('restaurant-reservations.store');
+    Route::get('/restaurant-reservations/export.pdf', [App\Http\Controllers\RestaurantReservationController::class, 'exportPdf'])->name('restaurant-reservations.export.pdf');
+    Route::get('/restaurant-reservations/export.xls', [App\Http\Controllers\RestaurantReservationController::class, 'exportExcel'])->name('restaurant-reservations.export.xls');
     Route::get('/restaurant-reservations/{reservation}/pdf', [App\Http\Controllers\RestaurantReservationController::class, 'pdf'])->name('restaurant-reservations.pdf');
     Route::get('/restaurant-reservations/{reservation}', [App\Http\Controllers\RestaurantReservationController::class, 'show'])->name('restaurant-reservations.show');
     Route::post('/restaurant-reservations/{reservation}/status', [App\Http\Controllers\RestaurantReservationController::class, 'updateStatus'])->name('restaurant-reservations.status');

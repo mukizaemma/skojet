@@ -1,37 +1,31 @@
 @extends('layouts.adminBase')
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-pos">
+<link rel="stylesheet" href="{{ asset('assets/css/front-desk.css') }}?v=desk-pos-tiles">
 <div class="desk-app">
 @include('content-management.front-office.partials.header')
 <div class="desk-app__body">
-        <h4 class="mb-1">POS</h4>
-        <p class="text-muted mb-4">Restaurant sales, reservations, reports, menu, and access settings.</p>
+        <h4 class="mb-3">POS</h4>
         <div class="desk-pos">
-            <a class="desk-pos__card" href="{{ route('content-management.front-office.pos.sales') }}">
-                <i class="fas fa-receipt" aria-hidden="true"></i>
+            <a class="desk-pos__card desk-pos__card--sales" href="{{ route('content-management.front-office.pos.sales') }}">
+                <span class="desk-pos__icon" aria-hidden="true"><i class="fas fa-receipt"></i></span>
                 <strong>Sales</strong>
-                <span>Dining bills and food, drink, and coffee posted to a room.</span>
             </a>
-            <a class="desk-pos__card" href="{{ route('content-management.restaurant-reservations') }}">
-                <i class="fas fa-utensils" aria-hidden="true"></i>
+            <a class="desk-pos__card desk-pos__card--reservations" href="{{ route('content-management.restaurant-reservations') }}">
+                <span class="desk-pos__icon" aria-hidden="true"><i class="fas fa-utensils"></i></span>
                 <strong>Reservations</strong>
-                <span>Open a bill, add items, and confirm the payment.</span>
             </a>
-            <a class="desk-pos__card" href="{{ route('content-management.front-office.pos.reports') }}">
-                <i class="fas fa-chart-bar" aria-hidden="true"></i>
+            <a class="desk-pos__card desk-pos__card--reports" href="{{ route('content-management.front-office.pos.reports') }}">
+                <span class="desk-pos__icon" aria-hidden="true"><i class="fas fa-chart-bar"></i></span>
                 <strong>Reports</strong>
-                <span>What the restaurant sold, and which reservations were paid.</span>
             </a>
-            <a class="desk-pos__card" href="{{ route('content-management.front-office.settings.extras.index', ['section' => 'menu']) }}">
-                <i class="fas fa-book-open" aria-hidden="true"></i>
+            <a class="desk-pos__card desk-pos__card--menu" href="{{ route('content-management.front-office.settings.extras.index', ['section' => 'menu']) }}">
+                <span class="desk-pos__icon" aria-hidden="true"><i class="fas fa-book-open"></i></span>
                 <strong>Menu management</strong>
-                <span>Restaurant menu, and the extras that can be added to a room bill.</span>
             </a>
-            <a class="desk-pos__card" href="{{ route('content-management.front-office.pos.settings') }}">
-                <i class="fas fa-sliders-h" aria-hidden="true"></i>
+            <a class="desk-pos__card desk-pos__card--settings" href="{{ route('content-management.front-office.pos.settings') }}">
+                <span class="desk-pos__icon" aria-hidden="true"><i class="fas fa-sliders-h"></i></span>
                 <strong>Settings</strong>
-                <span>Reservation requirement, minimums, MoMo, and the guest link.</span>
             </a>
         </div>
     </div>
